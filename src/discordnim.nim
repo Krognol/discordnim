@@ -1260,7 +1260,7 @@ proc identify(s: Session) {.async, base.} =
 
 proc startHeartbeats(t: tuple[s: Session, i: int]) {.thread, gcsafe.} =
     var hb: JsonNode
-    while true:
+    while not t.s.suspended:
         if t.s.Sequence == 0:
             hb = %*{"op": OP_HEARTBEAT, "d": nil}
         else:
