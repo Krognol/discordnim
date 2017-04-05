@@ -19,7 +19,7 @@ proc messageDelete(s: Session, m: MessageDelete) =
 
 
 
-let s = NewSession("Bot MjM0MDUwNDQ4ODE2OTk2MzYz.C8bxPQ.hGNFiuNIc-6ORpQweZgIYdwTTCU")
+let s = NewSession("Bot <lol token>")
 s.messageCreate = messageCreate
 s.messageDelete = messageDelete
 
