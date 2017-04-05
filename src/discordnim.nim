@@ -1424,7 +1424,7 @@ proc SessionStart*(s: Session){.async, gcsafe.} =
     if s.Connection != nil:
         echo "Session is already connected"
         return
-    
+    s.suspended = true
     try:
         let socket = await newAsyncWebsocket("gateway.discord.gg", Port 443, "/"&GATEWAYVERSION, ssl = true)
         echo "connected"

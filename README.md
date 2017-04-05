@@ -6,7 +6,7 @@ Websockets from [niv/websocket.nim](https://github.com/niv/websocket.nim) -- Sli
 
 # Installing
 
-Use `git clone https://github.com/Krognol/discordnim.git` until the rep is available for nimble.
+Use `nimble install discordnim` until the rep is available for nimble.
 
 # Usage
 
