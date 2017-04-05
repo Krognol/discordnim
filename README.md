@@ -4,9 +4,33 @@ A Discord library for Nim.
 
 Websockets from [niv/websocket.nim](https://github.com/niv/websocket.nim) -- Slightly altered to make functional for threads.
 
-# Example
+# Installing
 
-Examples in the examples folder
+Use `git clone https://github.com/Krognol/discordnim.git` until the rep is available for nimble.
+
+# Usage
+
+There are some examples in the examples folder.
+
+The `Session` object is the only one you should be concerned about.
+It holds all REST API methods and gateway events.
+
+Initialising a `Session`:
+
+```nim
+proc someMessageCreateProc(s: Session, m: Message) =
+    ## do something
+
+let session = NewSession("Bot <your token>")
+## Add your gateway event methods
+
+session.messageCreate = someMessageCreateProc
+
+## Lastly you connect 
+s.StartSession()
+runForever()
+```
+
 
 All programs have to be compiled with the `-d:ssl` and `--threads:on` flags
 
