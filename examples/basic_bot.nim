@@ -1,3 +1,6 @@
+## Has to be compiled with 
+## '-d:ssl' and '--threads:on' flags
+
 import asyncdispatch, discord
 
 proc messageCreate(s: Session, m: Message) =
