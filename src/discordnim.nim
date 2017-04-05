@@ -8,7 +8,7 @@ type
         `type`*: string
         allow*: int
         deny*: int
-    DiscordChannel* = object
+    Channel* = object
         id*: string
         guild_id*: string
         name*: string
@@ -20,7 +20,7 @@ type
         last_message_id*: string
         bitrate*: int
         user_limit*: int
-        recipient*: User
+        recipients*: seq[User]
     Message* = object
         `type`: int
         tts*: bool
@@ -131,7 +131,7 @@ type
         member_count*: int
         voice_states*: seq[VoiceState]
         members*: seq[GuildMember]
-        channels*: seq[DiscordChannel]
+        channels*: seq[Channel]
         presences*: seq[Presence]
         application_id*: string
     GuildMember* = object
@@ -309,6 +309,11 @@ type
         endpoint: string
     Resumed* = object
         trace*: seq[string]
+    State* = ref object
+        version*: int
+        me*: User
+        private_channels*: seq[Channel]
+        guilds*: seq[Guild]
     Session* = ref object
         Mut: Lock
         Token*: string
@@ -317,16 +322,17 @@ type
         ShardCount*: int
         Sequence*: int
         Gateway*: string
-        Session_ID*: string
+        Session_ID: string
         Limiter: ref RateLimiter   
         Connection*: AsyncWebSocket
+        State*: State
         shouldResume: bool
         suspended: bool
         invalidated: bool
         # Temporary until better solution is found
-        channelCreate*:           proc(s: Session, p: DiscordChannel)
-        channelUpdate*:           proc(s: Session, p: DiscordChannel)
-        channelDelete*:           proc(s: Session, p: DiscordChannel)
+        channelCreate*:           proc(s: Session, p: Channel)
+        channelUpdate*:           proc(s: Session, p: Channel)
+        channelDelete*:           proc(s: Session, p: Channel)
         guildCreate*:             proc(s: Session, p: Guild)
         guildUpdate*:             proc(s: Session, p: Guild)
         guildDelete*:             proc(s: Session, p: GuildDelete)
@@ -571,9 +577,9 @@ method Login(s : Session, email, password : string) {.base.} =
 
 # Temporary until a better solution is found
 method initEvents(s: Session) {.base.} =
-    s.channelCreate =           proc(s: Session, p: DiscordChannel) = return
-    s.channelUpdate =           proc(s: Session, p: DiscordChannel) = return
-    s.channelDelete =           proc(s: Session, p: DiscordChannel) = return
+    s.channelCreate =           proc(s: Session, p: Channel) = return
+    s.channelUpdate =           proc(s: Session, p: Channel) = return
+    s.channelDelete =           proc(s: Session, p: Channel) = return
     s.guildCreate =             proc(s: Session, p: Guild) = return
     s.guildUpdate =             proc(s: Session, p: Guild) = return
     s.guildDelete =             proc(s: Session, p: GuildDelete) = return
@@ -603,7 +609,7 @@ proc NewSession*(args: varargs[string, `$`]): Session =
     ## Creates a new Session
     
     var 
-        s = Session(Mut: Lock(), Compress: false, Limiter: newRateLimiter())
+        s = Session(Mut: Lock(), Compress: false, Limiter: newRateLimiter(), State: State())
         auth: string = ""
         pass: string = ""
     
@@ -627,11 +633,11 @@ proc NewSession*(args: varargs[string, `$`]): Session =
     s.initEvents()
     return s
 
-method Channel*(s: Session, channel_id: string): DiscordChannel {.base.} =
+method GetChannel*(s: Session, channel_id: string): Channel {.base.} =
     ## Returns the channel with the given ID
     var url = EndpointGetChannel(channel_id)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    let chan = to[DiscordChannel](res.body)
+    let chan = to[Channel](res.body)
     return chan
 
 method ModifyChannel*(s: Session, channelid: string, params: ChannelParams): Guild {.base.} =
@@ -641,11 +647,11 @@ method ModifyChannel*(s: Session, channelid: string, params: ChannelParams): Gui
     let guild = to[Guild](res.body)
     return guild
 
-method DeleteChannel*(s: Session, channelid: string): DiscordChannel {.base.} =
+method DeleteChannel*(s: Session, channelid: string): Channel {.base.} =
     ## Deletes a channel
     var url = EndpointDeleteChannel(channelid)
     let res = s.Request(url, "DELETE", url, "application/json", "", 0)
-    let chan = to[DiscordChannel](res.body)
+    let chan = to[Channel](res.body)
     return chan
 
 method ChannelMessages*(s: Session, channelid: string, before, after, around: string, limit: int): seq[Message] {.base.} =
@@ -845,27 +851,27 @@ method DeleteGuild*(s: Session, guild: string): Guild {.base.} =
     let guild = to[Guild](res.body)
     return guild
 
-method GuildChannels*(s: Session, guild: string): seq[DiscordChannel] {.base.} =
+method GuildChannels*(s: Session, guild: string): seq[Channel] {.base.} =
     ## Returns all guild channels
     var url = EndpointGetGuildChannels(guild)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    let channels = to[seq[DiscordChannel]](res.body)
+    let channels = to[seq[Channel]](res.body)
     return channels
 
-method GuildChannelCreate*(s: Session, guild, channelname: string, voice: bool): DiscordChannel {.base.} =
+method GuildChannelCreate*(s: Session, guild, channelname: string, voice: bool): Channel {.base.} =
     ## Creates a new channel in a guild
     var url = EndpointCreateGuildChannel(guild)
     let payload = %*{"name": channelname, "voice": voice}
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    let channel = to[DiscordChannel](res.body)
+    let channel = to[Channel](res.body)
     return channel
 
-method ModifyGuildChannelPosition*(s: Session, guild, channel: string, position: int): seq[DiscordChannel] {.base.} =
+method ModifyGuildChannelPosition*(s: Session, guild, channel: string, position: int): seq[Channel] {.base.} =
     ## Reorders the position of a channel and returns the new order
     var url = EndpointModifyGuildChannelPositions(guild)
     let payload = %*{"id": channel, "position": position}
     let res = s.Request(url, "PATCH", url, "application/json", $payload, 0)
-    let channels = to[seq[DiscordChannel]](res.body)
+    let channels = to[seq[Channel]](res.body)
     return channels
 
 method GuildMembers*(s: Session, guild: string, limit, after: int): seq[GuildMember] {.base.} =
@@ -1141,19 +1147,19 @@ method LeaveGuild*(s: Session, guild: string) {.base.} =
     var url = EndpointLeaveGuild(guild)
     discard s.Request(url, "DELETE", url, "application/json", "", 0)
 
-method DMs*(s: Session): seq[DiscordChannel] {.base.} =
+method DMs*(s: Session): seq[Channel] {.base.} =
     ## Lists all active DM channels
     var url = EndpointGetUserDMs()
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    let channels = to[seq[DiscordChannel]](res.body)
+    let channels = to[seq[Channel]](res.body)
     return channels
 
-method DMCreate*(s: Session, recipient: string): DiscordChannel {.base.} =
+method DMCreate*(s: Session, recipient: string): Channel {.base.} =
     ## Creates a new DM channel
     var url = EndpointCreateDM()
     let payload = %*{"recipient_id": recipient}
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    let channel = to[DiscordChannel](res.body)
+    let channel = to[Channel](res.body)
     return channel
 
 method VoiceRegions*(s: Session): seq[VoiceRegion] {.base.} =
@@ -1277,17 +1283,21 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
     case event:
         of "READY":
             s.Session_id = data["session_id"].str
+            s.State.version = int(data["v"].num)
+            s.State.me = to[User]($data["user"])
+            s.State.private_channels = to[seq[Channel]]($data["private_channels"])
+            s.State.guilds = to[seq[Guild]]($data["guilds"])
         of "RESUMED":
             let payload = to[Resumed]($data)
             s.onResume(s, payload)
         of "CHANNEL_CREATE":
-            let payload = to[DiscordChannel]($data)
+            let payload = to[Channel]($data)
             s.channelCreate(s, payload)
         of "CHANNEL_UPDATE":
-            let payload = to[DiscordChannel]($data)
+            let payload = to[Channel]($data)
             s.channelUpdate(s, payload)
         of "CHANNEL_DELETE":
-            let payload = to[DiscordChannel]($data)
+            let payload = to[Channel]($data)
             s.channelDelete(s, payload)
         of "GUILD_CREATE":
             let payload = to[Guild]($data)
