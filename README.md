@@ -31,8 +31,9 @@ s.StartSession()
 runForever()
 ```
 
-
 All programs have to be compiled with the `-d:ssl` and `--threads:on` flags
+
+[Documentation](https://krognol.github.io/discordnim/)
 
 # Contributing
 
