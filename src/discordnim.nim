@@ -307,6 +307,8 @@ type
         token: string
         guild_id: string
         endpoint: string
+    Resumed* = object
+        trace*: seq[string]
     Session* = ref object
         Mut: Lock
         Token*: string
@@ -318,6 +320,9 @@ type
         Session_ID*: string
         Limiter: ref RateLimiter   
         Connection*: AsyncWebSocket
+        shouldResume: bool
+        suspended: bool
+        invalidated: bool
         # Temporary until better solution is found
         channelCreate*:           proc(s: Session, p: DiscordChannel)
         channelUpdate*:           proc(s: Session, p: DiscordChannel)
@@ -344,6 +349,7 @@ type
         userUpdate*:              proc(s: Session, p: User)
         voiceStateUpdate*:        proc(s: Session, p: VoiceState)
         voiceServerUpdate*:       proc(s: Session, p: VoiceServerUpdate)
+        onResume*:                proc(s: Session, p: Resumed)
     RateLimiter = object
         Mut: Lock
         Global: ref Bucket
@@ -590,6 +596,7 @@ method initEvents(s: Session) {.base.} =
     s.userUpdate =              proc(s: Session, p: User) = return
     s.voiceStateUpdate =        proc(s: Session, p: VoiceState) = return
     s.voiceServerUpdate =       proc(s: Session, p: VoiceServerUpdate) = return
+    s.onResume =                proc(s: Session, p: Resumed) = return
 
 
 proc NewSession*(args: varargs[string, `$`]): Session =
@@ -1266,11 +1273,13 @@ proc startHeartbeats(t: tuple[s: Session, i: int]) {.thread, gcsafe.} =
             return
         sleep t.i
 
-
 proc handleDispatch(s: Session, event: string, data: JsonNode) =
     case event:
         of "READY":
             s.Session_id = data["session_id"].str
+        of "RESUMED":
+            let payload = to[Resumed]($data)
+            s.onResume(s, payload)
         of "CHANNEL_CREATE":
             let payload = to[DiscordChannel]($data)
             s.channelCreate(s, payload)
@@ -1349,6 +1358,26 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
         else:
             discard
 
+proc resume(s: Session) {.async, gcsafe.} =
+    let payload = %*{
+        "token": s.Token,
+        "session_id": s.Session_ID,
+        "seq": s.Sequence
+    }
+
+    await s.Connection.sock.sendText($payload, true)
+
+proc reconnect(s: Session) {.async, gcsafe.} =
+    await s.Connection.close()
+    discard s.Connection
+    s.Connection = await newAsyncWebsocket("gateway.discord.gg", Port 443, "/"&GATEWAYVERSION, ssl = true)
+    s.Sequence = 0
+    s.Session_ID = ""
+    await s.identify()
+
+method shouldResumeSession(s: Session): bool {.base.} =
+    return (not s.invalidated) and (not s.suspended)
+
 proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.}  = 
     await s.identify()
     var thread: array[0..1, Thread[(Session, int)]]
@@ -1362,23 +1391,32 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.}  =
             
         case data["op"].num:
             of OP_HELLO:
-                let interval = data["d"].fields["heartbeat_interval"].num
-                createThread(thread[0], startHeartbeats, (s, int(interval)))
+                if s.shouldResumeSession():
+                    await s.resume()
+                else:
+                    let interval = data["d"].fields["heartbeat_interval"].num
+                    createThread(thread[0], startHeartbeats, (s, int(interval)))
+                    joinThreads(thread)
             of OP_HEARTBEAT:
                 let hb = %*{"op": OP_HEARTBEAT, "d": s.Sequence}
                 waitFor s.Connection.sock.sendText($hb, true)
             of OP_INVALID_SESSION:
                 s.Sequence = 0
                 s.Session_ID = ""
+                s.invalidated = true
                 echo "session invalidated"
                 if data["d"].bval == false:
                     await s.identify()
+            of OP_RECONNECT:
+                s.suspended = true
+                await s.reconnect()
             of OP_DISPATCH:
                 let event = data["t"].str
                 handleDispatch(s, event, data["d"])
             else: 
                 echo $data
     echo "connection closed\c\L" 
+    s.suspended = true
     return
 
 proc SessionStart*(s: Session){.async, gcsafe.} =
