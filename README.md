@@ -6,7 +6,7 @@ Websockets from [niv/websocket.nim](https://github.com/niv/websocket.nim) -- Sli
 
 # Installing
 
-Use `nimble install discordnim` until the rep is available for nimble.
+`nimble install discordnim`
 
 # Usage
 
