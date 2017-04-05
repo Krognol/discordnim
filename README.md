@@ -8,6 +8,8 @@ Websockets from [niv/websocket.nim](https://github.com/niv/websocket.nim) -- Sli
 
 Examples in the examples folder
 
+All programs have to be compiled with the `-d:ssl` and `--threads:on` flags
+
 # Contributing
 
 1. Fork it ( https://github.com/Krognol/discordnim/fork )
