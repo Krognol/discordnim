@@ -138,7 +138,7 @@ type
         guild_id*: string
         user*: User
         nick*: string
-        roles*: seq[Role]
+        roles*: seq[string]
         joined_at*: string
         deaf*: bool
         mute*: bool
@@ -708,15 +708,15 @@ method SendMessageTTS*(s: Session, channelid, message: string): Message {.base, 
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
     result = to[Message](res.body)
 
-#[
+
     ## TODO
     ## On hold; returns 401
+#[
 method SendFileWithMessage*(s: Session, channelid, name, message: string): Message {.base, gcsafe.} =
     var data = newMultipartData()
     var url = EndpointCreateMessage(channelid)
     data.add({"content": message})
-    data.addFiles({"file": readFile(name)})
-
+    data.addFiles({"file": name})
     let res = s.Request(url, "POST", url, "multipart/form-data", "", 0, data)
     let msg = to[Message](res.body)
     return msg
