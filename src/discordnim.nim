@@ -63,33 +63,33 @@ type
         provider*: Provider
         author*: Author
         fields*: seq[Field]
-    Thumbnail* = object
+    Thumbnail* = ref object
         url*: string
         proxy_url*: string
         height*: int
         width*: int
-    Video* = object
+    Video* = ref object
         url*: string
         height*: int
         width*: int
-    Image* = object
+    Image* = ref object
         url*: string
         proxy_url*: string
         height*: int
         width*: int
-    Provider* = object
+    Provider* = ref object
         name*: string
         url*: string
-    Author* = object
+    Author* = ref object
         name*: string
         url*: string
         icon_url*: string
         proxy_icon_url*: string
-    Footer* = object
+    Footer* = ref object
         text*: string
         icon_url*: string
         proxy_icon_url*: string
-    Field* = object
+    Field* = ref object
         name*: string
         value*: string
         inline*: bool
@@ -689,17 +689,9 @@ method SendMessage*(s: Session, channelid, message: string): Message {.base, gcs
     result = to[Message](res.body)
     
 
-method SendMessageEmbed*(s: Session, channelid: string, embed: var Embed): Message {.base, gcsafe.} =
+method SendMessageEmbed*(s: Session, channelid: string, embed: Embed): Message {.base, gcsafe.} =
     ## Sends an Embed message to a channel
     var url = EndpointCreateMessage(channelid)
-    let empty = Embed()
-
-    if embed == empty:
-        echo "Can't send an empty embed"
-        return
-    
-    if embed.type != "rich":
-        embed.type = "rich"
 
     let payload = %*{
         "content": "",
@@ -1243,13 +1235,6 @@ method ExecuteWebhook*(s: Session, webhook, token: string, wait: bool, payload: 
     var url = EndpointExecuteWebhook(webhook, token)
     discard s.Request(url, "POST", url, "application/json", $$payload, 0)
 
-#TODO
-# method ExecuteSlackCompatibleWebhook()
-
-#TODO
-# method ExecuteGithubCompatibleWebhook()
-
-
 proc identify(s: Session) {.async, base.} =
     var properties = %*{
         "$os": system.hostOS,
@@ -1297,84 +1282,85 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
             s.State.guilds = to[seq[Guild]]($data["guilds"])
         of "RESUMED":
             let payload = to[Resumed]($data)
-            s.onResume(s, payload)
+            spawn s.onResume(s, payload)
         of "CHANNEL_CREATE":
             let payload = to[Channel]($data)
-            s.channelCreate(s, payload)
+            spawn s.channelCreate(s, payload)
         of "CHANNEL_UPDATE":
             let payload = to[Channel]($data)
-            s.channelUpdate(s, payload)
+            spawn s.channelUpdate(s, payload)
         of "CHANNEL_DELETE":
             let payload = to[Channel]($data)
-            s.channelDelete(s, payload)
+            spawn s.channelDelete(s, payload)
         of "GUILD_CREATE":
             let payload = to[Guild]($data)
-            s.guildCreate(s, payload)
+            spawn s.guildCreate(s, payload)
         of "GUILD_UPDATE":
             let payload = to[Guild]($data)
-            s.guildUpdate(s, payload)
+            spawn s.guildUpdate(s, payload)
         of "GUILD_DELETE":
             let payload = to[GuildDelete]($data)
-            s.guildDelete(s, payload)
+            spawn s.guildDelete(s, payload)
         of "GUILD_BAN_ADD":
             let payload = to[User]($data)
-            s.guildBanAdd(s, payload)
+            spawn s.guildBanAdd(s, payload)
         of "GUILD_BAN_REMOVE":
             let payload = to[User]($data)
-            s.guildBanRemove(s, payload)
+            spawn s.guildBanRemove(s, payload)
         of "GUILD_EMOJIS_UPDATE":
             let payload = to[GuildEmojisUpdate]($data)
-            s.guildEmojisUpdate(s, payload)
+            spawn s.guildEmojisUpdate(s, payload)
         of "GUILD_INTEGRATIONS_UPDATE":
             let payload = to[GuildIntegrationsUpdate]($data)
-            s.guildIntegrationsUpdate(s, payload)
+            spawn s.guildIntegrationsUpdate(s, payload)
         of "GUILD_MEMBER_ADD":
             let payload = to[GuildMember]($data)
-            s.guildMemberAdd(s, payload)
+            spawn s.guildMemberAdd(s, payload)
         of "GUILD_MEMBER_UPDATE":
             let payload = to[GuildMember]($data)
-            s.guildMemberUpdate(s, payload)
+            spawn s.guildMemberUpdate(s, payload)
         of "GUILD_MEMBER_REMOVE":
             let payload = to[GuildMember]($data)
-            s.guildMemberRemove(s, payload)
+            spawn s.guildMemberRemove(s, payload)
         of "GUILD_ROLE_CREATE":
             let payload = to[GuildRoleCreate]($data)
-            s.guildRoleCreate(s, payload)
+            spawn s.guildRoleCreate(s, payload)
         of "GUILD_ROLE_UPDATE":
             let payload = to[GuildRoleUpdate]($data)
-            s.guildRoleUpdate(s, payload)
+            spawn s.guildRoleUpdate(s, payload)
         of "GUILD_ROLE_DELETE":
             let payload = to[GuildRoleDelete]($data)
-            s.guildRoleDelete(s, payload)
+            spawn s.guildRoleDelete(s, payload)
         of "MESSAGE_CREATE":
             let payload = to[Message]($data)
-            s.messageCreate(s, payload)
+            spawn s.messageCreate(s, payload)
         of "MESSAGE_UPDATE":
             let payload = to[Message]($data)
-            s.messageUpdate(s, payload)
+            spawn s.messageUpdate(s, payload)
         of "MESSAGE_DELETE":
             let payload = to[MessageDelete]($data)
-            s.messageDelete(s, payload)
+            spawn s.messageDelete(s, payload)
         of "MESSAGE_DELETE_BULK":
             let payload = to[MessageDeleteBulk]($data)
-            s.messageDeleteBulk(s, payload)
+            spawn s.messageDeleteBulk(s, payload)
         of "PRESENCE_UPDATE":
             let payload = to[PresenceUpdate]($data)
-            s.presenceUpdate(s, payload)
+            spawn s.presenceUpdate(s, payload)
         of "TYPING_START":
             let payload = to[TypingStart]($data)
-            s.typingStart(s, payload)
+            spawn s.typingStart(s, payload)
         of "USER_UPDATE":
             let payload = to[User]($data)
-            s.userUpdate(s, payload)
+            spawn s.userUpdate(s, payload)
         of "VOICE_STATE_UPDATE":
             let payload = to[VoiceState]($data)
-            s.voiceStateUpdate(s, payload)
+            spawn s.voiceStateUpdate(s, payload)
         of "VOICE_SERVER_UPDATE":
             let payload = to[VoiceServerUpdate]($data)
-            s.voiceServerUpdate(s, payload)
+            spawn s.voiceServerUpdate(s, payload)
         else:
             discard
+    sync()
 
 proc resume(s: Session) {.async, gcsafe.} =
     let payload = %*{
@@ -1430,8 +1416,7 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.}  =
                 await s.reconnect()
             of OP_DISPATCH:
                 let event = data["t"].str
-                spawn handleDispatch(s, event, data["d"])
-                sync()
+                handleDispatch(s, event, data["d"])
             else:
                 echo $data
     echo "connection closed\c\L" 
@@ -1453,3 +1438,20 @@ proc SessionStart*(s: Session){.async, gcsafe.} =
     except:
         echo getCurrentExceptionMsg()
         return
+
+
+# Helper functions
+
+proc initMessageEmbed*(): Embed {.gcsafe.} =
+    result = Embed(
+        title: "",
+        description: "",
+        color: 0,
+        footer: nil,
+        image: nil,
+        thumbnail: nil,
+        video: nil,
+        provider: nil,
+        author: nil,
+        fields: @[]
+    )
