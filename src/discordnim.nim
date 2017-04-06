@@ -525,8 +525,8 @@ method Release(b : ref Bucket, headers : HttpHeaders) {.base.} =
 
 # REST API json objects
 
-method Request(s : Session, bucketid: var string, meth, url, contenttype, b : string, sequence : int): Response {.base.} =
-    var client = newHttpClient("DiscordBot(https://github.com/Krognol/discord-nim, v0.0.1)")
+method Request(s : Session, bucketid: var string, meth, url, contenttype, b : string, sequence : int, mp: MultipartData = nil): Response {.base.} =
+    var client = newHttpClient("DiscordBot(https://github.com/Krognol/discordnim, v0.1.0)")
     
     if bucketid == "":
         bucketid = split(url, "?", 2)[0]
@@ -537,8 +537,11 @@ method Request(s : Session, bucketid: var string, meth, url, contenttype, b : st
         client.headers["Authorization"] = s.Token
 
     client.headers["Content-Type"] = contenttype
-    var res: Response = cast[Response](client.request(url, meth, b))
-
+    var res: Response
+    if mp == nil:
+        res = client.request(url, meth, b)
+    elif mp != nil and meth == "POST":
+        res = client.post(url, b, mp)
     bucket.Release(res.headers)
 
     case res.status:
@@ -548,9 +551,9 @@ method Request(s : Session, bucketid: var string, meth, url, contenttype, b : st
     of "409":
         var rl = parseJson(res.body)
         sleep int(rl["retry_after"].num)
-
         res = s.Request(bucketid, meth, url, contenttype, b, sequence)
     else: discard
+
     client.close()
     return res
 
@@ -719,9 +722,23 @@ method SendMessageTTS*(s: Session, channelid, message: string): Message {.base.}
     let msg = to[Message](res.body)
     return msg
 
-# TODO
-#method SendFile()
 
+#[
+    ## TODO
+    ## On hold; returns 401
+method SendFileWithMessage*(s: Session, channelid, name, message: string): Message {.base.} =
+    var data = newMultipartData()
+    var url = EndpointCreateMessage(channelid)
+    data.add({"content": message})
+    data.addFiles({"file": readFile(name)})
+
+    let res = s.Request(url, "POST", url, "multipart/form-data", "", 0, data)
+    let msg = to[Message](res.body)
+    return msg
+
+method SendFile*(s: Session, channelid, name: string): Message {.base.} =
+    return s.SendFileWithMessage(channelid, name, "")
+]#
 method MessageAddReaction*(s: Session, channelid, messageid, emojiid: string) {.base.} =
     ## Adds a reaction to a message
     var url = EndpointCreateReaction(channelid, messageid, emojiid)
