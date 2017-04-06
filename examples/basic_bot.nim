@@ -5,6 +5,7 @@ import asyncdispatch, discord
 
 proc messageCreate(s: Session, m: Message) =
     echo "Message was created!"
+    if s.State.me.id == m.author.id: return
     if m.content == "ping":
         discard s.SendMessage(m.channel_id, "pong")
     elif m.content == "you're stupid!":
