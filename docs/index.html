@@ -1718,6 +1718,12 @@ function main() {
                  image: Image = nil; thumb: Thumbnail = nil; video: Video = nil;
                  provider: Provider = nil; author: Author = nil;
                  fields: seq[Field] = @ []): Embed"><wbr />new<wbr />Message<wbr />Embed<span class="attachedType" style="visibility:hidden"></span></a></li>
+  <li><a class="reference" href="#$,User"
+    title="`$`*(u: User): string">`<wbr />$`<span class="attachedType" style="visibility:hidden"></span></a></li>
+  <li><a class="reference" href="#StripMentions,Message"
+    title="StripMentions*(msg: Message): string"><wbr />Strip<wbr />Mentions<span class="attachedType" style="visibility:hidden"></span></a></li>
+  <li><a class="reference" href="#StripEveryoneMention,Message"
+    title="StripEveryoneMention*(msg: Message): string"><wbr />Strip<wbr />Everyone<wbr />Mention<span class="attachedType" style="visibility:hidden"></span></a></li>
 
   </ul>
 </li>
@@ -3104,6 +3110,33 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L1432" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
+<dt id="$"><a name="$,User"></a><pre><span class="Keyword">proc</span> <span class="Other">`</span><span class="Operator">$</span><span class="Other">`</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">u</span><span class="Other">:</span> <span class="Identifier">User</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span><span class="Other">,</span> <span class="Identifier">inline</span></div><span class="Other pragmaend">.}</span></pre></dt>
+<dd>
+Stringifies a user e.g: Username#1234
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L1452"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L1452" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="StripMentions"><a name="StripMentions,Message"></a><pre><span class="Keyword">proc</span> <span class="Identifier">StripMentions</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">msg</span><span class="Other">:</span> <span class="Identifier">Message</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
+<dd>
+Strips all user mentions from a message and replaces them with plaintext e.g: &lt;@1901092738173&gt; -&gt; @Username#1234
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L1457"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L1457" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="StripEveryoneMention"><a name="StripEveryoneMention,Message"></a><pre><span class="Keyword">proc</span> <span class="Identifier">StripEveryoneMention</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">msg</span><span class="Other">:</span> <span class="Identifier">Message</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
+<dd>
+Strips a message of any @everyone and @here mention
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L1470"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L1470" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
 
 </dl></div>
 <div class="section" id="13">
@@ -3883,7 +3916,7 @@ class="link-seesrc" target="_blank">Source</a>
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br/>
-        <small>Made with Nim. Generated: 2017-04-07 19:38:31 UTC</small>
+        <small>Made with Nim. Generated: 2017-04-07 19:40:05 UTC</small>
       </div>
     </div>
   </div>
