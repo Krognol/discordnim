@@ -151,8 +151,8 @@ type
         role_id*: string
         expire_behavior*: int
         expire_grace_period*: int
-        iUser*: User
-        iAccount*: Account
+        user*: User
+        account*: Account
         synced_at*: string
     Account* = object
         id*: string
@@ -160,7 +160,7 @@ type
     Invite* = object
         code*: string
         guild*: InviteGuild
-        iChannel*: InviteChannel
+        channel*: InviteChannel
     InviteMetadata* = object
         inviter*: User
         uses*: int
