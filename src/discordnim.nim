@@ -804,11 +804,18 @@ method ChannelDeletePinnedMessage*(s: Session, channel, message: string) {.base,
     var url = EndpointDeletePinnedChannelMessage(channel, message)
     discard s.Request(url, "DELETE", url, "application/json", "", 0)
 
-# TODO
-method CreateGroupDM*(s: Session, accesstokens: seq[string]): Channel {.base, gcsafe.} =
-    ## Unimplemented.
+# This might work?
+type AddGroupDMUser* = object
+    id: string
+    nick: string
+
+# This might work?
+method CreateGroupDM*(s: Session, accesstokens: seq[string], nicks: seq[AddGroupDMUser]): Channel {.base, gcsafe.} =
     ## Creates a group DM channel
-    return Channel()
+    var url = EndpointCreateGroupDM()
+    let payload = %*{"access_tokens": accesstokens, "nicks": nicks}
+    let res = s.Request(url, "POST", url, "application/json", $payload, 0)
+    result = to[Channel](res.body)
 
 method GroupDMAddUser*(s: Session, channelid, userid, access_token, nick: string) {.base, gcsafe.} =
     ## Adds a user to a group dm.
