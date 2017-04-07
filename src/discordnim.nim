@@ -1,6 +1,6 @@
 include endpoints
-import httpclient, marshal, json, 
-       locks, tables, times, strutils, net,
+import httpclient, marshal, json, re,
+       locks, tables, times, strutils, net, macros,
        os, typetraits, websocket/shared, asyncdispatch, asyncnet, threadpool
 type
     Overwrite* = object
@@ -320,7 +320,7 @@ type
         Compress*: bool
         ShardID*: int
         ShardCount*: int
-        Sequence*: int
+        Sequence: int
         Gateway*: string
         Session_ID: string
         Limiter: ref RateLimiter   
@@ -360,7 +360,7 @@ type
         Mut: Lock
         Global: ref Bucket
         Buckets: Table[string, ref Bucket]
-        GlobalRateLimit: TimeInterval#TimeInterval
+        GlobalRateLimit: TimeInterval
     Bucket = object
         Mut: Lock
         Key: string
@@ -385,22 +385,6 @@ const
     OP_INVALID_SESSION* = 9
     OP_HELLO* = 10
     OP_HEARTBEAT_ACK* = 11
-
-# Unused for now
-type 
-    DiscordError* = enum
-        ERR_UNKNOWN = (4000, "We're not sure what went wrong. Try reconnecting?")
-        ERR_UNKNOWN_OPCODE = (4001, "You sent and invalid Gateway OP Code. Don't do that!")
-        ERR_DECODE_ERROR = (4002, "You send an invalid payload to us. Don't do that!")
-        ERR_NOT_AUTHENTICATED = (4003, "You send us a payload prior to identifying.")
-        ERR_AUTHENTICATION_FAILED = (4004, "The acoount token sent with your identify payload is incorrect.")
-        ERR_ALREAD_AUTHENTICATED = (4005, "You send more than one identify payload. Don't do that!")
-        ERR_INVALID_SEQ = (4007, "The sequence sent when resuming the session was invalid. Reconnect and start a new session.")
-        ERR_RATE_LIMITED = (4008, "Woah nelly! You're sending payloads to us too quickly. Slow it down!")
-        ERR_SESSION_TIMEOUT = (4009, "Your session timed out. Reconnect and start a new one.")
-        ERR_INVALID_SHARD = (4010, "You sent us an invalid shard when identifying.")
-        ERR_SHARDING_REQUIRED = (4011, "The session would have handled too many guilds - you are required to shard your connection in order to connect.")
-
 
 
 # Permissions
@@ -708,16 +692,19 @@ method SendMessageTTS*(s: Session, channelid, message: string): Message {.base, 
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
     result = to[Message](res.body)
 
-
+#[
     ## TODO
     ## On hold; returns 401
-#[
 method SendFileWithMessage*(s: Session, channelid, name, message: string): Message {.base, gcsafe.} =
     var data = newMultipartData()
     var url = EndpointCreateMessage(channelid)
-    data.add({"content": message})
-    data.addFiles({"file": name})
+    
+    let payload = %*{"content": message}
+    data.add("payload_json", encodeUrl($payload), contentType = "application/json")
+    data = data.addFiles({"file": name})
+
     let res = s.Request(url, "POST", url, "multipart/form-data", "", 0, data)
+    echo res.body
     let msg = to[Message](res.body)
     return msg
 
@@ -1442,7 +1429,7 @@ proc SessionStart*(s: Session){.async, gcsafe.} =
 
 # Helper functions
 
-proc initMessageEmbed*(): Embed {.gcsafe.} =
+proc newMessageEmbed*(): Embed {.gcsafe.} =
     result = Embed(
         title: "",
         description: "",
@@ -1455,3 +1442,20 @@ proc initMessageEmbed*(): Embed {.gcsafe.} =
         author: nil,
         fields: @[]
     )
+
+proc `$`(u: User): string {.gcsafe, inline.} =
+    result = u.username & "#" & u.discriminator
+
+proc StripMentions(msg: Message): string {.gcsafe.} =  
+    if msg.mentions == nil: return msg.content
+
+    var content = msg.content
+
+    for user in msg.mentions:
+        let regex = r"<@!?(" & user.id & ")>"
+        content = content.replace(regex, "@" & $user)
+    result = content
+
+proc StripEveryoneMention(msg: Message): string {.gcsafe.} =
+    if not msg.mention_everyone: return msg.content
+    result = msg.content.replace("(@everyone)").replace("(@here)")
