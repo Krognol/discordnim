@@ -1435,6 +1435,7 @@ proc newMessageEmbed*(title, description: string = "",
                       video: Video = nil,
                       provider: Provider = nil,
                       author: Author = nil, fields: seq[Field] = @[]): Embed {.gcsafe.} =
+    ## Initialises a new Embed object
     result = Embed(
         title: title,
         description: description,
@@ -1449,9 +1450,14 @@ proc newMessageEmbed*(title, description: string = "",
     )
 
 proc `$`(u: User): string {.gcsafe, inline.} =
+    ## Stringifies a user 
+    ## e.g: Username#1234
     result = u.username & "#" & u.discriminator
 
 proc StripMentions(msg: Message): string {.gcsafe.} =  
+    ## Strips all user mentions from a message
+    ## and replaces them with plaintext
+    ## e.g: <@1901092738173> -> @Username#1234
     if msg.mentions == nil: return msg.content
 
     var content = msg.content
@@ -1462,5 +1468,6 @@ proc StripMentions(msg: Message): string {.gcsafe.} =
     result = content
 
 proc StripEveryoneMention(msg: Message): string {.gcsafe.} =
+    ## Strips a message of any @everyone and @here mention
     if not msg.mention_everyone: return msg.content
     result = msg.content.replace("(@everyone)").replace("(@here)")
