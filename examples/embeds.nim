@@ -15,11 +15,11 @@ proc messageCreate(s: Session, m: Message) =
         # e.g Author, Footer, etc.
         # they should always be set to nil
         # Your bot will crash if they're not set to nil
-        var embed = initMessageEmbed()
-        embed.title = "Embed title"
-        embed.description = "Embed description"
-        embed.url = "https://github.com/Krognol/discordnim"
-        embed.color = 0xFF3245
+        var embed = newMessageEmbed(
+            title = "Embed title", 
+            description = "Embed description",
+            url = "https://github.com/Krognol/discordnim",
+            color = 0xFF3245)
         discard s.SendMessageEmbed(m.channel_id, embed)
 
 
