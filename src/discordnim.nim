@@ -49,7 +49,7 @@ type
         roles*: seq[Role]
         require_colons*: bool
         managed*: bool
-    Embed* = object
+    Embed* = ref object
         title*: string
         `type`*: string
         description*: string
@@ -1429,25 +1429,7 @@ proc SessionStart*(s: Session){.async, gcsafe.} =
 
 # Helper functions
 
-proc newMessageEmbed*(title, description: string = "", 
-                      color: int = 0, footer: Footer = nil,
-                      image: Image = nil, thumb: Thumbnail = nil,
-                      video: Video = nil,
-                      provider: Provider = nil,
-                      author: Author = nil, fields: seq[Field] = @[]): Embed {.gcsafe.} =
-    ## Initialises a new Embed object
-    result = Embed(
-        title: title,
-        description: description,
-        color: color,
-        footer: footer,
-        image: image,
-        thumbnail: thumb,
-        video: video,
-        provider: provider,
-        author: author,
-        fields: fields
-    )
+
 
 proc `$`*(u: User): string {.gcsafe, inline.} =
     ## Stringifies a user 
@@ -1471,3 +1453,85 @@ proc StripEveryoneMention*(msg: Message): string {.gcsafe.} =
     ## Strips a message of any @everyone and @here mention
     if not msg.mention_everyone: return msg.content
     result = msg.content.replace("(@everyone)").replace("(@here)")
+
+proc newMessageEmbed*(title, description, url: string = "", 
+                      color: int = 0, footer: Footer = nil,
+                      image: Image = nil, thumb: Thumbnail = nil,
+                      video: Video = nil,
+                      provider: Provider = nil,
+                      author: Author = nil, fields: seq[Field] = nil): Embed {.gcsafe.} =
+    ## Initialises a new Embed object
+    result = Embed(
+        title: title,
+        description: description,
+        url: url,
+        color: color,
+        footer: footer,
+        image: image,
+        thumbnail: thumb,
+        video: video,
+        provider: provider,
+        author: author,
+        fields: fields
+    )
+
+proc newChannelParams*(name, topic: string = "",
+                       position: int = 0,
+                       bitrate: int = 48,
+                       userlimit: int = 0): ChannelParams {.gcsafe.} =
+    ## Initialises a new ChannelParams object
+    ## for altering channel settings.
+    result = ChannelParams(
+        name: name,
+        position: position,
+        topic: topic,
+        bitrate: bitrate,
+        user_limit: userlimit)
+
+proc newGuildParams*(name, region, afkchan: string = "",
+                     verlvl: int = 0,
+                     defnotif: int = 0,
+                     afktim: int = 0,
+                     icon: string = "",
+                     ownerid: string = "",
+                     splash: string = ""): GuildParams {.gcsafe.} =
+    ## Initialises a new GuildParams object
+    ## for altering guild settings.
+    result = GuildParams(
+        name: name,
+        region: region,
+        verification_level: verlvl,
+        default_message_notifications: defnotif,
+        afk_channel_id: afkchan,
+        afk_timeout: afktim,
+        icon: icon,
+        owner_id: ownerid,
+        splash: splash
+    )
+
+proc newGuildMemberParams*(nick, channelid: string = "",
+                          roles: seq[string] = @[],
+                          mute: bool = false,
+                          deaf: bool = false): GuildMemberParams {.gcsafe.} =
+    ## Initialises a new GuildMemberParams object
+    ## for altering guild members.
+    result = GuildMemberParams(
+        nick: nick,
+        roles: roles,
+        mute: mute,
+        deaf: deaf,
+        channel_id: channelid
+    )
+
+proc newWebhookParams*(content, username, avatarurl: string = "",
+                       tts: bool = false, embeds: Embed = nil): WebhookParams {.gcsafe.} =
+    ## Initialises a new WebhookParams object
+    ## for altering webhooks.
+    result = WebhookParams(
+        content: content,
+        username: username,
+        avatar_url: avatarurl,
+        tts: tts,
+        embeds: embeds
+    )
+
