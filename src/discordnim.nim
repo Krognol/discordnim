@@ -1449,12 +1449,12 @@ proc newMessageEmbed*(title, description: string = "",
         fields: fields
     )
 
-proc `$`(u: User): string {.gcsafe, inline.} =
+proc `$`*(u: User): string {.gcsafe, inline.} =
     ## Stringifies a user 
     ## e.g: Username#1234
     result = u.username & "#" & u.discriminator
 
-proc StripMentions(msg: Message): string {.gcsafe.} =  
+proc StripMentions*(msg: Message): string {.gcsafe.} =  
     ## Strips all user mentions from a message
     ## and replaces them with plaintext
     ## e.g: <@1901092738173> -> @Username#1234
@@ -1467,7 +1467,7 @@ proc StripMentions(msg: Message): string {.gcsafe.} =
         content = content.replace(regex, "@" & $user)
     result = content
 
-proc StripEveryoneMention(msg: Message): string {.gcsafe.} =
+proc StripEveryoneMention*(msg: Message): string {.gcsafe.} =
     ## Strips a message of any @everyone and @here mention
     if not msg.mention_everyone: return msg.content
     result = msg.content.replace("(@everyone)").replace("(@here)")
