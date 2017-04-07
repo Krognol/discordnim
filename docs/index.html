@@ -1269,7 +1269,7 @@ function main() {
   require_colons*: bool
   managed*: bool"><wbr />Emoji<span class="attachedType" style="visibility:hidden"></span></a></li>
   <li><a class="reference" href="#Embed"
-    title="Embed* = object
+    title="Embed* = ref object
   title*: string
   `type`*: string
   description*: string
@@ -1713,17 +1713,30 @@ function main() {
     title="NewSession*(args: varargs[string, `$`]): Session"><wbr />New<wbr />Session<span class="attachedType" style="visibility:hidden"></span></a></li>
   <li><a class="reference" href="#SessionStart,Session"
     title="SessionStart*(s: Session)"><wbr />Session<wbr />Start<span class="attachedType" style="visibility:hidden"></span></a></li>
-  <li><a class="reference" href="#newMessageEmbed,string,string,int,Footer,Image,Thumbnail,Video,Provider,Author,seq[Field]"
-    title="newMessageEmbed*(title, description: string = &quot;&quot;; color: int = 0; footer: Footer = nil;
-                 image: Image = nil; thumb: Thumbnail = nil; video: Video = nil;
-                 provider: Provider = nil; author: Author = nil;
-                 fields: seq[Field] = @ []): Embed"><wbr />new<wbr />Message<wbr />Embed<span class="attachedType" style="visibility:hidden"></span></a></li>
   <li><a class="reference" href="#$,User"
     title="`$`*(u: User): string">`<wbr />$`<span class="attachedType" style="visibility:hidden"></span></a></li>
   <li><a class="reference" href="#StripMentions,Message"
     title="StripMentions*(msg: Message): string"><wbr />Strip<wbr />Mentions<span class="attachedType" style="visibility:hidden"></span></a></li>
   <li><a class="reference" href="#StripEveryoneMention,Message"
     title="StripEveryoneMention*(msg: Message): string"><wbr />Strip<wbr />Everyone<wbr />Mention<span class="attachedType" style="visibility:hidden"></span></a></li>
+  <li><a class="reference" href="#newMessageEmbed,string,string,string,int,Footer,Image,Thumbnail,Video,Provider,Author,seq[Field]"
+    title="newMessageEmbed*(title, description, url: string = &quot;&quot;; color: int = 0;
+                 footer: Footer = nil; image: Image = nil; thumb: Thumbnail = nil;
+                 video: Video = nil; provider: Provider = nil; author: Author = nil;
+                 fields: seq[Field] = nil): Embed"><wbr />new<wbr />Message<wbr />Embed<span class="attachedType" style="visibility:hidden"></span></a></li>
+  <li><a class="reference" href="#newChannelParams,string,string,int,int,int"
+    title="newChannelParams*(name, topic: string = &quot;&quot;; position: int = 0; bitrate: int = 48;
+                  userlimit: int = 0): ChannelParams"><wbr />new<wbr />Channel<wbr />Params<span class="attachedType" style="visibility:hidden"></span></a></li>
+  <li><a class="reference" href="#newGuildParams,string,string,string,int,int,int,string,string,string"
+    title="newGuildParams*(name, region, afkchan: string = &quot;&quot;; verlvl: int = 0; defnotif: int = 0;
+                afktim: int = 0; icon: string = &quot;&quot;; ownerid: string = &quot;&quot;;
+                splash: string = &quot;&quot;): GuildParams"><wbr />new<wbr />Guild<wbr />Params<span class="attachedType" style="visibility:hidden"></span></a></li>
+  <li><a class="reference" href="#newGuildMemberParams,string,string,seq[string],bool,bool"
+    title="newGuildMemberParams*(nick, channelid: string = &quot;&quot;; roles: seq[string] = @ [];
+                      mute: bool = false; deaf: bool = false): GuildMemberParams"><wbr />new<wbr />Guild<wbr />Member<wbr />Params<span class="attachedType" style="visibility:hidden"></span></a></li>
+  <li><a class="reference" href="#newWebhookParams,string,string,string,bool,Embed"
+    title="newWebhookParams*(content, username, avatarurl: string = &quot;&quot;; tts: bool = false;
+                  embeds: Embed = nil): WebhookParams"><wbr />new<wbr />Webhook<wbr />Params<span class="attachedType" style="visibility:hidden"></span></a></li>
 
   </ul>
 </li>
@@ -2008,7 +2021,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L46" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="Embed"><a name="Embed"></a><pre><span class="Identifier">Embed</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span>
+<dt id="Embed"><a name="Embed"></a><pre><span class="Identifier">Embed</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">ref</span> <span class="Keyword">object</span>
   <span class="Identifier">title</span><span class="Operator">*</span><span class="Other">:</span> <span class="Identifier">string</span>
   <span class="Other">`</span><span class="Keyword">type</span><span class="Other">`</span><span class="Operator">*</span><span class="Other">:</span> <span class="Identifier">string</span>
   <span class="Identifier">description</span><span class="Operator">*</span><span class="Other">:</span> <span class="Identifier">string</span>
@@ -3098,43 +3111,85 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L1413" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="newMessageEmbed"><a name="newMessageEmbed,string,string,int,Footer,Image,Thumbnail,Video,Provider,Author,seq[Field]"></a><pre><span class="Keyword">proc</span> <span class="Identifier">newMessageEmbed</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">title</span><span class="Other">,</span> <span class="Identifier">description</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other">=</span> <span class="StringLit">&quot;&quot;</span><span class="Other">;</span> <span class="Identifier">color</span><span class="Other">:</span> <span class="Identifier">int</span> <span class="Other">=</span> <span class="DecNumber">0</span><span class="Other">;</span>
-                     <span class="Identifier">footer</span><span class="Other">:</span> <span class="Identifier">Footer</span> <span class="Other">=</span> <span class="Keyword">nil</span><span class="Other">;</span> <span class="Identifier">image</span><span class="Other">:</span> <span class="Identifier">Image</span> <span class="Other">=</span> <span class="Keyword">nil</span><span class="Other">;</span> <span class="Identifier">thumb</span><span class="Other">:</span> <span class="Identifier">Thumbnail</span> <span class="Other">=</span> <span class="Keyword">nil</span><span class="Other">;</span>
-                     <span class="Identifier">video</span><span class="Other">:</span> <span class="Identifier">Video</span> <span class="Other">=</span> <span class="Keyword">nil</span><span class="Other">;</span> <span class="Identifier">provider</span><span class="Other">:</span> <span class="Identifier">Provider</span> <span class="Other">=</span> <span class="Keyword">nil</span><span class="Other">;</span> <span class="Identifier">author</span><span class="Other">:</span> <span class="Identifier">Author</span> <span class="Other">=</span> <span class="Keyword">nil</span><span class="Other">;</span>
-                     <span class="Identifier">fields</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">Field</span><span class="Other">]</span> <span class="Other">=</span> <span class="Operator">@</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Embed</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
-<dd>
-Initialises a new Embed object
-&nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1432"
-class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1432" class="link-seesrc" target="_blank" >Edit</a>
-
-</dd>
 <dt id="$"><a name="$,User"></a><pre><span class="Keyword">proc</span> <span class="Other">`</span><span class="Operator">$</span><span class="Other">`</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">u</span><span class="Other">:</span> <span class="Identifier">User</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span><span class="Other">,</span> <span class="Identifier">inline</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Stringifies a user e.g: Username#1234
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1452"
+href="/tree/master/discordnim.nim#L1434"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1452" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1434" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="StripMentions"><a name="StripMentions,Message"></a><pre><span class="Keyword">proc</span> <span class="Identifier">StripMentions</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">msg</span><span class="Other">:</span> <span class="Identifier">Message</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Strips all user mentions from a message and replaces them with plaintext e.g: &lt;@1901092738173&gt; -&gt; @Username#1234
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1457"
+href="/tree/master/discordnim.nim#L1439"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1457" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1439" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="StripEveryoneMention"><a name="StripEveryoneMention,Message"></a><pre><span class="Keyword">proc</span> <span class="Identifier">StripEveryoneMention</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">msg</span><span class="Other">:</span> <span class="Identifier">Message</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Strips a message of any @everyone and @here mention
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1470"
+href="/tree/master/discordnim.nim#L1452"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1470" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1452" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="newMessageEmbed"><a name="newMessageEmbed,string,string,string,int,Footer,Image,Thumbnail,Video,Provider,Author,seq[Field]"></a><pre><span class="Keyword">proc</span> <span class="Identifier">newMessageEmbed</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">title</span><span class="Other">,</span> <span class="Identifier">description</span><span class="Other">,</span> <span class="Identifier">url</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other">=</span> <span class="StringLit">&quot;&quot;</span><span class="Other">;</span> <span class="Identifier">color</span><span class="Other">:</span> <span class="Identifier">int</span> <span class="Other">=</span> <span class="DecNumber">0</span><span class="Other">;</span>
+                     <span class="Identifier">footer</span><span class="Other">:</span> <span class="Identifier">Footer</span> <span class="Other">=</span> <span class="Keyword">nil</span><span class="Other">;</span> <span class="Identifier">image</span><span class="Other">:</span> <span class="Identifier">Image</span> <span class="Other">=</span> <span class="Keyword">nil</span><span class="Other">;</span> <span class="Identifier">thumb</span><span class="Other">:</span> <span class="Identifier">Thumbnail</span> <span class="Other">=</span> <span class="Keyword">nil</span><span class="Other">;</span>
+                     <span class="Identifier">video</span><span class="Other">:</span> <span class="Identifier">Video</span> <span class="Other">=</span> <span class="Keyword">nil</span><span class="Other">;</span> <span class="Identifier">provider</span><span class="Other">:</span> <span class="Identifier">Provider</span> <span class="Other">=</span> <span class="Keyword">nil</span><span class="Other">;</span> <span class="Identifier">author</span><span class="Other">:</span> <span class="Identifier">Author</span> <span class="Other">=</span> <span class="Keyword">nil</span><span class="Other">;</span>
+                     <span class="Identifier">fields</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">Field</span><span class="Other">]</span> <span class="Other">=</span> <span class="Keyword">nil</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Embed</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
+<dd>
+Initialises a new Embed object
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L1457"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L1457" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="newChannelParams"><a name="newChannelParams,string,string,int,int,int"></a><pre><span class="Keyword">proc</span> <span class="Identifier">newChannelParams</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">name</span><span class="Other">,</span> <span class="Identifier">topic</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other">=</span> <span class="StringLit">&quot;&quot;</span><span class="Other">;</span> <span class="Identifier">position</span><span class="Other">:</span> <span class="Identifier">int</span> <span class="Other">=</span> <span class="DecNumber">0</span><span class="Other">;</span> <span class="Identifier">bitrate</span><span class="Other">:</span> <span class="Identifier">int</span> <span class="Other">=</span> <span class="DecNumber">48</span><span class="Other">;</span>
+                      <span class="Identifier">userlimit</span><span class="Other">:</span> <span class="Identifier">int</span> <span class="Other">=</span> <span class="DecNumber">0</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">ChannelParams</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
+<dd>
+Initialises a new ChannelParams object for altering channel settings.
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L1478"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L1478" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="newGuildParams"><a name="newGuildParams,string,string,string,int,int,int,string,string,string"></a><pre><span class="Keyword">proc</span> <span class="Identifier">newGuildParams</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">name</span><span class="Other">,</span> <span class="Identifier">region</span><span class="Other">,</span> <span class="Identifier">afkchan</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other">=</span> <span class="StringLit">&quot;&quot;</span><span class="Other">;</span> <span class="Identifier">verlvl</span><span class="Other">:</span> <span class="Identifier">int</span> <span class="Other">=</span> <span class="DecNumber">0</span><span class="Other">;</span>
+                    <span class="Identifier">defnotif</span><span class="Other">:</span> <span class="Identifier">int</span> <span class="Other">=</span> <span class="DecNumber">0</span><span class="Other">;</span> <span class="Identifier">afktim</span><span class="Other">:</span> <span class="Identifier">int</span> <span class="Other">=</span> <span class="DecNumber">0</span><span class="Other">;</span> <span class="Identifier">icon</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other">=</span> <span class="StringLit">&quot;&quot;</span><span class="Other">;</span>
+                    <span class="Identifier">ownerid</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other">=</span> <span class="StringLit">&quot;&quot;</span><span class="Other">;</span> <span class="Identifier">splash</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other">=</span> <span class="StringLit">&quot;&quot;</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">GuildParams</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
+<dd>
+Initialises a new GuildParams object for altering guild settings.
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L1491"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L1491" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="newGuildMemberParams"><a name="newGuildMemberParams,string,string,seq[string],bool,bool"></a><pre><span class="Keyword">proc</span> <span class="Identifier">newGuildMemberParams</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">nick</span><span class="Other">,</span> <span class="Identifier">channelid</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other">=</span> <span class="StringLit">&quot;&quot;</span><span class="Other">;</span> <span class="Identifier">roles</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">string</span><span class="Other">]</span> <span class="Other">=</span> <span class="Operator">@</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">;</span>
+                          <span class="Identifier">mute</span><span class="Other">:</span> <span class="Identifier">bool</span> <span class="Other">=</span> <span class="Identifier">false</span><span class="Other">;</span> <span class="Identifier">deaf</span><span class="Other">:</span> <span class="Identifier">bool</span> <span class="Other">=</span> <span class="Identifier">false</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">GuildMemberParams</span> <span class="Other pragmabegin">{.</span><div class="pragma">
+    <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
+<dd>
+Initialises a new GuildMemberParams object for altering guild members.
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L1512"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L1512" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="newWebhookParams"><a name="newWebhookParams,string,string,string,bool,Embed"></a><pre><span class="Keyword">proc</span> <span class="Identifier">newWebhookParams</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">content</span><span class="Other">,</span> <span class="Identifier">username</span><span class="Other">,</span> <span class="Identifier">avatarurl</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other">=</span> <span class="StringLit">&quot;&quot;</span><span class="Other">;</span> <span class="Identifier">tts</span><span class="Other">:</span> <span class="Identifier">bool</span> <span class="Other">=</span> <span class="Identifier">false</span><span class="Other">;</span>
+                      <span class="Identifier">embeds</span><span class="Other">:</span> <span class="Identifier">Embed</span> <span class="Other">=</span> <span class="Keyword">nil</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">WebhookParams</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
+<dd>
+Initialises a new WebhookParams object for altering webhooks.
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L1526"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L1526" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 
@@ -3916,7 +3971,7 @@ class="link-seesrc" target="_blank">Source</a>
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br/>
-        <small>Made with Nim. Generated: 2017-04-07 19:40:05 UTC</small>
+        <small>Made with Nim. Generated: 2017-04-07 21:01:40 UTC</small>
       </div>
     </div>
   </div>
