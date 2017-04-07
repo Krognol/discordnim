@@ -1429,18 +1429,23 @@ proc SessionStart*(s: Session){.async, gcsafe.} =
 
 # Helper functions
 
-proc newMessageEmbed*(): Embed {.gcsafe.} =
+proc newMessageEmbed*(title, description: string = "", 
+                      color: int = 0, footer: Footer = nil,
+                      image: Image = nil, thumb: Thumbnail = nil,
+                      video: Video = nil,
+                      provider: Provider = nil,
+                      author: Author = nil, fields: seq[Field] = @[]): Embed {.gcsafe.} =
     result = Embed(
-        title: "",
-        description: "",
-        color: 0,
-        footer: nil,
-        image: nil,
-        thumbnail: nil,
-        video: nil,
-        provider: nil,
-        author: nil,
-        fields: @[]
+        title: title,
+        description: description,
+        color: color,
+        footer: footer,
+        image: image,
+        thumbnail: thumb,
+        video: video,
+        provider: provider,
+        author: author,
+        fields: fields
     )
 
 proc `$`(u: User): string {.gcsafe, inline.} =
