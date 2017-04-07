@@ -804,11 +804,24 @@ method ChannelDeletePinnedMessage*(s: Session, channel, message: string) {.base,
     var url = EndpointDeletePinnedChannelMessage(channel, message)
     discard s.Request(url, "DELETE", url, "application/json", "", 0)
 
-#TODO
-#method GroupDMAddUser()
+# TODO
+method CreateGroupDM*(s: Session, accesstokens: seq[string]): Channel {.base, gcsafe.} =
+    ## Unimplemented.
+    ## Creates a group DM channel
+    return Channel()
 
-#TODO
-#method GroupdDMRemoveUser()
+method GroupDMAddUser*(s: Session, channelid, userid, access_token, nick: string) {.base, gcsafe.} =
+    ## Adds a user to a group dm.
+    ## Requires the 'gdm.join' scope.
+    var url = EndpointGroupDMAddRecipient(channelid, userid)
+    let payload = %*{"access_token": access_token, "nick": nick}
+    discard s.Request(url, "PUT", url, "application/json", $payload, 0)
+    
+
+method GroupdDMRemoveUser*(s: Session, channelid, userid: string) {.base, gcsafe.} =
+    ## Removes a user from a group dm.
+    var url = EndpointGroupDMRemoveRecipient(channelid, userid)
+    discard s.Request(url, "DELETE", url, "application/json", "", 0)
 
 method CreateGuild*(s: Session, name: string): Guild {.base, gcsafe.} =
     ## Creates a guild
