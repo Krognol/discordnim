@@ -3,7 +3,7 @@
 const
     BASE: string = "https://discordapp.com/api"
     GATEWAYVERSION: string = "?v=6&encoding=json"
-    VERSION: string = "0.1"
+    VERSION: string = "1.0"
 
 proc Gateway(): string =
     return BASE & "/gateway"
@@ -257,12 +257,6 @@ proc EndpointDeleteWebhookWithToken(wid, token : string): string =
 
 proc EndpointExecuteWebhook(wid, token : string): string =
     return EndpointGetWebhookWithToken(wid, token)
-
-proc EndpointExectueSlackCompatibleWebhook(wid, token : string): string =
-    return EndpointGetWebhookWithToken(wid, token) & "/slack"
-
-proc EndpointExectueGithubCompatibleWebhook(wid, token : string): string =
-    return EndpointGetWebhookWithToken(wid, token) & "/github"
 
 proc EndpointAuth(): string =
     return BASE & "/auth"

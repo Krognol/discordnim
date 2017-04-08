@@ -1,5 +1,5 @@
 include endpoints
-import httpclient, marshal, json, re,
+import httpclient, marshal, json, re, cgi,
        locks, tables, times, strutils, net, macros,
        os, typetraits, websocket/shared, asyncdispatch, asyncnet, threadpool
 type
@@ -510,7 +510,7 @@ method Release(b : ref Bucket, headers : HttpHeaders) {.base.} =
 # REST API json objects
 
 method Request(s : Session, bucketid: var string, meth, url, contenttype, b : string, sequence : int, mp: MultipartData = nil): Response {.base, gcsafe.} =
-    var client = newHttpClient("DiscordBot(https://github.com/Krognol/discordnim, v0.1.0)", sslContext = newContext(verifyMode = CVerifyNone))
+    var client = newHttpClient("DiscordBot(https://github.com/Krognol/discordnim, v" & VERSION & ")", sslContext = newContext(verifyMode = CVerifyNone))
     
     if bucketid == "":
         bucketid = split(url, "?", 2)[0]
@@ -698,10 +698,9 @@ method SendMessageTTS*(s: Session, channelid, message: string): Message {.base, 
 method SendFileWithMessage*(s: Session, channelid, name, message: string): Message {.base, gcsafe.} =
     var data = newMultipartData()
     var url = EndpointCreateMessage(channelid)
-    
-    let payload = %*{"content": message}
-    data.add("payload_json", encodeUrl($payload), contentType = "application/json")
-    data = data.addFiles({"file": name})
+
+    # Still can't figure it out  
+    data.add("file", readFile(name), name, "application/octet-stream")
 
     let res = s.Request(url, "POST", url, "multipart/form-data", "", 0, data)
     echo res.body
