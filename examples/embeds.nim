@@ -5,7 +5,7 @@ import asyncdispatch, discord
 
 
 proc messageCreate(s: Session, m: Message) =
-    if s.State.me.id == m.author.id: return
+    if s.cache.me.id == m.author.id: return
     if m.content == "embed":
         
         # This is just a helper function

@@ -3,10 +3,10 @@
 
 import asyncdispatch, discord, times
 
-const PREFIX = "!!!"
+const PREFIX = "!"
 
 proc messageCreate(s: Session, m: Message) =
-    if m.author.id != s.State.me.id:
+    if m.author.id != s.cache.me.id:
         let command = m.content
 
         case command:
