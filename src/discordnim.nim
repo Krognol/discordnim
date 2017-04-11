@@ -705,7 +705,7 @@ method SendMessageTTS*(s: Session, channelid, message: string): Message {.base, 
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
     result = to[Message](res.body)
 
-
+#[
     ## TODO
     ## On hold; returns 401
 method SendFileWithMessage*(s: Session, channelid, name, message: string): Message {.base, gcsafe.} =
@@ -723,7 +723,7 @@ method SendFileWithMessage*(s: Session, channelid, name, message: string): Messa
 
 method SendFile*(s: Session, channelid, name: string): Message {.base, gcsafe.} =
     return s.SendFileWithMessage(channelid, name, "")
-
+]#
 method MessageAddReaction*(s: Session, channelid, messageid, emojiid: string) {.base, gcsafe.} =
     ## Adds a reaction to a message
     var url = EndpointCreateReaction(channelid, messageid, emojiid)
