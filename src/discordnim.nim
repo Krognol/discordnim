@@ -309,11 +309,21 @@ type
         endpoint: string
     Resumed* = object
         trace*: seq[string]
-    State* = ref object
+    Cache* = ref object
         version*: int
         me*: User
         private_channels*: seq[Channel]
         guilds*: seq[Guild]
+    Ready* = object
+        v*: int
+        user*: User
+        private_channels*: seq[Channel]
+        session_id*: string
+        guilds*: seq[Guild]
+        trace*: seq[string]
+        user_settings: JsonNode
+        relationships: JsonNode
+        presences: seq[Presence]
     Session* = ref object
         Mut: Lock
         Token*: string
@@ -325,7 +335,7 @@ type
         Session_ID: string
         Limiter: ref RateLimiter   
         Connection*: AsyncWebSocket
-        State*: State
+        cache*: Cache
         shouldResume: bool
         suspended: bool
         invalidated: bool
@@ -356,6 +366,7 @@ type
         voiceStateUpdate*:        proc(s: Session, p: VoiceState) {.gcsafe.}
         voiceServerUpdate*:       proc(s: Session, p: VoiceServerUpdate) {.gcsafe.}
         onResume*:                proc(s: Session, p: Resumed) {.gcsafe.}
+        onReady*:                 proc(s: Session, p: Ready) {.gcsafe.}
     RateLimiter = object
         Mut: Lock
         Global: ref Bucket
@@ -548,8 +559,10 @@ method GetGateway(s: Session): string {.base.} =
     let res = s.Request(url, "GET", url, "application/json", "", 0)
     type Temp = object
         url: string
+        shards: int
     let t = to[Temp](res.body)
-    return t.url
+    s.ShardCount = t.shards
+    result = t.url
 
 method Login(s : Session, email, password : string) {.base.} =
     var payload = %*{"email": email, "password": password}
@@ -560,7 +573,6 @@ method Login(s : Session, email, password : string) {.base.} =
 
     var t = to[Temp](res.body)
     s.Token = t.Token
-    return 
 
 # Temporary until a better solution is found
 method initEvents(s: Session) {.base.} =
@@ -590,13 +602,14 @@ method initEvents(s: Session) {.base.} =
     s.voiceStateUpdate =        proc(s: Session, p: VoiceState) = return
     s.voiceServerUpdate =       proc(s: Session, p: VoiceServerUpdate) = return
     s.onResume =                proc(s: Session, p: Resumed) = return
+    s.onReady =                 proc(s: Session, p: Ready) = return
 
 
 proc NewSession*(args: varargs[string, `$`]): Session =
     ## Creates a new Session
     
     var 
-        s = Session(Mut: Lock(), Compress: false, Limiter: newRateLimiter(), State: State())
+        s = Session(Mut: Lock(), Compress: false, Limiter: newRateLimiter(), cache: Cache())
         auth: string = ""
         pass: string = ""
     
@@ -692,7 +705,7 @@ method SendMessageTTS*(s: Session, channelid, message: string): Message {.base, 
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
     result = to[Message](res.body)
 
-#[
+
     ## TODO
     ## On hold; returns 401
 method SendFileWithMessage*(s: Session, channelid, name, message: string): Message {.base, gcsafe.} =
@@ -700,8 +713,9 @@ method SendFileWithMessage*(s: Session, channelid, name, message: string): Messa
     var url = EndpointCreateMessage(channelid)
 
     # Still can't figure it out  
-    data.add("file", readFile(name), name, "application/octet-stream")
-
+    let payload = %*{"content": message}
+    data.add("payload_json", $payload, contentType = "application/json")
+    data = data.addFiles({"file": name})
     let res = s.Request(url, "POST", url, "multipart/form-data", "", 0, data)
     echo res.body
     let msg = to[Message](res.body)
@@ -709,7 +723,7 @@ method SendFileWithMessage*(s: Session, channelid, name, message: string): Messa
 
 method SendFile*(s: Session, channelid, name: string): Message {.base, gcsafe.} =
     return s.SendFileWithMessage(channelid, name, "")
-]#
+
 method MessageAddReaction*(s: Session, channelid, messageid, emojiid: string) {.base, gcsafe.} =
     ## Adds a reaction to a message
     var url = EndpointCreateReaction(channelid, messageid, emojiid)
@@ -1241,6 +1255,9 @@ method ExecuteWebhook*(s: Session, webhook, token: string, wait: bool, payload: 
     var url = EndpointExecuteWebhook(webhook, token)
     discard s.Request(url, "POST", url, "application/json", $$payload, 0)
 
+type
+  IdentifyError* = object of Exception
+
 proc identify(s: Session) {.async, base.} =
     var properties = %*{
         "$os": system.hostOS,
@@ -1257,6 +1274,11 @@ proc identify(s: Session) {.async, base.} =
             "properties": properties,
         }
     }
+    
+    if s.ShardCount > 1:
+        if s.ShardID >= s.ShardCount:
+            raise newException(IdentifyError, "ShardID has to be lower than ShardCount")
+        payload["shard"] = %*[s.ShardID, s.ShardCount]
 
     try:
         await s.Connection.sock.sendText($payload, true)
@@ -1281,11 +1303,24 @@ proc startHeartbeats(t: tuple[s: Session, i: int]) {.thread, gcsafe.} =
 proc handleDispatch(s: Session, event: string, data: JsonNode) =
     case event:
         of "READY":
-            s.Session_id = data["session_id"].str
-            s.State.version = int(data["v"].num)
-            s.State.me = to[User]($data["user"])
-            s.State.private_channels = to[seq[Channel]]($data["private_channels"])
-            s.State.guilds = to[seq[Guild]]($data["guilds"])
+            let json = parseJson($data)
+            var payload = Ready(
+                v: int(json["v"].num),
+                user_settings: json["user_settings"],
+                user: to[User]($json["user"]),
+                session_id: json["session_id"].str,
+                relationships: json["relationships"],
+                private_channels: to[seq[Channel]]($json["private_channels"]),
+                presences: to[seq[Presence]]($json["presences"]),
+                guilds: to[seq[Guild]]($json["guilds"]),
+                trace: to[seq[string]]($json["_trace"])
+            )
+            s.Session_ID = payload.session_id
+            s.cache.version = payload.v
+            s.cache.me = payload.user
+            s.cache.private_channels = payload.private_channels
+            s.cache.guilds = payload.guilds
+            spawn s.onReady(s, payload)            
         of "RESUMED":
             let payload = to[Resumed]($data)
             spawn s.onResume(s, payload)
@@ -1471,7 +1506,7 @@ proc StripMentions*(msg: Message): string {.gcsafe.} =
 proc StripEveryoneMention*(msg: Message): string {.gcsafe.} =
     ## Strips a message of any @everyone and @here mention
     if not msg.mention_everyone: return msg.content
-    result = msg.content.replace("(@everyone)").replace("(@here)")
+    result = msg.content.replace(re"(@everyone)", "").replace(re"(@here)", "")
 
 proc newMessageEmbed*(title, description, url: string = "", 
                       color: int = 0, footer: Footer = nil,
