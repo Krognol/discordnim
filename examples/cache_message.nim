@@ -28,5 +28,4 @@ proc main() =
     asyncCheck s.SessionStart()
     runForever()
 
-when isMainModule:
-    main()
+main()
