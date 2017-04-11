@@ -714,9 +714,9 @@ method SendFileWithMessage*(s: Session, channelid, name, message: string): Messa
 
     # Still can't figure it out  
     let payload = %*{"content": message}
-    data.add("payload_json", $payload, contentType = "application/json")
+    #data.add("payload_json", $payload, contentType = "application/json")
     data = data.addFiles({"file": name})
-    let res = s.Request(url, "POST", url, "multipart/form-data", "", 0, data)
+    let res = s.Request(url, "POST", url, "multipart/form-data", $payload, 0, data)
     echo res.body
     let msg = to[Message](res.body)
     return msg
@@ -1486,9 +1486,32 @@ proc SessionStart*(s: Session){.async, gcsafe.} =
 
 
 proc `$`*(u: User): string {.gcsafe, inline.} =
-    ## Stringifies a user 
+    ## Stringifies a user.
     ## e.g: Username#1234
     result = u.username & "#" & u.discriminator
+
+proc `$`*(c: Channel): string {.gcsafe, inline.} =
+    ## Stringifies a channel.
+    ## e.g: #channel-name
+    result = "#" & c.name
+
+proc `$`*(e: Emoji): string {.gcsafe, inline.} =
+    ## Stringifies an emoji.
+    ## e.g: :emijoName:129837192873
+    result = ":" & e.name & ":" & e.id
+
+proc `@`*(u: User): string {.gcsafe, inline.} =
+    ## Returns a message formatted user mention.
+    result = "<@" & u.id & ">"
+
+proc `@`*(c: Channel): string {.gcsafe, inline.} = 
+    ## Returns a message formatted channel mention.
+    result = "<#" & c.id & ">"
+
+proc `@`*(r: Role): string {.gcsafe, inline.} =
+    ## Returns a message formatted role mention
+    result = "<@&" & r.id & ">"
+
 
 proc StripMentions*(msg: Message): string {.gcsafe.} =  
     ## Strips all user mentions from a message
