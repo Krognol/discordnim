@@ -9,6 +9,7 @@ type
         allow*: int
         deny*: int
     Channel* = object
+        # Need to rename this so it doesn't collide with system.Channel
         id*: string
         guild_id*: string
         name*: string
@@ -274,13 +275,13 @@ type
         emojis*: seq[Emoji]
     GuildIntegrationsUpdate* = object
         guild_id*: string
-    GuildRoleCreate* = object
+    GuildRoleCreateObj* = object
         guild_id*: string
         role*: Role
-    GuildRoleUpdate* = object
+    GuildRoleUpdateObj* = object
         guild_id*: string
         role*: Role
-    GuildRoleDelete* = object
+    GuildRoleDeleteObj* = object
         guild_id*: string
         role_id*: string
     MessageDelete* = object
@@ -312,8 +313,15 @@ type
     Cache* = ref object
         version*: int
         me*: User
-        private_channels*: seq[Channel]
-        guilds*: seq[Guild]
+        cacheChannels*: bool
+        cacheGuilds*: bool
+        cacheGuildMembers*: bool
+        cacheUsers*: bool
+        cacheRoles*: bool
+        channels: Table[string, Channel]
+        guilds: Table[string, Guild]
+        users: Table[string, User]
+        roles: Table[string, Role]
     Ready* = object
         v*: int
         user*: User
@@ -353,9 +361,9 @@ type
         guildMemberAdd*:          proc(s: Session, p: GuildMember) {.gcsafe.}
         guildMemberUpdate*:       proc(s: Session, p: GuildMember) {.gcsafe.}
         guildMemberRemove*:       proc(s: Session, p: GuildMember) {.gcsafe.}
-        guildRoleCreate*:         proc(s: Session, p: GuildRoleCreate) {.gcsafe.}
-        guildRoleUpdate*:         proc(s: Session, p: GuildRoleUpdate) {.gcsafe.}
-        guildRoleDelete*:         proc(s: Session, p: GuildRoleDelete) {.gcsafe.}
+        guildRoleCreate*:         proc(s: Session, p: GuildRoleCreateObj) {.gcsafe.}
+        guildRoleUpdate*:         proc(s: Session, p: GuildRoleUpdateObj) {.gcsafe.}
+        guildRoleDelete*:         proc(s: Session, p: GuildRoleDeleteObj) {.gcsafe.}
         messageCreate*:           proc(s: Session, p: Message) {.gcsafe.}
         messageUpdate*:           proc(s: Session, p: Message) {.gcsafe.}
         messageDelete*:           proc(s: Session, p: MessageDelete) {.gcsafe.}
@@ -589,9 +597,9 @@ method initEvents(s: Session) {.base.} =
     s.guildMemberAdd =          proc(s: Session, p: GuildMember) = return
     s.guildMemberUpdate =       proc(s: Session, p: GuildMember) = return
     s.guildMemberRemove =       proc(s: Session, p: GuildMember) = return
-    s.guildRoleCreate =         proc(s: Session, p: GuildRoleCreate) = return
-    s.guildRoleUpdate =         proc(s: Session, p: GuildRoleUpdate) = return
-    s.guildRoleDelete =         proc(s: Session, p: GuildRoleDelete) = return
+    s.guildRoleCreate =         proc(s: Session, p: GuildRoleCreateObj) = return
+    s.guildRoleUpdate =         proc(s: Session, p: GuildRoleUpdateObj) = return
+    s.guildRoleDelete =         proc(s: Session, p: GuildRoleDeleteObj) = return
     s.messageCreate =           proc(s: Session, p: Message) = return
     s.messageUpdate =           proc(s: Session, p: Message) = return
     s.messageDelete =           proc(s: Session, p: MessageDelete) = return
@@ -609,7 +617,14 @@ proc NewSession*(args: varargs[string, `$`]): Session =
     ## Creates a new Session
     
     var 
-        s = Session(Mut: Lock(), Compress: false, Limiter: newRateLimiter(), cache: Cache())
+        s = Session(Mut: Lock(), Compress: false, Limiter: newRateLimiter(), 
+                    cache: Cache(users: initTable[string, User](), 
+                                 guilds: initTable[string, Guild](), 
+                                 channels: initTable[string, Channel](),
+                                 roles: initTable[string, Role]()
+                            )
+                    )
+
         auth: string = ""
         pass: string = ""
     
@@ -633,11 +648,173 @@ proc NewSession*(args: varargs[string, `$`]): Session =
     s.initEvents()
     return s
 
+
+type
+    CacheError* = object of Exception
+
+# Caching stuff
+
+proc getGuild*(c: Cache, id: string): tuple[guild: Guild, exists: bool]  =
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    if c.guilds.hasKey(id):
+        return (c.guilds[id], true)
+
+    result = (Guild(), false)
+
+proc removeGuild*(c: Cache, guildid: string) {.raises: CacheError.}  =
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    if not c.guilds.hasKey(guildid):
+        raise newException(CacheError, "Guild not in cache")
+
+    c.guilds.del(guildid)
+
+
+proc updateGuild*(c: Cache, guild: Guild) {.raises: CacheError.}  =
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    c.guilds[guild.id] = guild
+
+proc getUser*(c: Cache, id: string): tuple[user: User, exists: bool]  =
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    if c.users.hasKey(id):
+        return (c.users[id], true)
+
+    result = (User(), false)
+
+proc removeUser*(c: Cache, id: string) {.raises: CacheError.}  =
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    if not c.users.hasKey(id):
+        raise newException(CacheError, "User not in cache")
+
+    c.users.del(id)
+
+proc updateUser*(c: Cache, user: User) {.raises: CacheError.}  =
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    c.users[user.id] = user
+
+proc getChannel*(c: Cache, id: string): tuple[channel: Channel, exists: bool]  =
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    if c.channels.hasKey(id):
+        return (c.channels[id], true)
+
+    result = (Channel(), false)
+
+proc updateChannel*(c: Cache, chan: Channel) {.raises: CacheError.}  =
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    if not c.channels.hasKey(chan.id):
+        raise newException(CacheError, "Channel not in cache")
+
+    c.channels[chan.id] = chan
+
+proc removeChannel*(c: Cache, chan: string) {.raises: CacheError.}  =
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    if not c.channels.hasKey(chan):
+        raise newException(CacheError, "Channel not in cache")
+
+    c.channels.del(chan)
+
+proc getGuildMember*(c: Cache, guild, memberid: string): tuple[member: GuildMember, exists: bool]  =
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    var (guild, exists) = c.getGuild(guild)
+
+    if not exists:
+        return (GuildMember(), false)
+
+    for member in guild.members:
+        if member.user.id == memberid:
+            return (member, true)
+
+    return (GuildMember(), false)
+
+proc addGuildMember*(c: Cache, member: GuildMember)  =
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    var (guild, exists) = c.getGuild(member.guild_id)
+
+    if not exists:
+        raise newException(CacheError, "Guild not in cache")
+
+    guild.members.add(member)
+
+proc updateGuildMember*(c: Cache, m: GuildMember)  =
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    var (guild, exists) = c.getGuild(m.guild_id)
+
+    if not exists:
+        raise newException(CacheError, "Guild not in cache")
+
+    for i, member in guild.members:
+        if member.user.id == m.user.id:
+            guild.members[i] = m
+            return
+
+proc removeGuildMember*(c: Cache, gmember: GuildMember)  =
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    var (guild, exists) = c.getGuild(gmember.guild_id)
+
+    if not exists:
+        raise newException(CacheError, "Guild not in cache")
+
+    for i, member in guild.members:
+        if member.user.id == gmember.user.id:
+            guild.members.del(i)
+            return 
+
+proc getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bool]  =
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    var (guild, exists) = c.getGuild(guildid)
+
+    if not exists:
+        return (Role(), false)
+
+    for role in guild.roles:
+        if role.id == roleid:
+            return (role, true)
+
+    return (Role(), false)
+
+proc updateRole*(c: Cache, role: Role) {.raises: CacheError.} =
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    if not c.roles.hasKey(role.id):
+        raise newException(CacheError, "Role not in cache")
+
+    c.roles[role.id] = role
+
+proc removeRole*(c: Cache, role: string) {.raises: CacheError.} =
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    if not c.roles.hasKey(role):
+        raise newException(CacheError, "Role not in cache")
+
+    c.roles.del(role)
+
 method GetChannel*(s: Session, channel_id: string): Channel {.base, gcsafe.} =
     ## Returns the channel with the given ID
+    if s.cache.cacheChannels:
+        var (chan, exists) = s.cache.getChannel(channel_id)
+
+        if exists:
+            return chan
+
     var url = EndpointGetChannel(channel_id)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
     result = to[Channel](res.body)
+
+    if s.cache.cacheChannels:
+        s.cache.channels[result.id] = result
 
 method ModifyChannel*(s: Session, channelid: string, params: ChannelParams): Guild {.base, gcsafe.} =
     ## Modifies a channel with the ChannelParams
@@ -854,10 +1031,22 @@ method CreateGuild*(s: Session, name: string): Guild {.base, gcsafe.} =
 
 method GetGuild*(s: Session, id: string): Guild {.base, gcsafe.} =
     ## Gets a guild
+    if s.cache.cacheGuilds:
+        var (guild, exists) = s.cache.getGuild(id)
+
+        if exists:
+            return guild
+
     var url = EndpointGetGuild(id)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
     result = to[Guild](res.body)
    
+    if s.cache.cacheGuilds:
+        s.cache.guilds[result.id] = result
+
+        if s.cache.cacheRoles:
+            for role in result.roles:
+                s.cache.roles[role.id] = role
 
 method ModifyGuild*(s: Session, guild: string, settings: GuildParams): Guild {.base, gcsafe.} =
     ## Modifies a guild with the GuildParams
@@ -911,10 +1100,19 @@ method GuildMembers*(s: Session, guild: string, limit, after: int): seq[GuildMem
 
 method GetGuildMember*(s: Session, guild, userid: string): GuildMember {.base, gcsafe.} =
     ## Returns a guild member with the userid
+
+    if s.cache.cacheGuildMembers:
+        var (member, exists) = s.cache.getGuildMember(guild, userid)
+
+        if exists:
+            return member
+
     var url = EndpointGetGuildMember(guild, userid)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
     result = to[GuildMember](res.body)
     
+    if s.cache.cacheGuildMembers:
+        s.cache.addGuildMember(result)
 
 method GuildMemberAdd*(s: Session, guild, userid, accesstoken: string): GuildMember {.base, gcsafe.} =
     ## Adds a guild member to the guild
@@ -999,8 +1197,27 @@ method GuildRoles*(s: Session, guild: string): seq[Role] {.base, gcsafe.} =
     let res = s.Request(url, "GET", url, "application/json", "", 0)
     result = to[seq[Role]](res.body)
     
+method GuildRole*(s: Session, guild, roleid: string): Role {.base, gcsafe.} =
+    ## Returns a role with the given id.
+    if s.cache.cacheRoles:
+        var (rolea, exists) = s.cache.getRole(guild, roleid)
 
-method GuildRoleCreateP*(s: Session, guild: string): Role {.base, gcsafe.} =
+        if exists:
+            return rolea
+
+    let roles = s.GuildRoles(guild)
+
+    for role in roles:
+        if role.id == roleid:
+            s.cache.roles[role.id] = role
+            result = role
+            break
+    
+    if s.cache.cacheRoles:
+        s.cache.roles[result.id] = result
+
+
+method GuildRoleCreate*(s: Session, guild: string): Role {.base, gcsafe.} =
     ## Creates a new role in the guild
     ## Excuse the P in the name, the name conflicts with another declaration
     var url = EndpointCreateGuildRole(guild)
@@ -1024,7 +1241,7 @@ method GuildRoleEdit*(s: Session, guild, roleid, name: string, permissions, colo
     result = to[Role](res.body)
    
 
-method GuildRoleDeleteP*(s: Session, guild, roleid: string) {.base, gcsafe.} =
+method GuildRoleDelete*(s: Session, guild, roleid: string) {.base, gcsafe.} =
     ## Deletes a role
     ## Excuse the P in the name, the name conflicts with another declaration
     var url = EndpointDeleteGuildRole(guild, roleid)
@@ -1136,11 +1353,19 @@ method Me*(s: Session): User {.base, gcsafe.} =
 
 method GetUser*(s: Session, userid: string): User {.base, gcsafe.} =
     ## Gets a user
+    if s.cache.cacheUsers:
+        var (user, exists) = s.cache.getUser(userid)
+
+        if exists:
+            return user
+
     var url = EndpointGetUser(userid)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
     result = to[User](res.body)
-    
 
+    if s.cache.cacheUsers:
+        s.cache.users[result.id] = result
+        
 method EditUsername*(s: Session, name: string): User {.base, gcsafe.} =
     ## Edits the current users username
     var url = EndpointGetCurrentUser()
@@ -1318,29 +1543,41 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
             s.Session_ID = payload.session_id
             s.cache.version = payload.v
             s.cache.me = payload.user
-            s.cache.private_channels = payload.private_channels
-            s.cache.guilds = payload.guilds
+            s.cache.users[payload.user.id] = payload.user
+            for channel in payload.private_channels:
+                s.cache.channels[channel.id] = channel
+            
+            for guild in payload.guilds:
+                echo $guild
+                s.cache.guilds[guild.id] = guild
+                
             spawn s.onReady(s, payload)            
         of "RESUMED":
             let payload = to[Resumed]($data)
             spawn s.onResume(s, payload)
         of "CHANNEL_CREATE":
             let payload = to[Channel]($data)
+            if s.cache.cacheChannels: s.cache.channels[payload.id] = payload
             spawn s.channelCreate(s, payload)
         of "CHANNEL_UPDATE":
             let payload = to[Channel]($data)
+            if s.cache.cacheChannels: s.cache.updateChannel(payload)
             spawn s.channelUpdate(s, payload)
         of "CHANNEL_DELETE":
             let payload = to[Channel]($data)
+            if s.cache.cacheChannels: s.cache.removeChannel(payload.id)
             spawn s.channelDelete(s, payload)
         of "GUILD_CREATE":
             let payload = to[Guild]($data)
+            if s.cache.cacheGuilds: s.cache.guilds[payload.id] = payload
             spawn s.guildCreate(s, payload)
         of "GUILD_UPDATE":
             let payload = to[Guild]($data)
+            if s.cache.cacheGuilds: s.cache.updateGuild(payload)
             spawn s.guildUpdate(s, payload)
         of "GUILD_DELETE":
             let payload = to[GuildDelete]($data)
+            if s.cache.cacheGuilds: s.cache.removeGuild(payload.id)
             spawn s.guildDelete(s, payload)
         of "GUILD_BAN_ADD":
             let payload = to[User]($data)
@@ -1356,21 +1593,27 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
             spawn s.guildIntegrationsUpdate(s, payload)
         of "GUILD_MEMBER_ADD":
             let payload = to[GuildMember]($data)
+            if s.cache.cacheGuildMembers: s.cache.addGuildMember(payload)
             spawn s.guildMemberAdd(s, payload)
         of "GUILD_MEMBER_UPDATE":
             let payload = to[GuildMember]($data)
+            if s.cache.cacheGuildMembers: s.cache.updateGuildMember(payload)
             spawn s.guildMemberUpdate(s, payload)
         of "GUILD_MEMBER_REMOVE":
             let payload = to[GuildMember]($data)
+            if s.cache.cacheGuildMembers: s.cache.removeGuildMember(payload)
             spawn s.guildMemberRemove(s, payload)
         of "GUILD_ROLE_CREATE":
-            let payload = to[GuildRoleCreate]($data)
+            let payload = to[GuildRoleCreateObj]($data)
+            if s.cache.cacheRoles: s.cache.roles[payload.role.id] = payload.role
             spawn s.guildRoleCreate(s, payload)
         of "GUILD_ROLE_UPDATE":
-            let payload = to[GuildRoleUpdate]($data)
+            let payload = to[GuildRoleUpdateObj]($data)
+            if s.cache.cacheRoles: s.cache.updateRole(payload.role)
             spawn s.guildRoleUpdate(s, payload)
         of "GUILD_ROLE_DELETE":
-            let payload = to[GuildRoleDelete]($data)
+            let payload = to[GuildRoleDeleteObj]($data)
+            if s.cache.cacheRoles: s.cache.removeRole(payload.role_id)
             spawn s.guildRoleDelete(s, payload)
         of "MESSAGE_CREATE":
             let payload = to[Message]($data)
@@ -1502,16 +1745,23 @@ proc `$`*(e: Emoji): string {.gcsafe, inline.} =
 
 proc `@`*(u: User): string {.gcsafe, inline.} =
     ## Returns a message formatted user mention.
+    ## e.g: <@109283102983019283>
     result = "<@" & u.id & ">"
 
 proc `@`*(c: Channel): string {.gcsafe, inline.} = 
     ## Returns a message formatted channel mention.
+    ## e.g: <#1239810283>
     result = "<#" & c.id & ">"
 
 proc `@`*(r: Role): string {.gcsafe, inline.} =
     ## Returns a message formatted role mention
+    ## e.g: <@&129837128937>
     result = "<@&" & r.id & ">"
 
+proc `@`*(e: Emoji): string {.gcsafe, inline.} =
+    ## Returns a message formated emoji.
+    ## e.g: <:emojiName:1920381>
+    result = "<" & $e & ">"
 
 proc StripMentions*(msg: Message): string {.gcsafe.} =  
     ## Strips all user mentions from a message
