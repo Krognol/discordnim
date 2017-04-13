@@ -8,7 +8,7 @@ proc main() =
     var cachedMessages: Table[string, string]
     cachedMessages = initTable[string, string]()
     
-    proc messageCreate(s: Session, m: Message) =
+    proc messageCreate(s: Session, m: MessageCreate) =
         echo "Message was created!"
         if m.author.id != s.cache.me.id:
             cachedMessages[m.id] = m.content

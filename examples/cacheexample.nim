@@ -3,7 +3,7 @@
 
 import asyncdispatch, discord
 
-proc messageCreate(s: Session, m: Message) =
+proc messageCreate(s: Session, m: MessageCreate) =
     if s.cache.me.id == m.author.id: return
     if m.content == "my-roles":
         var roles: seq[Role] = @[]

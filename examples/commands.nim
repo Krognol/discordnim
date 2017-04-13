@@ -5,7 +5,7 @@ import asyncdispatch, discord, times
 
 const PREFIX = "!"
 
-proc messageCreate(s: Session, m: Message) =
+proc messageCreate(s: Session, m: MessageCreate) =
     if m.author.id != s.cache.me.id:
         let command = m.content
 
