@@ -8,7 +8,7 @@ type
         `type`*: string
         allow*: int
         deny*: int
-    Channel* = object
+    DChannel* = object of RootObj
         # Need to rename this so it doesn't collide with system.Channel
         id*: string
         guild_id*: string
@@ -22,7 +22,7 @@ type
         bitrate*: int
         user_limit*: int
         recipients*: seq[User]
-    Message* = object
+    Message* = object of RootObj
         `type`: int
         tts*: bool
         timestamp*: string
@@ -108,7 +108,7 @@ type
         game: Game
         nick: string
         roles: seq[string]
-    Guild* = object
+    Guild* = object of RootObj
         id*: string
         name*: string
         icon*: string
@@ -132,10 +132,10 @@ type
         member_count*: int
         voice_states*: seq[VoiceState]
         members*: seq[GuildMember]
-        channels*: seq[Channel]
+        channels*: seq[DChannel]
         presences*: seq[Presence]
         application_id*: string
-    GuildMember* = object
+    GuildMember* = object of RootObj
         guild_id*: string
         user*: User
         nick*: string
@@ -179,7 +179,7 @@ type
         id*: string
         name*: string
         `type`*: string
-    User* = object
+    User* = object of RootObj
         id*: string
         username*: string
         discriminator*: string
@@ -284,9 +284,6 @@ type
     GuildRoleDeleteObj* = object
         guild_id*: string
         role_id*: string
-    MessageDelete* = object
-        id*: string
-        channel_id*: string
     MessageDeleteBulk* = object
         ids*: seq[string]
         channel_id*: string
@@ -318,20 +315,35 @@ type
         cacheGuildMembers*: bool
         cacheUsers*: bool
         cacheRoles*: bool
-        channels: Table[string, Channel]
+        channels: Table[string, DChannel]
         guilds: Table[string, Guild]
         users: Table[string, User]
         roles: Table[string, Role]
     Ready* = object
         v*: int
         user*: User
-        private_channels*: seq[Channel]
+        private_channels*: seq[DChannel]
         session_id*: string
         guilds*: seq[Guild]
         trace*: seq[string]
         user_settings: JsonNode
         relationships: JsonNode
         presences: seq[Presence]
+    MessageCreate* = object of Message
+    MessageUpdate* = object of Message
+    MessageDelete* = object
+        id*: string
+        channel_id*: string
+    GuildMemberAdd* = object of GuildMember
+    GuildMemberUpdate* = object of GuildMember
+    GuildMemberRemove* = object of GuildMember
+    GuildCreate* = object of Guild
+    GuildUpdate* = object of Guild
+    GuildBanAdd* = object of User
+    GuildBanRemove* = object of User
+    ChannelCreate* = object of DChannel
+    ChannelUpdate* = object of DChannel
+    ChannelRemove* = object of DChannel
     Session* = ref object
         Mut: Lock
         Token*: string
@@ -348,24 +360,24 @@ type
         suspended: bool
         invalidated: bool
         # Temporary until better solution is found
-        channelCreate*:           proc(s: Session, p: Channel) {.gcsafe.}
-        channelUpdate*:           proc(s: Session, p: Channel) {.gcsafe.}
-        channelDelete*:           proc(s: Session, p: Channel) {.gcsafe.}
-        guildCreate*:             proc(s: Session, p: Guild) {.gcsafe.}
-        guildUpdate*:             proc(s: Session, p: Guild) {.gcsafe.}
+        channelCreate*:           proc(s: Session, p: ChannelCreate) {.gcsafe.}
+        channelUpdate*:           proc(s: Session, p: ChannelUpdate) {.gcsafe.}
+        channelDelete*:           proc(s: Session, p: ChannelRemove) {.gcsafe.}
+        guildCreate*:             proc(s: Session, p: GuildCreate) {.gcsafe.}
+        guildUpdate*:             proc(s: Session, p: GuildUpdate) {.gcsafe.}
         guildDelete*:             proc(s: Session, p: GuildDelete) {.gcsafe.}
-        guildBanAdd*:             proc(s: Session, p: User) {.gcsafe.}
-        guildBanRemove*:          proc(s: Session, p: User) {.gcsafe.}
+        guildBanAdd*:             proc(s: Session, p: GuildBanAdd) {.gcsafe.}
+        guildBanRemove*:          proc(s: Session, p: GuildBanRemove) {.gcsafe.}
         guildEmojisUpdate*:       proc(s: Session, p: GuildEmojisUpdate) {.gcsafe.}
         guildIntegrationsUpdate*: proc(s: Session, p: GuildIntegrationsUpdate) {.gcsafe.}
-        guildMemberAdd*:          proc(s: Session, p: GuildMember) {.gcsafe.}
-        guildMemberUpdate*:       proc(s: Session, p: GuildMember) {.gcsafe.}
-        guildMemberRemove*:       proc(s: Session, p: GuildMember) {.gcsafe.}
+        guildMemberAdd*:          proc(s: Session, p: GuildMemberAdd) {.gcsafe.}
+        guildMemberUpdate*:       proc(s: Session, p: GuildMemberUpdate) {.gcsafe.}
+        guildMemberRemove*:       proc(s: Session, p: GuildMemberRemove) {.gcsafe.}
         guildRoleCreate*:         proc(s: Session, p: GuildRoleCreateObj) {.gcsafe.}
         guildRoleUpdate*:         proc(s: Session, p: GuildRoleUpdateObj) {.gcsafe.}
         guildRoleDelete*:         proc(s: Session, p: GuildRoleDeleteObj) {.gcsafe.}
-        messageCreate*:           proc(s: Session, p: Message) {.gcsafe.}
-        messageUpdate*:           proc(s: Session, p: Message) {.gcsafe.}
+        messageCreate*:           proc(s: Session, p: MessageCreate) {.gcsafe.}
+        messageUpdate*:           proc(s: Session, p: MessageUpdate) {.gcsafe.}
         messageDelete*:           proc(s: Session, p: MessageDelete) {.gcsafe.}
         messageDeleteBulk*:       proc(s: Session, p: MessageDeleteBulk) {.gcsafe.}
         presenceUpdate*:          proc(s: Session, p: PresenceUpdate) {.gcsafe.}
@@ -584,24 +596,24 @@ method Login(s : Session, email, password : string) {.base.} =
 
 # Temporary until a better solution is found
 method initEvents(s: Session) {.base.} =
-    s.channelCreate =           proc(s: Session, p: Channel) = return
-    s.channelUpdate =           proc(s: Session, p: Channel) = return
-    s.channelDelete =           proc(s: Session, p: Channel) = return
-    s.guildCreate =             proc(s: Session, p: Guild) = return
-    s.guildUpdate =             proc(s: Session, p: Guild) = return
+    s.channelCreate =           proc(s: Session, p: ChannelCreate) = return
+    s.channelUpdate =           proc(s: Session, p: ChannelUpdate) = return
+    s.channelDelete =           proc(s: Session, p: ChannelRemove) = return
+    s.guildCreate =             proc(s: Session, p: GuildCreate) = return
+    s.guildUpdate =             proc(s: Session, p: GuildUpdate) = return
     s.guildDelete =             proc(s: Session, p: GuildDelete) = return
-    s.guildBanAdd =             proc(s: Session, p: User) = return
-    s.guildBanRemove =          proc(s: Session, p: User) = return
+    s.guildBanAdd =             proc(s: Session, p: GuildBanAdd) = return
+    s.guildBanRemove =          proc(s: Session, p: GuildBanRemove) = return
     s.guildEmojisUpdate =       proc(s: Session, p: GuildEmojisUpdate) = return
     s.guildIntegrationsUpdate = proc(s: Session, p: GuildIntegrationsUpdate) = return
-    s.guildMemberAdd =          proc(s: Session, p: GuildMember) = return
-    s.guildMemberUpdate =       proc(s: Session, p: GuildMember) = return
-    s.guildMemberRemove =       proc(s: Session, p: GuildMember) = return
+    s.guildMemberAdd =          proc(s: Session, p: GuildMemberAdd) = return
+    s.guildMemberUpdate =       proc(s: Session, p: GuildMemberUpdate) = return
+    s.guildMemberRemove =       proc(s: Session, p: GuildMemberRemove) = return
     s.guildRoleCreate =         proc(s: Session, p: GuildRoleCreateObj) = return
     s.guildRoleUpdate =         proc(s: Session, p: GuildRoleUpdateObj) = return
     s.guildRoleDelete =         proc(s: Session, p: GuildRoleDeleteObj) = return
-    s.messageCreate =           proc(s: Session, p: Message) = return
-    s.messageUpdate =           proc(s: Session, p: Message) = return
+    s.messageCreate =           proc(s: Session, p: MessageCreate) = return
+    s.messageUpdate =           proc(s: Session, p: MessageUpdate) = return
     s.messageDelete =           proc(s: Session, p: MessageDelete) = return
     s.messageDeleteBulk =       proc(s: Session, p: MessageDeleteBulk) = return
     s.presenceUpdate =          proc(s: Session, p: PresenceUpdate) = return
@@ -620,7 +632,7 @@ proc NewSession*(args: varargs[string, `$`]): Session =
         s = Session(Mut: Lock(), Compress: false, Limiter: newRateLimiter(), 
                     cache: Cache(users: initTable[string, User](), 
                                  guilds: initTable[string, Guild](), 
-                                 channels: initTable[string, Channel](),
+                                 channels: initTable[string, DChannel](),
                                  roles: initTable[string, Role]()
                             )
                     )
@@ -697,15 +709,15 @@ proc updateUser*(c: Cache, user: User) {.raises: CacheError.}  =
 
     c.users[user.id] = user
 
-proc getChannel*(c: Cache, id: string): tuple[channel: Channel, exists: bool]  =
+proc getChannel*(c: Cache, id: string): tuple[channel: DChannel, exists: bool]  =
     if c == nil: raise newException(CacheError, "The cache is nil")
 
     if c.channels.hasKey(id):
         return (c.channels[id], true)
 
-    result = (Channel(), false)
+    result = (DChannel(), false)
 
-proc updateChannel*(c: Cache, chan: Channel) {.raises: CacheError.}  =
+proc updateChannel*(c: Cache, chan: DChannel) {.raises: CacheError.}  =
     if c == nil: raise newException(CacheError, "The cache is nil")
 
     if not c.channels.hasKey(chan.id):
@@ -801,7 +813,7 @@ proc removeRole*(c: Cache, role: string) {.raises: CacheError.} =
 
     c.roles.del(role)
 
-method GetChannel*(s: Session, channel_id: string): Channel {.base, gcsafe.} =
+method GetChannel*(s: Session, channel_id: string): DChannel {.base, gcsafe.} =
     ## Returns the channel with the given ID
     if s.cache.cacheChannels:
         var (chan, exists) = s.cache.getChannel(channel_id)
@@ -811,7 +823,7 @@ method GetChannel*(s: Session, channel_id: string): Channel {.base, gcsafe.} =
 
     var url = EndpointGetChannel(channel_id)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[Channel](res.body)
+    result = to[DChannel](res.body)
 
     if s.cache.cacheChannels:
         s.cache.channels[result.id] = result
@@ -822,11 +834,11 @@ method ModifyChannel*(s: Session, channelid: string, params: ChannelParams): Gui
     let res = s.Request(url, "PATCH", url, "application/json", $$params, 0)
     result = to[Guild](res.body)
 
-method DeleteChannel*(s: Session, channelid: string): Channel {.base, gcsafe.} =
+method DeleteChannel*(s: Session, channelid: string): DChannel {.base, gcsafe.} =
     ## Deletes a channel
     var url = EndpointDeleteChannel(channelid)
     let res = s.Request(url, "DELETE", url, "application/json", "", 0)
-    result = to[Channel](res.body)
+    result = to[DChannel](res.body)
 
 method ChannelMessages*(s: Session, channelid: string, before, after, around: string, limit: int): seq[Message] {.base, gcsafe.} =
     ## Returns a channels messages
@@ -1000,12 +1012,12 @@ type AddGroupDMUser* = object
     nick: string
 
 # This might work?
-method CreateGroupDM*(s: Session, accesstokens: seq[string], nicks: seq[AddGroupDMUser]): Channel {.base, gcsafe.} =
+method CreateGroupDM*(s: Session, accesstokens: seq[string], nicks: seq[AddGroupDMUser]): DChannel {.base, gcsafe.} =
     ## Creates a group DM channel
     var url = EndpointCreateGroupDM()
     let payload = %*{"access_tokens": accesstokens, "nicks": nicks}
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = to[Channel](res.body)
+    result = to[DChannel](res.body)
 
 method GroupDMAddUser*(s: Session, channelid, userid, access_token, nick: string) {.base, gcsafe.} =
     ## Adds a user to a group dm.
@@ -1062,27 +1074,27 @@ method DeleteGuild*(s: Session, guild: string): Guild {.base, gcsafe.} =
     result = to[Guild](res.body)
     
 
-method GuildChannels*(s: Session, guild: string): seq[Channel] {.base, gcsafe.} =
+method GuildChannels*(s: Session, guild: string): seq[DChannel] {.base, gcsafe.} =
     ## Returns all guild channels
     var url = EndpointGetGuildChannels(guild)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[Channel]](res.body)
+    result = to[seq[DChannel]](res.body)
    
 
-method GuildChannelCreate*(s: Session, guild, channelname: string, voice: bool): Channel {.base, gcsafe.} =
+method GuildChannelCreate*(s: Session, guild, channelname: string, voice: bool): DChannel {.base, gcsafe.} =
     ## Creates a new channel in a guild
     var url = EndpointCreateGuildChannel(guild)
     let payload = %*{"name": channelname, "voice": voice}
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = to[Channel](res.body)
+    result = to[DChannel](res.body)
     
 
-method ModifyGuildChannelPosition*(s: Session, guild, channel: string, position: int): seq[Channel] {.base, gcsafe.} =
+method ModifyGuildChannelPosition*(s: Session, guild, channel: string, position: int): seq[DChannel] {.base, gcsafe.} =
     ## Reorders the position of a channel and returns the new order
     var url = EndpointModifyGuildChannelPositions(guild)
     let payload = %*{"id": channel, "position": position}
     let res = s.Request(url, "PATCH", url, "application/json", $payload, 0)
-    result = to[seq[Channel]](res.body)
+    result = to[seq[DChannel]](res.body)
    
 
 method GuildMembers*(s: Session, guild: string, limit, after: int): seq[GuildMember] {.base, gcsafe.} =
@@ -1114,7 +1126,7 @@ method GetGuildMember*(s: Session, guild, userid: string): GuildMember {.base, g
     if s.cache.cacheGuildMembers:
         s.cache.addGuildMember(result)
 
-method GuildMemberAdd*(s: Session, guild, userid, accesstoken: string): GuildMember {.base, gcsafe.} =
+method GuildAddMember*(s: Session, guild, userid, accesstoken: string): GuildMember {.base, gcsafe.} =
     ## Adds a guild member to the guild
     var url = EndpointAddGuildMember(guild, userid)
     let payload = %*{"access_token": accesstoken}
@@ -1169,7 +1181,7 @@ method GuildMemberRemoveRole*(s: Session, guild, userid, roleid: string) {.base,
     var url = EndpointRemoveGuildMemberRole(guild, userid, roleid)
     discard s.Request(url, "DELETE", url, "application/json", "", 0)
 
-method GuildMemberRemove*(s: Session, guild, userid: string) {.base, gcsafe.} =
+method GuildRemoveMember*(s: Session, guild, userid: string) {.base, gcsafe.} =
     ## Removes a guild membe from the guild
     var url = EndpointRemoveGuildMember(guild, userid)
     discard s.Request(url, "DELETE", url, "application/json", "", 0)
@@ -1186,7 +1198,7 @@ method GuildBanUser*(s: Session, guild, userid: string) {.base, gcsafe.} =
     var url = EndpointCreateGuildBan(guild, userid)
     discard s.Request(url, "PUT", url, "application/json", "", 0)
 
-method GuildBanRemove*(s: Session, guild, userid: string) {.base, gcsafe.} =
+method GuildRemoveBan*(s: Session, guild, userid: string) {.base, gcsafe.} =
     ## Removes a ban from the guild
     var url = EndpointRemoveGuildBan(guild, userid)
     discard s.Request(url, "DELETE", url, "application/json", "", 0)
@@ -1394,19 +1406,19 @@ method LeaveGuild*(s: Session, guild: string) {.base, gcsafe.} =
     var url = EndpointLeaveGuild(guild)
     discard s.Request(url, "DELETE", url, "application/json", "", 0)
 
-method DMs*(s: Session): seq[Channel] {.base, gcsafe.} =
+method DMs*(s: Session): seq[DChannel] {.base, gcsafe.} =
     ## Lists all active DM channels
     var url = EndpointGetUserDMs()
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[Channel]](res.body)
+    result = to[seq[DChannel]](res.body)
     
 
-method DMCreate*(s: Session, recipient: string): Channel {.base, gcsafe.} =
+method DMCreate*(s: Session, recipient: string): DChannel {.base, gcsafe.} =
     ## Creates a new DM channel
     var url = EndpointCreateDM()
     let payload = %*{"recipient_id": recipient}
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = to[Channel](res.body)
+    result = to[DChannel](res.body)
     
 
 method VoiceRegions*(s: Session): seq[VoiceRegion] {.base, gcsafe.} =
@@ -1535,7 +1547,7 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
                 user: to[User]($json["user"]),
                 session_id: json["session_id"].str,
                 relationships: json["relationships"],
-                private_channels: to[seq[Channel]]($json["private_channels"]),
+                private_channels: to[seq[DChannel]]($json["private_channels"]),
                 presences: to[seq[Presence]]($json["presences"]),
                 guilds: to[seq[Guild]]($json["guilds"]),
                 trace: to[seq[string]]($json["_trace"])
@@ -1556,23 +1568,23 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
             let payload = to[Resumed]($data)
             spawn s.onResume(s, payload)
         of "CHANNEL_CREATE":
-            let payload = to[Channel]($data)
+            let payload = to[ChannelCreate]($data)
             if s.cache.cacheChannels: s.cache.channels[payload.id] = payload
             spawn s.channelCreate(s, payload)
         of "CHANNEL_UPDATE":
-            let payload = to[Channel]($data)
+            let payload = to[ChannelUpdate]($data)
             if s.cache.cacheChannels: s.cache.updateChannel(payload)
             spawn s.channelUpdate(s, payload)
         of "CHANNEL_DELETE":
-            let payload = to[Channel]($data)
+            let payload = to[ChannelRemove]($data)
             if s.cache.cacheChannels: s.cache.removeChannel(payload.id)
             spawn s.channelDelete(s, payload)
         of "GUILD_CREATE":
-            let payload = to[Guild]($data)
+            let payload = to[GuildCreate]($data)
             if s.cache.cacheGuilds: s.cache.guilds[payload.id] = payload
             spawn s.guildCreate(s, payload)
         of "GUILD_UPDATE":
-            let payload = to[Guild]($data)
+            let payload = to[GuildUpdate]($data)
             if s.cache.cacheGuilds: s.cache.updateGuild(payload)
             spawn s.guildUpdate(s, payload)
         of "GUILD_DELETE":
@@ -1580,10 +1592,10 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
             if s.cache.cacheGuilds: s.cache.removeGuild(payload.id)
             spawn s.guildDelete(s, payload)
         of "GUILD_BAN_ADD":
-            let payload = to[User]($data)
+            let payload = to[GuildBanAdd]($data)
             spawn s.guildBanAdd(s, payload)
         of "GUILD_BAN_REMOVE":
-            let payload = to[User]($data)
+            let payload = to[GuildBanRemove]($data)
             spawn s.guildBanRemove(s, payload)
         of "GUILD_EMOJIS_UPDATE":
             let payload = to[GuildEmojisUpdate]($data)
@@ -1592,15 +1604,15 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
             let payload = to[GuildIntegrationsUpdate]($data)
             spawn s.guildIntegrationsUpdate(s, payload)
         of "GUILD_MEMBER_ADD":
-            let payload = to[GuildMember]($data)
+            let payload = to[GuildMemberAdd]($data)
             if s.cache.cacheGuildMembers: s.cache.addGuildMember(payload)
             spawn s.guildMemberAdd(s, payload)
         of "GUILD_MEMBER_UPDATE":
-            let payload = to[GuildMember]($data)
+            let payload = to[GuildMemberUpdate]($data)
             if s.cache.cacheGuildMembers: s.cache.updateGuildMember(payload)
             spawn s.guildMemberUpdate(s, payload)
         of "GUILD_MEMBER_REMOVE":
-            let payload = to[GuildMember]($data)
+            let payload = to[GuildMemberRemove]($data)
             if s.cache.cacheGuildMembers: s.cache.removeGuildMember(payload)
             spawn s.guildMemberRemove(s, payload)
         of "GUILD_ROLE_CREATE":
@@ -1616,10 +1628,10 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
             if s.cache.cacheRoles: s.cache.removeRole(payload.role_id)
             spawn s.guildRoleDelete(s, payload)
         of "MESSAGE_CREATE":
-            let payload = to[Message]($data)
+            let payload = to[MessageCreate]($data)
             spawn s.messageCreate(s, payload)
         of "MESSAGE_UPDATE":
-            let payload = to[Message]($data)
+            let payload = to[MessageUpdate]($data)
             spawn s.messageUpdate(s, payload)
         of "MESSAGE_DELETE":
             let payload = to[MessageDelete]($data)
@@ -1733,7 +1745,7 @@ proc `$`*(u: User): string {.gcsafe, inline.} =
     ## e.g: Username#1234
     result = u.username & "#" & u.discriminator
 
-proc `$`*(c: Channel): string {.gcsafe, inline.} =
+proc `$`*(c: DChannel): string {.gcsafe, inline.} =
     ## Stringifies a channel.
     ## e.g: #channel-name
     result = "#" & c.name
@@ -1748,7 +1760,7 @@ proc `@`*(u: User): string {.gcsafe, inline.} =
     ## e.g: <@109283102983019283>
     result = "<@" & u.id & ">"
 
-proc `@`*(c: Channel): string {.gcsafe, inline.} = 
+proc `@`*(c: DChannel): string {.gcsafe, inline.} = 
     ## Returns a message formatted channel mention.
     ## e.g: <#1239810283>
     result = "<#" & c.id & ">"
