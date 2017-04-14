@@ -9,7 +9,6 @@ type
         allow*: int
         deny*: int
     DChannel* = object of RootObj
-        # Need to rename this so it doesn't collide with system.Channel
         id*: string
         guild_id*: string
         name*: string
@@ -344,6 +343,19 @@ type
     ChannelCreate* = object of DChannel
     ChannelUpdate* = object of DChannel
     ChannelRemove* = object of DChannel
+    MessageReactionAdd* = object
+        user_id: string
+        message_id: string
+        channel_id: string
+        emoji: Emoji
+    MessageReactionRemove* = object
+        user_id: string
+        message_id: string
+        channel_id: string
+        emoji: Emoji
+    MessageReactionRemoveAll* = object
+        message_id: string
+        channel_id: string
     Session* = ref object
         Mut: Lock
         Token*: string
@@ -360,33 +372,36 @@ type
         suspended: bool
         invalidated: bool
         # Temporary until better solution is found
-        channelCreate*:           proc(s: Session, p: ChannelCreate) {.gcsafe.}
-        channelUpdate*:           proc(s: Session, p: ChannelUpdate) {.gcsafe.}
-        channelDelete*:           proc(s: Session, p: ChannelRemove) {.gcsafe.}
-        guildCreate*:             proc(s: Session, p: GuildCreate) {.gcsafe.}
-        guildUpdate*:             proc(s: Session, p: GuildUpdate) {.gcsafe.}
-        guildDelete*:             proc(s: Session, p: GuildDelete) {.gcsafe.}
-        guildBanAdd*:             proc(s: Session, p: GuildBanAdd) {.gcsafe.}
-        guildBanRemove*:          proc(s: Session, p: GuildBanRemove) {.gcsafe.}
-        guildEmojisUpdate*:       proc(s: Session, p: GuildEmojisUpdate) {.gcsafe.}
-        guildIntegrationsUpdate*: proc(s: Session, p: GuildIntegrationsUpdate) {.gcsafe.}
-        guildMemberAdd*:          proc(s: Session, p: GuildMemberAdd) {.gcsafe.}
-        guildMemberUpdate*:       proc(s: Session, p: GuildMemberUpdate) {.gcsafe.}
-        guildMemberRemove*:       proc(s: Session, p: GuildMemberRemove) {.gcsafe.}
-        guildRoleCreate*:         proc(s: Session, p: GuildRoleCreateObj) {.gcsafe.}
-        guildRoleUpdate*:         proc(s: Session, p: GuildRoleUpdateObj) {.gcsafe.}
-        guildRoleDelete*:         proc(s: Session, p: GuildRoleDeleteObj) {.gcsafe.}
-        messageCreate*:           proc(s: Session, p: MessageCreate) {.gcsafe.}
-        messageUpdate*:           proc(s: Session, p: MessageUpdate) {.gcsafe.}
-        messageDelete*:           proc(s: Session, p: MessageDelete) {.gcsafe.}
-        messageDeleteBulk*:       proc(s: Session, p: MessageDeleteBulk) {.gcsafe.}
-        presenceUpdate*:          proc(s: Session, p: PresenceUpdate) {.gcsafe.}
-        typingStart*:             proc(s: Session, p: TypingStart) {.gcsafe.}
-        userUpdate*:              proc(s: Session, p: User) {.gcsafe.}
-        voiceStateUpdate*:        proc(s: Session, p: VoiceState) {.gcsafe.}
-        voiceServerUpdate*:       proc(s: Session, p: VoiceServerUpdate) {.gcsafe.}
-        onResume*:                proc(s: Session, p: Resumed) {.gcsafe.}
-        onReady*:                 proc(s: Session, p: Ready) {.gcsafe.}
+        channelCreate*:            proc(s: Session, p: ChannelCreate) {.gcsafe.}
+        channelUpdate*:            proc(s: Session, p: ChannelUpdate) {.gcsafe.}
+        channelDelete*:            proc(s: Session, p: ChannelRemove) {.gcsafe.}
+        guildCreate*:              proc(s: Session, p: GuildCreate) {.gcsafe.}
+        guildUpdate*:              proc(s: Session, p: GuildUpdate) {.gcsafe.}
+        guildDelete*:              proc(s: Session, p: GuildDelete) {.gcsafe.}
+        guildBanAdd*:              proc(s: Session, p: GuildBanAdd) {.gcsafe.}
+        guildBanRemove*:           proc(s: Session, p: GuildBanRemove) {.gcsafe.}
+        guildEmojisUpdate*:        proc(s: Session, p: GuildEmojisUpdate) {.gcsafe.}
+        guildIntegrationsUpdate*:  proc(s: Session, p: GuildIntegrationsUpdate) {.gcsafe.}
+        guildMemberAdd*:           proc(s: Session, p: GuildMemberAdd) {.gcsafe.}
+        guildMemberUpdate*:        proc(s: Session, p: GuildMemberUpdate) {.gcsafe.}
+        guildMemberRemove*:        proc(s: Session, p: GuildMemberRemove) {.gcsafe.}
+        guildRoleCreate*:          proc(s: Session, p: GuildRoleCreateObj) {.gcsafe.}
+        guildRoleUpdate*:          proc(s: Session, p: GuildRoleUpdateObj) {.gcsafe.}
+        guildRoleDelete*:          proc(s: Session, p: GuildRoleDeleteObj) {.gcsafe.}
+        messageCreate*:            proc(s: Session, p: MessageCreate) {.gcsafe.}
+        messageUpdate*:            proc(s: Session, p: MessageUpdate) {.gcsafe.}
+        messageDelete*:            proc(s: Session, p: MessageDelete) {.gcsafe.}
+        messageDeleteBulk*:        proc(s: Session, p: MessageDeleteBulk) {.gcsafe.}
+        messageReactionAdd*:       proc(s: Session, p: MessageReactionAdd) {.gcsafe.}
+        messageReactionRemove*:    proc(s: Session, p: MessageReactionRemove) {.gcsafe.}
+        messageReactionRemoveAll*: proc(s: Session, p: MessageReactionRemoveAll) {.gcsafe.}
+        presenceUpdate*:           proc(s: Session, p: PresenceUpdate) {.gcsafe.}
+        typingStart*:              proc(s: Session, p: TypingStart) {.gcsafe.}
+        userUpdate*:               proc(s: Session, p: User) {.gcsafe.}
+        voiceStateUpdate*:         proc(s: Session, p: VoiceState) {.gcsafe.}
+        voiceServerUpdate*:        proc(s: Session, p: VoiceServerUpdate) {.gcsafe.}
+        onResume*:                 proc(s: Session, p: Resumed) {.gcsafe.}
+        onReady*:                  proc(s: Session, p: Ready) {.gcsafe.}
     RateLimiter = object
         Mut: Lock
         Global: ref Bucket
@@ -476,7 +491,7 @@ method lockBucket(r : ref RateLimiter, bid : string): ref Bucket {.base.} =
     initLock(b.Mut)
 
     if b.Remaining < 1 and toTime(b.Reset) - getTime() > 0:
-        sleep int32(toTime(b.Reset) - getTime())
+        sleep int(toTime(b.Reset) - getTime())
 
     initLock(r.Global.Mut)
     deinitLock(r.Global.Mut)
@@ -489,7 +504,7 @@ proc sleepUntil(pa : int32, b : ref Bucket) =
     var sleepdur = sleepTo - getTime()
 
     if sleepdur > 0:
-        sleep(int32(sleepdur))
+        sleep(int(sleepdur))
 
     deinitLock(b.Global.Mut)
     return
@@ -596,33 +611,36 @@ method Login(s : Session, email, password : string) {.base.} =
 
 # Temporary until a better solution is found
 method initEvents(s: Session) {.base.} =
-    s.channelCreate =           proc(s: Session, p: ChannelCreate) = return
-    s.channelUpdate =           proc(s: Session, p: ChannelUpdate) = return
-    s.channelDelete =           proc(s: Session, p: ChannelRemove) = return
-    s.guildCreate =             proc(s: Session, p: GuildCreate) = return
-    s.guildUpdate =             proc(s: Session, p: GuildUpdate) = return
-    s.guildDelete =             proc(s: Session, p: GuildDelete) = return
-    s.guildBanAdd =             proc(s: Session, p: GuildBanAdd) = return
-    s.guildBanRemove =          proc(s: Session, p: GuildBanRemove) = return
-    s.guildEmojisUpdate =       proc(s: Session, p: GuildEmojisUpdate) = return
-    s.guildIntegrationsUpdate = proc(s: Session, p: GuildIntegrationsUpdate) = return
-    s.guildMemberAdd =          proc(s: Session, p: GuildMemberAdd) = return
-    s.guildMemberUpdate =       proc(s: Session, p: GuildMemberUpdate) = return
-    s.guildMemberRemove =       proc(s: Session, p: GuildMemberRemove) = return
-    s.guildRoleCreate =         proc(s: Session, p: GuildRoleCreateObj) = return
-    s.guildRoleUpdate =         proc(s: Session, p: GuildRoleUpdateObj) = return
-    s.guildRoleDelete =         proc(s: Session, p: GuildRoleDeleteObj) = return
-    s.messageCreate =           proc(s: Session, p: MessageCreate) = return
-    s.messageUpdate =           proc(s: Session, p: MessageUpdate) = return
-    s.messageDelete =           proc(s: Session, p: MessageDelete) = return
-    s.messageDeleteBulk =       proc(s: Session, p: MessageDeleteBulk) = return
-    s.presenceUpdate =          proc(s: Session, p: PresenceUpdate) = return
-    s.typingStart =             proc(s: Session, p: TypingStart) = return
-    s.userUpdate =              proc(s: Session, p: User) = return
-    s.voiceStateUpdate =        proc(s: Session, p: VoiceState) = return
-    s.voiceServerUpdate =       proc(s: Session, p: VoiceServerUpdate) = return
-    s.onResume =                proc(s: Session, p: Resumed) = return
-    s.onReady =                 proc(s: Session, p: Ready) = return
+    s.channelCreate =            proc(s: Session, p: ChannelCreate) = return
+    s.channelUpdate =            proc(s: Session, p: ChannelUpdate) = return
+    s.channelDelete =            proc(s: Session, p: ChannelRemove) = return
+    s.guildCreate =              proc(s: Session, p: GuildCreate) = return
+    s.guildUpdate =              proc(s: Session, p: GuildUpdate) = return
+    s.guildDelete =              proc(s: Session, p: GuildDelete) = return
+    s.guildBanAdd =              proc(s: Session, p: GuildBanAdd) = return
+    s.guildBanRemove =           proc(s: Session, p: GuildBanRemove) = return
+    s.guildEmojisUpdate =        proc(s: Session, p: GuildEmojisUpdate) = return
+    s.guildIntegrationsUpdate =  proc(s: Session, p: GuildIntegrationsUpdate) = return
+    s.guildMemberAdd =           proc(s: Session, p: GuildMemberAdd) = return
+    s.guildMemberUpdate =        proc(s: Session, p: GuildMemberUpdate) = return
+    s.guildMemberRemove =        proc(s: Session, p: GuildMemberRemove) = return
+    s.guildRoleCreate =          proc(s: Session, p: GuildRoleCreateObj) = return
+    s.guildRoleUpdate =          proc(s: Session, p: GuildRoleUpdateObj) = return
+    s.guildRoleDelete =          proc(s: Session, p: GuildRoleDeleteObj) = return
+    s.messageCreate =            proc(s: Session, p: MessageCreate) = return
+    s.messageUpdate =            proc(s: Session, p: MessageUpdate) = return
+    s.messageDelete =            proc(s: Session, p: MessageDelete) = return
+    s.messageDeleteBulk =        proc(s: Session, p: MessageDeleteBulk) = return
+    s.messageReactionAdd =       proc(s: Session, p: MessageReactionAdd) = return
+    s.messageReactionRemove =    proc(s: Session, p: MessageReactionRemove) = return
+    s.messageReactionRemoveAll = proc(s: Session, p: MessageReactionRemoveAll) = return
+    s.presenceUpdate =           proc(s: Session, p: PresenceUpdate) = return
+    s.typingStart =              proc(s: Session, p: TypingStart) = return
+    s.userUpdate =               proc(s: Session, p: User) = return
+    s.voiceStateUpdate =         proc(s: Session, p: VoiceState) = return
+    s.voiceServerUpdate =        proc(s: Session, p: VoiceServerUpdate) = return
+    s.onResume =                 proc(s: Session, p: Resumed) = return
+    s.onReady =                  proc(s: Session, p: Ready) = return
 
 
 proc NewSession*(args: varargs[string, `$`]): Session =
@@ -1530,7 +1548,6 @@ proc startHeartbeats(t: tuple[s: Session, i: int]) {.thread, gcsafe.} =
         else:
             hb = %*{"op": OP_HEARTBEAT, "d": t.s.Sequence}
         try:
-            echo "sending heartbeat"
             waitFor t.s.Connection.sock.sendText($hb, true)
         except:
             echo "error sending heartbeat, returning"
@@ -1560,7 +1577,6 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
                 s.cache.channels[channel.id] = channel
             
             for guild in payload.guilds:
-                echo $guild
                 s.cache.guilds[guild.id] = guild
                 
             spawn s.onReady(s, payload)            
@@ -1639,6 +1655,15 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
         of "MESSAGE_DELETE_BULK":
             let payload = to[MessageDeleteBulk]($data)
             spawn s.messageDeleteBulk(s, payload)
+        of "MESSAGE_REACTION_ADD":
+            let payload = to[MessageReactionAdd]($data)
+            spawn s.messageReactionAdd(s, payload)
+        of "MESSAGE_REACTION_REMOVE":
+            let payload = to[MessageReactionRemove]($data)
+            spawn s.messageReactionRemove(s, payload)
+        of "MESSAGE_REACTION_REMOVE_ALL":
+            let payload = to[MessageReactionRemoveAll]($data)
+            spawn s.messageReactionRemoveAll(s, payload)
         of "PRESENCE_UPDATE":
             let payload = to[PresenceUpdate]($data)
             spawn s.presenceUpdate(s, payload)
@@ -1655,7 +1680,7 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
             let payload = to[VoiceServerUpdate]($data)
             spawn s.voiceServerUpdate(s, payload)
         else:
-            discard
+            echo "Unknown websocket event :: " & event & "\c\L" & $data
     sync()
 
 proc resume(s: Session) {.async, gcsafe.} =
@@ -1713,6 +1738,7 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.}  =
             of OP_DISPATCH:
                 let event = data["t"].str
                 handleDispatch(s, event, data["d"])
+                sync()
             else:
                 echo $data
     echo "connection closed\c\L" 
@@ -1730,7 +1756,7 @@ proc SessionStart*(s: Session){.async, gcsafe.} =
         echo "connected"
         s.Connection = socket
         s.Sequence = 0 
-        asyncCheck sessionHandleSocketMessage(s)
+        waitFor sessionHandleSocketMessage(s)
     except:
         echo getCurrentExceptionMsg()
         return
