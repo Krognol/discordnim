@@ -1605,6 +1605,11 @@ function main() {
     title="GuildMemberUpdate* = object of GuildMember"><wbr />Guild<wbr />Member<wbr />Update<span class="attachedType" style="visibility:hidden"></span></a></li>
   <li><a class="reference" href="#GuildMemberRemove"
     title="GuildMemberRemove* = object of GuildMember"><wbr />Guild<wbr />Member<wbr />Remove<span class="attachedType" style="visibility:hidden"></span></a></li>
+  <li><a class="reference" href="#GuildMembersChunk"
+    title="GuildMembersChunk* = object
+  guild_id: string
+  query: string
+  limit: int"><wbr />Guild<wbr />Members<wbr />Chunk<span class="attachedType" style="visibility:hidden"></span></a></li>
   <li><a class="reference" href="#GuildCreate"
     title="GuildCreate* = object of Guild"><wbr />Guild<wbr />Create<span class="attachedType" style="visibility:hidden"></span></a></li>
   <li><a class="reference" href="#GuildUpdate"
@@ -1617,8 +1622,8 @@ function main() {
     title="ChannelCreate* = object of DChannel"><wbr />Channel<wbr />Create<span class="attachedType" style="visibility:hidden"></span></a></li>
   <li><a class="reference" href="#ChannelUpdate"
     title="ChannelUpdate* = object of DChannel"><wbr />Channel<wbr />Update<span class="attachedType" style="visibility:hidden"></span></a></li>
-  <li><a class="reference" href="#ChannelRemove"
-    title="ChannelRemove* = object of DChannel"><wbr />Channel<wbr />Remove<span class="attachedType" style="visibility:hidden"></span></a></li>
+  <li><a class="reference" href="#ChannelDelete"
+    title="ChannelDelete* = object of DChannel"><wbr />Channel<wbr />Delete<span class="attachedType" style="visibility:hidden"></span></a></li>
   <li><a class="reference" href="#MessageReactionAdd"
     title="MessageReactionAdd* = object
   user_id: string
@@ -1653,7 +1658,7 @@ function main() {
   invalidated: bool
   channelCreate*: proc (s: Session; p: ChannelCreate)
   channelUpdate*: proc (s: Session; p: ChannelUpdate)
-  channelDelete*: proc (s: Session; p: ChannelRemove)
+  channelDelete*: proc (s: Session; p: ChannelDelete)
   guildCreate*: proc (s: Session; p: GuildCreate)
   guildUpdate*: proc (s: Session; p: GuildUpdate)
   guildDelete*: proc (s: Session; p: GuildDelete)
@@ -1664,6 +1669,7 @@ function main() {
   guildMemberAdd*: proc (s: Session; p: GuildMemberAdd)
   guildMemberUpdate*: proc (s: Session; p: GuildMemberUpdate)
   guildMemberRemove*: proc (s: Session; p: GuildMemberRemove)
+  guildMembersChunk*: proc (s: Session; p: GuildMembersChunk)
   guildRoleCreate*: proc (s: Session; p: GuildRoleCreateObj)
   guildRoleUpdate*: proc (s: Session; p: GuildRoleUpdateObj)
   guildRoleDelete*: proc (s: Session; p: GuildRoleDeleteObj)
@@ -2876,7 +2882,11 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L338" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="GuildCreate"><a name="GuildCreate"></a><pre><span class="Identifier">GuildCreate</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span> <span class="Keyword">of</span> <span class="Identifier">Guild</span></pre></dt>
+<dt id="GuildMembersChunk"><a name="GuildMembersChunk"></a><pre><span class="Identifier">GuildMembersChunk</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span>
+  <span class="Identifier">guild_id</span><span class="Other">:</span> <span class="Identifier">string</span>
+  <span class="Identifier">query</span><span class="Other">:</span> <span class="Identifier">string</span>
+  <span class="Identifier">limit</span><span class="Other">:</span> <span class="Identifier">int</span>
+</pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -2885,34 +2895,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L339" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="GuildUpdate"><a name="GuildUpdate"></a><pre><span class="Identifier">GuildUpdate</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span> <span class="Keyword">of</span> <span class="Identifier">Guild</span></pre></dt>
-<dd>
-
-&nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L340"
-class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L340" class="link-seesrc" target="_blank" >Edit</a>
-
-</dd>
-<dt id="GuildBanAdd"><a name="GuildBanAdd"></a><pre><span class="Identifier">GuildBanAdd</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span> <span class="Keyword">of</span> <span class="Identifier">User</span></pre></dt>
-<dd>
-
-&nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L341"
-class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L341" class="link-seesrc" target="_blank" >Edit</a>
-
-</dd>
-<dt id="GuildBanRemove"><a name="GuildBanRemove"></a><pre><span class="Identifier">GuildBanRemove</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span> <span class="Keyword">of</span> <span class="Identifier">User</span></pre></dt>
-<dd>
-
-&nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L342"
-class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L342" class="link-seesrc" target="_blank" >Edit</a>
-
-</dd>
-<dt id="ChannelCreate"><a name="ChannelCreate"></a><pre><span class="Identifier">ChannelCreate</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span> <span class="Keyword">of</span> <span class="Identifier">DChannel</span></pre></dt>
+<dt id="GuildCreate"><a name="GuildCreate"></a><pre><span class="Identifier">GuildCreate</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span> <span class="Keyword">of</span> <span class="Identifier">Guild</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -2921,7 +2904,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L343" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="ChannelUpdate"><a name="ChannelUpdate"></a><pre><span class="Identifier">ChannelUpdate</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span> <span class="Keyword">of</span> <span class="Identifier">DChannel</span></pre></dt>
+<dt id="GuildUpdate"><a name="GuildUpdate"></a><pre><span class="Identifier">GuildUpdate</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span> <span class="Keyword">of</span> <span class="Identifier">Guild</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -2930,13 +2913,49 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L344" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="ChannelRemove"><a name="ChannelRemove"></a><pre><span class="Identifier">ChannelRemove</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span> <span class="Keyword">of</span> <span class="Identifier">DChannel</span></pre></dt>
+<dt id="GuildBanAdd"><a name="GuildBanAdd"></a><pre><span class="Identifier">GuildBanAdd</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span> <span class="Keyword">of</span> <span class="Identifier">User</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
 href="/tree/master/discordnim.nim#L345"
 class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L345" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="GuildBanRemove"><a name="GuildBanRemove"></a><pre><span class="Identifier">GuildBanRemove</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span> <span class="Keyword">of</span> <span class="Identifier">User</span></pre></dt>
+<dd>
+
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L346"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L346" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="ChannelCreate"><a name="ChannelCreate"></a><pre><span class="Identifier">ChannelCreate</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span> <span class="Keyword">of</span> <span class="Identifier">DChannel</span></pre></dt>
+<dd>
+
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L347"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L347" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="ChannelUpdate"><a name="ChannelUpdate"></a><pre><span class="Identifier">ChannelUpdate</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span> <span class="Keyword">of</span> <span class="Identifier">DChannel</span></pre></dt>
+<dd>
+
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L348"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L348" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="ChannelDelete"><a name="ChannelDelete"></a><pre><span class="Identifier">ChannelDelete</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span> <span class="Keyword">of</span> <span class="Identifier">DChannel</span></pre></dt>
+<dd>
+
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L349"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L349" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="MessageReactionAdd"><a name="MessageReactionAdd"></a><pre><span class="Identifier">MessageReactionAdd</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span>
@@ -2948,9 +2967,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L346"
+href="/tree/master/discordnim.nim#L350"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L346" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L350" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="MessageReactionRemove"><a name="MessageReactionRemove"></a><pre><span class="Identifier">MessageReactionRemove</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span>
@@ -2962,9 +2981,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L351"
+href="/tree/master/discordnim.nim#L355"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L351" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L355" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="MessageReactionRemoveAll"><a name="MessageReactionRemoveAll"></a><pre><span class="Identifier">MessageReactionRemoveAll</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span>
@@ -2974,9 +2993,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L356"
+href="/tree/master/discordnim.nim#L360"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L356" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L360" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="Session"><a name="Session"></a><pre><span class="Identifier">Session</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">ref</span> <span class="Keyword">object</span>
@@ -2996,7 +3015,7 @@ class="link-seesrc" target="_blank">Source</a>
   <span class="Identifier">invalidated</span><span class="Other">:</span> <span class="Identifier">bool</span>
   <span class="Identifier">channelCreate</span><span class="Operator">*</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">p</span><span class="Other">:</span> <span class="Identifier">ChannelCreate</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span>
   <span class="Identifier">channelUpdate</span><span class="Operator">*</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">p</span><span class="Other">:</span> <span class="Identifier">ChannelUpdate</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span>
-  <span class="Identifier">channelDelete</span><span class="Operator">*</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">p</span><span class="Other">:</span> <span class="Identifier">ChannelRemove</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span>
+  <span class="Identifier">channelDelete</span><span class="Operator">*</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">p</span><span class="Other">:</span> <span class="Identifier">ChannelDelete</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span>
   <span class="Identifier">guildCreate</span><span class="Operator">*</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">p</span><span class="Other">:</span> <span class="Identifier">GuildCreate</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span>
   <span class="Identifier">guildUpdate</span><span class="Operator">*</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">p</span><span class="Other">:</span> <span class="Identifier">GuildUpdate</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span>
   <span class="Identifier">guildDelete</span><span class="Operator">*</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">p</span><span class="Other">:</span> <span class="Identifier">GuildDelete</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span>
@@ -3007,6 +3026,7 @@ class="link-seesrc" target="_blank">Source</a>
   <span class="Identifier">guildMemberAdd</span><span class="Operator">*</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">p</span><span class="Other">:</span> <span class="Identifier">GuildMemberAdd</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span>
   <span class="Identifier">guildMemberUpdate</span><span class="Operator">*</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">p</span><span class="Other">:</span> <span class="Identifier">GuildMemberUpdate</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span>
   <span class="Identifier">guildMemberRemove</span><span class="Operator">*</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">p</span><span class="Other">:</span> <span class="Identifier">GuildMemberRemove</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span>
+  <span class="Identifier">guildMembersChunk</span><span class="Operator">*</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">p</span><span class="Other">:</span> <span class="Identifier">GuildMembersChunk</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span>
   <span class="Identifier">guildRoleCreate</span><span class="Operator">*</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">p</span><span class="Other">:</span> <span class="Identifier">GuildRoleCreateObj</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span>
   <span class="Identifier">guildRoleUpdate</span><span class="Operator">*</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">p</span><span class="Other">:</span> <span class="Identifier">GuildRoleUpdateObj</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span>
   <span class="Identifier">guildRoleDelete</span><span class="Operator">*</span><span class="Other">:</span> <span class="Keyword">proc</span> <span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">p</span><span class="Other">:</span> <span class="Identifier">GuildRoleDeleteObj</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span>
@@ -3028,18 +3048,18 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L359"
+href="/tree/master/discordnim.nim#L363"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L359" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L363" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="CacheError"><a name="CacheError"></a><pre><span class="Identifier">CacheError</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span> <span class="Keyword">of</span> <span class="Identifier">Exception</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L683"
+href="/tree/master/discordnim.nim#L689"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L683" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L689" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="AddGroupDMUser"><a name="AddGroupDMUser"></a><pre><span class="Identifier">AddGroupDMUser</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span>
@@ -3049,18 +3069,18 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1028"
+href="/tree/master/discordnim.nim#L1034"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1028" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1034" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="IdentifyError"><a name="IdentifyError"></a><pre><span class="Identifier">IdentifyError</span><span class="Operator">*</span> <span class="Other">=</span> <span class="Keyword">object</span> <span class="Keyword">of</span> <span class="Identifier">Exception</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1514"
+href="/tree/master/discordnim.nim#L1520"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1514" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1520" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 
@@ -3072,57 +3092,12 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L422"
-class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L422" class="link-seesrc" target="_blank" >Edit</a>
-
-</dd>
-<dt id="OP_HEARTBEAT"><a name="OP_HEARTBEAT"></a><pre><span class="Identifier">OP_HEARTBEAT</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">1</span></pre></dt>
-<dd>
-
-&nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L423"
-class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L423" class="link-seesrc" target="_blank" >Edit</a>
-
-</dd>
-<dt id="OP_IDENTIFY"><a name="OP_IDENTIFY"></a><pre><span class="Identifier">OP_IDENTIFY</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">2</span></pre></dt>
-<dd>
-
-&nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L424"
-class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L424" class="link-seesrc" target="_blank" >Edit</a>
-
-</dd>
-<dt id="OP_STATUS_UPDATE"><a name="OP_STATUS_UPDATE"></a><pre><span class="Identifier">OP_STATUS_UPDATE</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">3</span></pre></dt>
-<dd>
-
-&nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L425"
-class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L425" class="link-seesrc" target="_blank" >Edit</a>
-
-</dd>
-<dt id="OP_VOICE_STATE_UPDATE"><a name="OP_VOICE_STATE_UPDATE"></a><pre><span class="Identifier">OP_VOICE_STATE_UPDATE</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">4</span></pre></dt>
-<dd>
-
-&nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L426"
-class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L426" class="link-seesrc" target="_blank" >Edit</a>
-
-</dd>
-<dt id="OP_VOICE_SERVER_PING"><a name="OP_VOICE_SERVER_PING"></a><pre><span class="Identifier">OP_VOICE_SERVER_PING</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">5</span></pre></dt>
-<dd>
-
-&nbsp;&nbsp;<a
 href="/tree/master/discordnim.nim#L427"
 class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L427" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="OP_RESUME"><a name="OP_RESUME"></a><pre><span class="Identifier">OP_RESUME</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">6</span></pre></dt>
+<dt id="OP_HEARTBEAT"><a name="OP_HEARTBEAT"></a><pre><span class="Identifier">OP_HEARTBEAT</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">1</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3131,7 +3106,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L428" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="OP_RECONNECT"><a name="OP_RECONNECT"></a><pre><span class="Identifier">OP_RECONNECT</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">7</span></pre></dt>
+<dt id="OP_IDENTIFY"><a name="OP_IDENTIFY"></a><pre><span class="Identifier">OP_IDENTIFY</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">2</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3140,7 +3115,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L429" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="OP_REQUEST_GUILD_MEMBERS"><a name="OP_REQUEST_GUILD_MEMBERS"></a><pre><span class="Identifier">OP_REQUEST_GUILD_MEMBERS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">8</span></pre></dt>
+<dt id="OP_STATUS_UPDATE"><a name="OP_STATUS_UPDATE"></a><pre><span class="Identifier">OP_STATUS_UPDATE</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">3</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3149,7 +3124,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L430" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="OP_INVALID_SESSION"><a name="OP_INVALID_SESSION"></a><pre><span class="Identifier">OP_INVALID_SESSION</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">9</span></pre></dt>
+<dt id="OP_VOICE_STATE_UPDATE"><a name="OP_VOICE_STATE_UPDATE"></a><pre><span class="Identifier">OP_VOICE_STATE_UPDATE</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">4</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3158,7 +3133,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L431" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="OP_HELLO"><a name="OP_HELLO"></a><pre><span class="Identifier">OP_HELLO</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">10</span></pre></dt>
+<dt id="OP_VOICE_SERVER_PING"><a name="OP_VOICE_SERVER_PING"></a><pre><span class="Identifier">OP_VOICE_SERVER_PING</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">5</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3167,7 +3142,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L432" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="OP_HEARTBEAT_ACK"><a name="OP_HEARTBEAT_ACK"></a><pre><span class="Identifier">OP_HEARTBEAT_ACK</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">11</span></pre></dt>
+<dt id="OP_RESUME"><a name="OP_RESUME"></a><pre><span class="Identifier">OP_RESUME</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">6</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3176,7 +3151,43 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L433" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="CREATE_INSTANT_INVITE"><a name="CREATE_INSTANT_INVITE"></a><pre><span class="Identifier">CREATE_INSTANT_INVITE</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000001</span></pre></dt>
+<dt id="OP_RECONNECT"><a name="OP_RECONNECT"></a><pre><span class="Identifier">OP_RECONNECT</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">7</span></pre></dt>
+<dd>
+
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L434"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L434" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="OP_REQUEST_GUILD_MEMBERS"><a name="OP_REQUEST_GUILD_MEMBERS"></a><pre><span class="Identifier">OP_REQUEST_GUILD_MEMBERS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">8</span></pre></dt>
+<dd>
+
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L435"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L435" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="OP_INVALID_SESSION"><a name="OP_INVALID_SESSION"></a><pre><span class="Identifier">OP_INVALID_SESSION</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">9</span></pre></dt>
+<dd>
+
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L436"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L436" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="OP_HELLO"><a name="OP_HELLO"></a><pre><span class="Identifier">OP_HELLO</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">10</span></pre></dt>
+<dd>
+
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L437"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L437" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="OP_HEARTBEAT_ACK"><a name="OP_HEARTBEAT_ACK"></a><pre><span class="Identifier">OP_HEARTBEAT_ACK</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">11</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3185,43 +3196,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L438" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="KICK_MEMBERS"><a name="KICK_MEMBERS"></a><pre><span class="Identifier">KICK_MEMBERS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000002</span></pre></dt>
-<dd>
-
-&nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L439"
-class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L439" class="link-seesrc" target="_blank" >Edit</a>
-
-</dd>
-<dt id="BAN_MEMBERS"><a name="BAN_MEMBERS"></a><pre><span class="Identifier">BAN_MEMBERS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000004</span></pre></dt>
-<dd>
-
-&nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L440"
-class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L440" class="link-seesrc" target="_blank" >Edit</a>
-
-</dd>
-<dt id="ADMINISTRATOR"><a name="ADMINISTRATOR"></a><pre><span class="Identifier">ADMINISTRATOR</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000008</span></pre></dt>
-<dd>
-
-&nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L441"
-class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L441" class="link-seesrc" target="_blank" >Edit</a>
-
-</dd>
-<dt id="MANAGE_CHANNELS"><a name="MANAGE_CHANNELS"></a><pre><span class="Identifier">MANAGE_CHANNELS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000010</span></pre></dt>
-<dd>
-
-&nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L442"
-class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L442" class="link-seesrc" target="_blank" >Edit</a>
-
-</dd>
-<dt id="MANAGE_GUILD"><a name="MANAGE_GUILD"></a><pre><span class="Identifier">MANAGE_GUILD</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000020</span></pre></dt>
+<dt id="CREATE_INSTANT_INVITE"><a name="CREATE_INSTANT_INVITE"></a><pre><span class="Identifier">CREATE_INSTANT_INVITE</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000001</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3230,7 +3205,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L443" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="ADD_REACTIONS"><a name="ADD_REACTIONS"></a><pre><span class="Identifier">ADD_REACTIONS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000040</span></pre></dt>
+<dt id="KICK_MEMBERS"><a name="KICK_MEMBERS"></a><pre><span class="Identifier">KICK_MEMBERS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000002</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3239,7 +3214,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L444" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="READ_MESSAGES"><a name="READ_MESSAGES"></a><pre><span class="Identifier">READ_MESSAGES</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000400</span></pre></dt>
+<dt id="BAN_MEMBERS"><a name="BAN_MEMBERS"></a><pre><span class="Identifier">BAN_MEMBERS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000004</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3248,7 +3223,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L445" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="SEND_MESSAGES"><a name="SEND_MESSAGES"></a><pre><span class="Identifier">SEND_MESSAGES</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000800</span></pre></dt>
+<dt id="ADMINISTRATOR"><a name="ADMINISTRATOR"></a><pre><span class="Identifier">ADMINISTRATOR</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000008</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3257,7 +3232,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L446" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="SEND_TTS_MESSAGES"><a name="SEND_TTS_MESSAGES"></a><pre><span class="Identifier">SEND_TTS_MESSAGES</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00001000</span></pre></dt>
+<dt id="MANAGE_CHANNELS"><a name="MANAGE_CHANNELS"></a><pre><span class="Identifier">MANAGE_CHANNELS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000010</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3266,7 +3241,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L447" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="MANAGE_MESSAGES"><a name="MANAGE_MESSAGES"></a><pre><span class="Identifier">MANAGE_MESSAGES</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00002000</span></pre></dt>
+<dt id="MANAGE_GUILD"><a name="MANAGE_GUILD"></a><pre><span class="Identifier">MANAGE_GUILD</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000020</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3275,7 +3250,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L448" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="EMBED_LINKS"><a name="EMBED_LINKS"></a><pre><span class="Identifier">EMBED_LINKS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00004000</span></pre></dt>
+<dt id="ADD_REACTIONS"><a name="ADD_REACTIONS"></a><pre><span class="Identifier">ADD_REACTIONS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000040</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3284,7 +3259,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L449" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="ATTACH_FILES"><a name="ATTACH_FILES"></a><pre><span class="Identifier">ATTACH_FILES</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00008000</span></pre></dt>
+<dt id="READ_MESSAGES"><a name="READ_MESSAGES"></a><pre><span class="Identifier">READ_MESSAGES</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000400</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3293,7 +3268,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L450" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="READ_MESSAGE_HISTORY"><a name="READ_MESSAGE_HISTORY"></a><pre><span class="Identifier">READ_MESSAGE_HISTORY</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00010000</span></pre></dt>
+<dt id="SEND_MESSAGES"><a name="SEND_MESSAGES"></a><pre><span class="Identifier">SEND_MESSAGES</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00000800</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3302,7 +3277,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L451" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="MENTION_EVERYONE"><a name="MENTION_EVERYONE"></a><pre><span class="Identifier">MENTION_EVERYONE</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00020000</span></pre></dt>
+<dt id="SEND_TTS_MESSAGES"><a name="SEND_TTS_MESSAGES"></a><pre><span class="Identifier">SEND_TTS_MESSAGES</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00001000</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3311,7 +3286,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L452" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="USE_EXTERNAL_EMOJIS"><a name="USE_EXTERNAL_EMOJIS"></a><pre><span class="Identifier">USE_EXTERNAL_EMOJIS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00040000</span></pre></dt>
+<dt id="MANAGE_MESSAGES"><a name="MANAGE_MESSAGES"></a><pre><span class="Identifier">MANAGE_MESSAGES</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00002000</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3320,7 +3295,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L453" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="CONNECT"><a name="CONNECT"></a><pre><span class="Identifier">CONNECT</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00100000</span></pre></dt>
+<dt id="EMBED_LINKS"><a name="EMBED_LINKS"></a><pre><span class="Identifier">EMBED_LINKS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00004000</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3329,7 +3304,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L454" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="SPEAK"><a name="SPEAK"></a><pre><span class="Identifier">SPEAK</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00200000</span></pre></dt>
+<dt id="ATTACH_FILES"><a name="ATTACH_FILES"></a><pre><span class="Identifier">ATTACH_FILES</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00008000</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3338,7 +3313,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L455" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="MUTE_MEMBERS"><a name="MUTE_MEMBERS"></a><pre><span class="Identifier">MUTE_MEMBERS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00400000</span></pre></dt>
+<dt id="READ_MESSAGE_HISTORY"><a name="READ_MESSAGE_HISTORY"></a><pre><span class="Identifier">READ_MESSAGE_HISTORY</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00010000</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3347,7 +3322,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L456" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="DEAFEN_MEMBERS"><a name="DEAFEN_MEMBERS"></a><pre><span class="Identifier">DEAFEN_MEMBERS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00800000</span></pre></dt>
+<dt id="MENTION_EVERYONE"><a name="MENTION_EVERYONE"></a><pre><span class="Identifier">MENTION_EVERYONE</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00020000</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3356,7 +3331,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L457" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="MOVE_MEMBERS"><a name="MOVE_MEMBERS"></a><pre><span class="Identifier">MOVE_MEMBERS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x01000000</span></pre></dt>
+<dt id="USE_EXTERNAL_EMOJIS"><a name="USE_EXTERNAL_EMOJIS"></a><pre><span class="Identifier">USE_EXTERNAL_EMOJIS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00040000</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3365,7 +3340,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L458" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="USE_VAD"><a name="USE_VAD"></a><pre><span class="Identifier">USE_VAD</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x02000000</span></pre></dt>
+<dt id="CONNECT"><a name="CONNECT"></a><pre><span class="Identifier">CONNECT</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00100000</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3374,7 +3349,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L459" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="CHANGE_NICKNAME"><a name="CHANGE_NICKNAME"></a><pre><span class="Identifier">CHANGE_NICKNAME</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x04000000</span></pre></dt>
+<dt id="SPEAK"><a name="SPEAK"></a><pre><span class="Identifier">SPEAK</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00200000</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3383,7 +3358,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L460" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="MANAGE_NICKNAMES"><a name="MANAGE_NICKNAMES"></a><pre><span class="Identifier">MANAGE_NICKNAMES</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x08000000</span></pre></dt>
+<dt id="MUTE_MEMBERS"><a name="MUTE_MEMBERS"></a><pre><span class="Identifier">MUTE_MEMBERS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00400000</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3392,7 +3367,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L461" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="MANAGE_ROLES"><a name="MANAGE_ROLES"></a><pre><span class="Identifier">MANAGE_ROLES</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x10000000</span></pre></dt>
+<dt id="DEAFEN_MEMBERS"><a name="DEAFEN_MEMBERS"></a><pre><span class="Identifier">DEAFEN_MEMBERS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x00800000</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3401,7 +3376,7 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L462" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="MANAGE_WEBHOOKS"><a name="MANAGE_WEBHOOKS"></a><pre><span class="Identifier">MANAGE_WEBHOOKS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x20000000</span></pre></dt>
+<dt id="MOVE_MEMBERS"><a name="MOVE_MEMBERS"></a><pre><span class="Identifier">MOVE_MEMBERS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x01000000</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
@@ -3410,13 +3385,58 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L463" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<dt id="MANAGE_EMOJIS"><a name="MANAGE_EMOJIS"></a><pre><span class="Identifier">MANAGE_EMOJIS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x40000000</span></pre></dt>
+<dt id="USE_VAD"><a name="USE_VAD"></a><pre><span class="Identifier">USE_VAD</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x02000000</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
 href="/tree/master/discordnim.nim#L464"
 class="link-seesrc" target="_blank">Source</a>
 <a href="/edit/devel/discordnim.nim#L464" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="CHANGE_NICKNAME"><a name="CHANGE_NICKNAME"></a><pre><span class="Identifier">CHANGE_NICKNAME</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x04000000</span></pre></dt>
+<dd>
+
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L465"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L465" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="MANAGE_NICKNAMES"><a name="MANAGE_NICKNAMES"></a><pre><span class="Identifier">MANAGE_NICKNAMES</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x08000000</span></pre></dt>
+<dd>
+
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L466"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L466" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="MANAGE_ROLES"><a name="MANAGE_ROLES"></a><pre><span class="Identifier">MANAGE_ROLES</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x10000000</span></pre></dt>
+<dd>
+
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L467"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L467" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="MANAGE_WEBHOOKS"><a name="MANAGE_WEBHOOKS"></a><pre><span class="Identifier">MANAGE_WEBHOOKS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x20000000</span></pre></dt>
+<dd>
+
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L468"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L468" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<dt id="MANAGE_EMOJIS"><a name="MANAGE_EMOJIS"></a><pre><span class="Identifier">MANAGE_EMOJIS</span><span class="Operator">*</span> <span class="Other">=</span> <span class="DecNumber">0x40000000</span></pre></dt>
+<dd>
+
+&nbsp;&nbsp;<a
+href="/tree/master/discordnim.nim#L469"
+class="link-seesrc" target="_blank">Source</a>
+<a href="/edit/devel/discordnim.nim#L469" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 
@@ -3428,90 +3448,90 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Creates a new Session
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L646"
+href="/tree/master/discordnim.nim#L652"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L646" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L652" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="getGuild"><a name="getGuild,Cache,string"></a><pre><span class="Keyword">proc</span> <span class="Identifier">getGuild</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">Cache</span><span class="Other">;</span> <span class="Identifier">id</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Keyword">tuple</span><span class="Other">[</span><span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">Guild</span><span class="Other">,</span> <span class="Identifier">exists</span><span class="Other">:</span> <span class="Identifier">bool</span><span class="Other">]</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L687"
+href="/tree/master/discordnim.nim#L693"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L687" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L693" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="removeGuild"><a name="removeGuild,Cache,string"></a><pre><span class="Keyword">proc</span> <span class="Identifier">removeGuild</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">Cache</span><span class="Other">;</span> <span class="Identifier">guildid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Identifier">CacheError</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L695"
+href="/tree/master/discordnim.nim#L701"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L695" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L701" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="updateGuild"><a name="updateGuild,Cache,Guild"></a><pre><span class="Keyword">proc</span> <span class="Identifier">updateGuild</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">Cache</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">Guild</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Identifier">CacheError</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L704"
+href="/tree/master/discordnim.nim#L710"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L704" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L710" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="getUser"><a name="getUser,Cache,string"></a><pre><span class="Keyword">proc</span> <span class="Identifier">getUser</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">Cache</span><span class="Other">;</span> <span class="Identifier">id</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Keyword">tuple</span><span class="Other">[</span><span class="Identifier">user</span><span class="Other">:</span> <span class="Identifier">User</span><span class="Other">,</span> <span class="Identifier">exists</span><span class="Other">:</span> <span class="Identifier">bool</span><span class="Other">]</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L709"
+href="/tree/master/discordnim.nim#L715"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L709" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L715" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="removeUser"><a name="removeUser,Cache,string"></a><pre><span class="Keyword">proc</span> <span class="Identifier">removeUser</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">Cache</span><span class="Other">;</span> <span class="Identifier">id</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Identifier">CacheError</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L717"
+href="/tree/master/discordnim.nim#L723"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L717" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L723" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="updateUser"><a name="updateUser,Cache,User"></a><pre><span class="Keyword">proc</span> <span class="Identifier">updateUser</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">Cache</span><span class="Other">;</span> <span class="Identifier">user</span><span class="Other">:</span> <span class="Identifier">User</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Identifier">CacheError</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L725"
+href="/tree/master/discordnim.nim#L731"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L725" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L731" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="getChannel"><a name="getChannel,Cache,string"></a><pre><span class="Keyword">proc</span> <span class="Identifier">getChannel</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">Cache</span><span class="Other">;</span> <span class="Identifier">id</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Keyword">tuple</span><span class="Other">[</span><span class="Identifier">channel</span><span class="Other">:</span> <span class="Identifier">DChannel</span><span class="Other">,</span> <span class="Identifier">exists</span><span class="Other">:</span> <span class="Identifier">bool</span><span class="Other">]</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L730"
+href="/tree/master/discordnim.nim#L736"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L730" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L736" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="updateChannel"><a name="updateChannel,Cache,DChannel"></a><pre><span class="Keyword">proc</span> <span class="Identifier">updateChannel</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">Cache</span><span class="Other">;</span> <span class="Identifier">chan</span><span class="Other">:</span> <span class="Identifier">DChannel</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Identifier">CacheError</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L738"
+href="/tree/master/discordnim.nim#L744"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L738" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L744" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="removeChannel"><a name="removeChannel,Cache,string"></a><pre><span class="Keyword">proc</span> <span class="Identifier">removeChannel</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">Cache</span><span class="Other">;</span> <span class="Identifier">chan</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Identifier">CacheError</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L746"
+href="/tree/master/discordnim.nim#L752"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L746" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L752" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="getGuildMember"><a name="getGuildMember,Cache,string,string"></a><pre><span class="Keyword">proc</span> <span class="Identifier">getGuildMember</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">Cache</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">memberid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Keyword">tuple</span><span class="Other">[</span><span class="Identifier">member</span><span class="Other">:</span> <span class="Identifier">GuildMember</span><span class="Other">,</span>
@@ -3519,153 +3539,153 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L754"
+href="/tree/master/discordnim.nim#L760"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L754" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L760" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="addGuildMember"><a name="addGuildMember,Cache,GuildMember"></a><pre><span class="Keyword">proc</span> <span class="Identifier">addGuildMember</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">Cache</span><span class="Other">;</span> <span class="Identifier">member</span><span class="Other">:</span> <span class="Identifier">GuildMember</span><span class="Other">)</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L768"
+href="/tree/master/discordnim.nim#L774"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L768" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L774" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="updateGuildMember"><a name="updateGuildMember,Cache,GuildMember"></a><pre><span class="Keyword">proc</span> <span class="Identifier">updateGuildMember</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">Cache</span><span class="Other">;</span> <span class="Identifier">m</span><span class="Other">:</span> <span class="Identifier">GuildMember</span><span class="Other">)</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L778"
+href="/tree/master/discordnim.nim#L784"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L778" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L784" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="removeGuildMember"><a name="removeGuildMember,Cache,GuildMember"></a><pre><span class="Keyword">proc</span> <span class="Identifier">removeGuildMember</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">Cache</span><span class="Other">;</span> <span class="Identifier">gmember</span><span class="Other">:</span> <span class="Identifier">GuildMember</span><span class="Other">)</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L791"
+href="/tree/master/discordnim.nim#L797"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L791" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L797" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="getRole"><a name="getRole,Cache,string,string"></a><pre><span class="Keyword">proc</span> <span class="Identifier">getRole</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">Cache</span><span class="Other">;</span> <span class="Identifier">guildid</span><span class="Other">,</span> <span class="Identifier">roleid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Keyword">tuple</span><span class="Other">[</span><span class="Identifier">role</span><span class="Other">:</span> <span class="Identifier">Role</span><span class="Other">,</span> <span class="Identifier">exists</span><span class="Other">:</span> <span class="Identifier">bool</span><span class="Other">]</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L804"
+href="/tree/master/discordnim.nim#L810"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L804" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L810" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="updateRole"><a name="updateRole,Cache,Role"></a><pre><span class="Keyword">proc</span> <span class="Identifier">updateRole</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">Cache</span><span class="Other">;</span> <span class="Identifier">role</span><span class="Other">:</span> <span class="Identifier">Role</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Identifier">CacheError</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L818"
+href="/tree/master/discordnim.nim#L824"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L818" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L824" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="removeRole"><a name="removeRole,Cache,string"></a><pre><span class="Keyword">proc</span> <span class="Identifier">removeRole</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">Cache</span><span class="Other">;</span> <span class="Identifier">role</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Identifier">CacheError</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L826"
+href="/tree/master/discordnim.nim#L832"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L826" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L832" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="SessionStart"><a name="SessionStart,Session"></a><pre><span class="Keyword">proc</span> <span class="Identifier">SessionStart</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">async</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Starts a Session
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1748"
+href="/tree/master/discordnim.nim#L1759"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1748" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1759" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="$"><a name="$,User"></a><pre><span class="Keyword">proc</span> <span class="Other">`</span><span class="Operator">$</span><span class="Other">`</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">u</span><span class="Other">:</span> <span class="Identifier">User</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span><span class="Other">,</span> <span class="Identifier">inline</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Stringifies a user. e.g: Username#1234
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1769"
+href="/tree/master/discordnim.nim#L1780"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1769" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1780" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="$"><a name="$,DChannel"></a><pre><span class="Keyword">proc</span> <span class="Other">`</span><span class="Operator">$</span><span class="Other">`</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">DChannel</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span><span class="Other">,</span> <span class="Identifier">inline</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Stringifies a channel. e.g: #channel-name
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1774"
+href="/tree/master/discordnim.nim#L1785"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1774" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1785" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="$"><a name="$,Emoji"></a><pre><span class="Keyword">proc</span> <span class="Other">`</span><span class="Operator">$</span><span class="Other">`</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">e</span><span class="Other">:</span> <span class="Identifier">Emoji</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span><span class="Other">,</span> <span class="Identifier">inline</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Stringifies an emoji. e.g: :emijoName:129837192873
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1779"
+href="/tree/master/discordnim.nim#L1790"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1779" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1790" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="@"><a name="@,User"></a><pre><span class="Keyword">proc</span> <span class="Other">`</span><span class="Operator">@</span><span class="Other">`</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">u</span><span class="Other">:</span> <span class="Identifier">User</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span><span class="Other">,</span> <span class="Identifier">inline</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Returns a message formatted user mention. e.g: &lt;@109283102983019283&gt;
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1784"
+href="/tree/master/discordnim.nim#L1795"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1784" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1795" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="@"><a name="@,DChannel"></a><pre><span class="Keyword">proc</span> <span class="Other">`</span><span class="Operator">@</span><span class="Other">`</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">c</span><span class="Other">:</span> <span class="Identifier">DChannel</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span><span class="Other">,</span> <span class="Identifier">inline</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Returns a message formatted channel mention. e.g: &lt;#1239810283&gt;
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1789"
+href="/tree/master/discordnim.nim#L1800"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1789" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1800" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="@"><a name="@,Role"></a><pre><span class="Keyword">proc</span> <span class="Other">`</span><span class="Operator">@</span><span class="Other">`</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">r</span><span class="Other">:</span> <span class="Identifier">Role</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span><span class="Other">,</span> <span class="Identifier">inline</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Returns a message formatted role mention e.g: &lt;@&amp;129837128937&gt;
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1794"
+href="/tree/master/discordnim.nim#L1805"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1794" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1805" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="@"><a name="@,Emoji"></a><pre><span class="Keyword">proc</span> <span class="Other">`</span><span class="Operator">@</span><span class="Other">`</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">e</span><span class="Other">:</span> <span class="Identifier">Emoji</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span><span class="Other">,</span> <span class="Identifier">inline</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Returns a message formated emoji. e.g: &lt;:emojiName:1920381&gt;
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1799"
+href="/tree/master/discordnim.nim#L1810"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1799" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1810" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="StripMentions"><a name="StripMentions,Message"></a><pre><span class="Keyword">proc</span> <span class="Identifier">StripMentions</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">msg</span><span class="Other">:</span> <span class="Identifier">Message</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Strips all user mentions from a message and replaces them with plaintext e.g: &lt;@1901092738173&gt; -&gt; @Username#1234
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1804"
+href="/tree/master/discordnim.nim#L1815"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1804" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1815" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="StripEveryoneMention"><a name="StripEveryoneMention,Message"></a><pre><span class="Keyword">proc</span> <span class="Identifier">StripEveryoneMention</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">msg</span><span class="Other">:</span> <span class="Identifier">Message</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Strips a message of any @everyone and @here mention
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1817"
+href="/tree/master/discordnim.nim#L1828"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1817" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1828" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="newMessageEmbed"><a name="newMessageEmbed,string,string,string,int,Footer,Image,Thumbnail,Video,Provider,Author,seq[Field]"></a><pre><span class="Keyword">proc</span> <span class="Identifier">newMessageEmbed</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">title</span><span class="Other">,</span> <span class="Identifier">description</span><span class="Other">,</span> <span class="Identifier">url</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other">=</span> <span class="StringLit">&quot;&quot;</span><span class="Other">;</span> <span class="Identifier">color</span><span class="Other">:</span> <span class="Identifier">int</span> <span class="Other">=</span> <span class="DecNumber">0</span><span class="Other">;</span>
@@ -3675,9 +3695,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Initialises a new Embed object
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1822"
+href="/tree/master/discordnim.nim#L1833"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1822" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1833" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="newChannelParams"><a name="newChannelParams,string,string,int,int,int"></a><pre><span class="Keyword">proc</span> <span class="Identifier">newChannelParams</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">name</span><span class="Other">,</span> <span class="Identifier">topic</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other">=</span> <span class="StringLit">&quot;&quot;</span><span class="Other">;</span> <span class="Identifier">position</span><span class="Other">:</span> <span class="Identifier">int</span> <span class="Other">=</span> <span class="DecNumber">0</span><span class="Other">;</span> <span class="Identifier">bitrate</span><span class="Other">:</span> <span class="Identifier">int</span> <span class="Other">=</span> <span class="DecNumber">48</span><span class="Other">;</span>
@@ -3685,9 +3705,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Initialises a new ChannelParams object for altering channel settings.
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1843"
+href="/tree/master/discordnim.nim#L1854"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1843" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1854" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="newGuildParams"><a name="newGuildParams,string,string,string,int,int,int,string,string,string"></a><pre><span class="Keyword">proc</span> <span class="Identifier">newGuildParams</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">name</span><span class="Other">,</span> <span class="Identifier">region</span><span class="Other">,</span> <span class="Identifier">afkchan</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other">=</span> <span class="StringLit">&quot;&quot;</span><span class="Other">;</span> <span class="Identifier">verlvl</span><span class="Other">:</span> <span class="Identifier">int</span> <span class="Other">=</span> <span class="DecNumber">0</span><span class="Other">;</span>
@@ -3696,9 +3716,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Initialises a new GuildParams object for altering guild settings.
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1856"
+href="/tree/master/discordnim.nim#L1867"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1856" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1867" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="newGuildMemberParams"><a name="newGuildMemberParams,string,string,seq[string],bool,bool"></a><pre><span class="Keyword">proc</span> <span class="Identifier">newGuildMemberParams</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">nick</span><span class="Other">,</span> <span class="Identifier">channelid</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other">=</span> <span class="StringLit">&quot;&quot;</span><span class="Other">;</span> <span class="Identifier">roles</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">string</span><span class="Other">]</span> <span class="Other">=</span> <span class="Operator">@</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">;</span>
@@ -3707,9 +3727,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Initialises a new GuildMemberParams object for altering guild members.
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1877"
+href="/tree/master/discordnim.nim#L1888"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1877" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1888" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="newWebhookParams"><a name="newWebhookParams,string,string,string,bool,Embed"></a><pre><span class="Keyword">proc</span> <span class="Identifier">newWebhookParams</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">content</span><span class="Other">,</span> <span class="Identifier">username</span><span class="Other">,</span> <span class="Identifier">avatarurl</span><span class="Other">:</span> <span class="Identifier">string</span> <span class="Other">=</span> <span class="StringLit">&quot;&quot;</span><span class="Other">;</span> <span class="Identifier">tts</span><span class="Other">:</span> <span class="Identifier">bool</span> <span class="Other">=</span> <span class="Identifier">false</span><span class="Other">;</span>
@@ -3717,9 +3737,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Initialises a new WebhookParams object for altering webhooks.
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1891"
+href="/tree/master/discordnim.nim#L1902"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1891" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1902" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 
@@ -3731,9 +3751,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Returns the channel with the given ID
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L834"
+href="/tree/master/discordnim.nim#L840"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L834" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L840" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="ModifyChannel"><a name="ModifyChannel.e,Session,string,ChannelParams"></a><pre><span class="Keyword">method</span> <span class="Identifier">ModifyChannel</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">params</span><span class="Other">:</span> <span class="Identifier">ChannelParams</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Guild</span> <span class="Other pragmabegin">{.</span><div class="pragma">
@@ -3741,18 +3761,18 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Modifies a channel with the ChannelParams
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L849"
+href="/tree/master/discordnim.nim#L855"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L849" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L855" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="DeleteChannel"><a name="DeleteChannel.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">DeleteChannel</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">DChannel</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Deletes a channel
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L855"
+href="/tree/master/discordnim.nim#L861"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L855" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L861" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="ChannelMessages"><a name="ChannelMessages.e,Session,string,string,string,string,int"></a><pre><span class="Keyword">method</span> <span class="Identifier">ChannelMessages</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">before</span><span class="Other">,</span> <span class="Identifier">after</span><span class="Other">,</span> <span class="Identifier">around</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span>
@@ -3760,27 +3780,27 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Returns a channels messages Maximum of 100 messages
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L861"
+href="/tree/master/discordnim.nim#L867"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L861" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L867" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="ChannelMessage"><a name="ChannelMessage.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">ChannelMessage</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">,</span> <span class="Identifier">messageid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Message</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Returns a message from a channel
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L881"
+href="/tree/master/discordnim.nim#L887"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L881" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L887" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="SendMessage"><a name="SendMessage.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">SendMessage</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">,</span> <span class="Identifier">message</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Message</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Sends a regular text message to a channel
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L888"
+href="/tree/master/discordnim.nim#L894"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L888" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L894" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="SendMessageEmbed"><a name="SendMessageEmbed.e,Session,string,Embed"></a><pre><span class="Keyword">method</span> <span class="Identifier">SendMessageEmbed</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">embed</span><span class="Other">:</span> <span class="Identifier">Embed</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Message</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span>
@@ -3788,18 +3808,18 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Sends an Embed message to a channel
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L896"
+href="/tree/master/discordnim.nim#L902"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L896" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L902" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="SendMessageTTS"><a name="SendMessageTTS.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">SendMessageTTS</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">,</span> <span class="Identifier">message</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Message</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Sends a TTS message to a channel
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L908"
+href="/tree/master/discordnim.nim#L914"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L908" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L914" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="MessageAddReaction"><a name="MessageAddReaction.e,Session,string,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">MessageAddReaction</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">,</span> <span class="Identifier">messageid</span><span class="Other">,</span> <span class="Identifier">emojiid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span>
@@ -3807,9 +3827,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Adds a reaction to a message
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L934"
+href="/tree/master/discordnim.nim#L940"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L934" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L940" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="MessageDeleteOwnReaction"><a name="MessageDeleteOwnReaction.e,Session,string,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">MessageDeleteOwnReaction</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">,</span> <span class="Identifier">messageid</span><span class="Other">,</span> <span class="Identifier">emojiid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma">
@@ -3817,9 +3837,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Deletes your own reaction to a message
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L939"
+href="/tree/master/discordnim.nim#L945"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L939" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L945" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="MessageDeleteReaction"><a name="MessageDeleteReaction.e,Session,string,string,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">MessageDeleteReaction</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span>
@@ -3828,9 +3848,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Deletes a reaction from a user from a message
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L944"
+href="/tree/master/discordnim.nim#L950"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L944" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L950" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="MessageGetReactions"><a name="MessageGetReactions.e,Session,string,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">MessageGetReactions</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">,</span> <span class="Identifier">messageid</span><span class="Other">,</span> <span class="Identifier">emojiid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span>
@@ -3838,9 +3858,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Gets a message's reactions
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L949"
+href="/tree/master/discordnim.nim#L955"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L949" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L955" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="MessageDeleteAllReactions"><a name="MessageDeleteAllReactions.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">MessageDeleteAllReactions</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">,</span> <span class="Identifier">messageid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span>
@@ -3848,9 +3868,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Deletes all reactions on a message
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L956"
+href="/tree/master/discordnim.nim#L962"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L956" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L962" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="EditMessage"><a name="EditMessage.e,Session,string,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">EditMessage</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">,</span> <span class="Identifier">messageid</span><span class="Other">,</span> <span class="Identifier">content</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Message</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span>
@@ -3858,18 +3878,18 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Edits a message's contents
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L961"
+href="/tree/master/discordnim.nim#L967"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L961" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L967" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="DeleteMessage"><a name="DeleteMessage.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">DeleteMessage</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">,</span> <span class="Identifier">messageid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Deletes a message
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L969"
+href="/tree/master/discordnim.nim#L975"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L969" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L975" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="BulkDeleteMessages"><a name="BulkDeleteMessages.e,Session,string,seq[string]"></a><pre><span class="Keyword">method</span> <span class="Identifier">BulkDeleteMessages</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">messages</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">string</span><span class="Other">]</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma">
@@ -3877,9 +3897,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Deletes messages in bulk Will not delete messages older than 2 weeks
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L974"
+href="/tree/master/discordnim.nim#L980"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L974" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L980" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="EditChannelPermissions"><a name="EditChannelPermissions.e,Session,string,Overwrite"></a><pre><span class="Keyword">method</span> <span class="Identifier">EditChannelPermissions</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">overwrite</span><span class="Other">:</span> <span class="Identifier">Overwrite</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma">
@@ -3887,18 +3907,18 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Edits a channel's permissions
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L981"
+href="/tree/master/discordnim.nim#L987"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L981" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L987" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="ChannelInvites"><a name="ChannelInvites.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">ChannelInvites</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channel</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">Invite</span><span class="Other">]</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Returns all invites to a channel
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L986"
+href="/tree/master/discordnim.nim#L992"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L986" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L992" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="CreateChannelInvite"><a name="CreateChannelInvite.e,Session,string,int,int,bool,bool"></a><pre><span class="Keyword">method</span> <span class="Identifier">CreateChannelInvite</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channel</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">max_age</span><span class="Other">,</span> <span class="Identifier">max_uses</span><span class="Other">:</span> <span class="Identifier">int</span><span class="Other">;</span>
@@ -3906,54 +3926,54 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Creates an invite to a channel
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L993"
+href="/tree/master/discordnim.nim#L999"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L993" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L999" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="DeleteChannelPermission"><a name="DeleteChannelPermission.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">DeleteChannelPermission</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channel</span><span class="Other">,</span> <span class="Identifier">target</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Deletes a channel permission
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1001"
+href="/tree/master/discordnim.nim#L1007"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1001" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1007" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="TriggerTypingIndicator"><a name="TriggerTypingIndicator.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">TriggerTypingIndicator</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channel</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Triggers the &quot;X is typing&quot; indicator
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1006"
+href="/tree/master/discordnim.nim#L1012"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1006" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1012" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="ChannelPinnedMessages"><a name="ChannelPinnedMessages.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">ChannelPinnedMessages</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channel</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">Message</span><span class="Other">]</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Returns all pinned messages in a channel
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1011"
+href="/tree/master/discordnim.nim#L1017"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1011" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1017" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="ChannelPinMessage"><a name="ChannelPinMessage.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">ChannelPinMessage</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channel</span><span class="Other">,</span> <span class="Identifier">message</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Pins a message in a channel
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1018"
+href="/tree/master/discordnim.nim#L1024"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1018" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1024" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="ChannelDeletePinnedMessage"><a name="ChannelDeletePinnedMessage.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">ChannelDeletePinnedMessage</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channel</span><span class="Other">,</span> <span class="Identifier">message</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1023"
+href="/tree/master/discordnim.nim#L1029"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1023" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1029" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="CreateGroupDM"><a name="CreateGroupDM.e,Session,seq[string],seq[AddGroupDMUser]"></a><pre><span class="Keyword">method</span> <span class="Identifier">CreateGroupDM</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">accesstokens</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">string</span><span class="Other">]</span><span class="Other">;</span>
@@ -3961,9 +3981,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Creates a group DM channel
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1033"
+href="/tree/master/discordnim.nim#L1039"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1033" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1039" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GroupDMAddUser"><a name="GroupDMAddUser.e,Session,string,string,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GroupDMAddUser</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">,</span> <span class="Identifier">userid</span><span class="Other">,</span> <span class="Identifier">access_token</span><span class="Other">,</span> <span class="Identifier">nick</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma">
@@ -3971,36 +3991,36 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Adds a user to a group dm. Requires the 'gdm.join' scope.
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1040"
+href="/tree/master/discordnim.nim#L1046"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1040" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1046" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GroupdDMRemoveUser"><a name="GroupdDMRemoveUser.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GroupdDMRemoveUser</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channelid</span><span class="Other">,</span> <span class="Identifier">userid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Removes a user from a group dm.
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1048"
+href="/tree/master/discordnim.nim#L1054"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1048" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1054" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="CreateGuild"><a name="CreateGuild.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">CreateGuild</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">name</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Guild</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Creates a guild This endpoint is limited to 10 active guilds
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1053"
+href="/tree/master/discordnim.nim#L1059"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1053" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1059" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GetGuild"><a name="GetGuild.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GetGuild</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">id</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Guild</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Gets a guild
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1062"
+href="/tree/master/discordnim.nim#L1068"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1062" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1068" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="ModifyGuild"><a name="ModifyGuild.e,Session,string,GuildParams"></a><pre><span class="Keyword">method</span> <span class="Identifier">ModifyGuild</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">settings</span><span class="Other">:</span> <span class="Identifier">GuildParams</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Guild</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span>
@@ -4008,27 +4028,27 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Modifies a guild with the GuildParams
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1081"
+href="/tree/master/discordnim.nim#L1087"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1081" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1087" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="DeleteGuild"><a name="DeleteGuild.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">DeleteGuild</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Guild</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Deletes a guild
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1088"
+href="/tree/master/discordnim.nim#L1094"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1088" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1094" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildChannels"><a name="GuildChannels.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildChannels</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">DChannel</span><span class="Other">]</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Returns all guild channels
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1095"
+href="/tree/master/discordnim.nim#L1101"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1095" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1101" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildChannelCreate"><a name="GuildChannelCreate.e,Session,string,string,bool"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildChannelCreate</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">channelname</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">voice</span><span class="Other">:</span> <span class="Identifier">bool</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">DChannel</span> <span class="Other pragmabegin">{.</span><div class="pragma">
@@ -4036,9 +4056,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Creates a new channel in a guild
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1102"
+href="/tree/master/discordnim.nim#L1108"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1102" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1108" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="ModifyGuildChannelPosition"><a name="ModifyGuildChannelPosition.e,Session,string,string,int"></a><pre><span class="Keyword">method</span> <span class="Identifier">ModifyGuildChannelPosition</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">channel</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">position</span><span class="Other">:</span> <span class="Identifier">int</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span>
@@ -4046,9 +4066,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Reorders the position of a channel and returns the new order
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1110"
+href="/tree/master/discordnim.nim#L1116"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1110" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1116" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildMembers"><a name="GuildMembers.e,Session,string,int,int"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildMembers</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">limit</span><span class="Other">,</span> <span class="Identifier">after</span><span class="Other">:</span> <span class="Identifier">int</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">GuildMember</span><span class="Other">]</span> <span class="Other pragmabegin">{.</span><div class="pragma">
@@ -4056,18 +4076,18 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Returns up to 1000 guild members
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1118"
+href="/tree/master/discordnim.nim#L1124"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1118" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1124" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GetGuildMember"><a name="GetGuildMember.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GetGuildMember</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">userid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">GuildMember</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Returns a guild member with the userid
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1131"
+href="/tree/master/discordnim.nim#L1137"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1131" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1137" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildAddMember"><a name="GuildAddMember.e,Session,string,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildAddMember</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">userid</span><span class="Other">,</span> <span class="Identifier">accesstoken</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">GuildMember</span> <span class="Other pragmabegin">{.</span><div class="pragma">
@@ -4075,9 +4095,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Adds a guild member to the guild
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1147"
+href="/tree/master/discordnim.nim#L1153"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1147" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1153" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildMemberRoles"><a name="GuildMemberRoles.e,Session,string,string,seq[string]"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildMemberRoles</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">userid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">roles</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">string</span><span class="Other">]</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span>
@@ -4085,135 +4105,135 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Modifies a guild member's roles
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1155"
+href="/tree/master/discordnim.nim#L1161"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1155" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1161" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildMemberNick"><a name="GuildMemberNick.e,Session,string,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildMemberNick</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">userid</span><span class="Other">,</span> <span class="Identifier">nick</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Sets the nickname of a member
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1161"
+href="/tree/master/discordnim.nim#L1167"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1161" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1167" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildMemberMute"><a name="GuildMemberMute.e,Session,string,string,bool"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildMemberMute</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">userid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">mute</span><span class="Other">:</span> <span class="Identifier">bool</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Mutes a guild member
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1167"
+href="/tree/master/discordnim.nim#L1173"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1167" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1173" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildMemberDeafen"><a name="GuildMemberDeafen.e,Session,string,string,bool"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildMemberDeafen</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">userid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">deafen</span><span class="Other">:</span> <span class="Identifier">bool</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Deafens a guild member
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1173"
+href="/tree/master/discordnim.nim#L1179"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1173" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1179" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildMemberMove"><a name="GuildMemberMove.e,Session,string,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildMemberMove</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">userid</span><span class="Other">,</span> <span class="Identifier">channel</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Moves a guild member from one channel to another only works if they are connected to a voice channel
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1179"
+href="/tree/master/discordnim.nim#L1185"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1179" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1185" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="Nick"><a name="Nick.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">Nick</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">nick</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Sets the nick for the current user
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1186"
+href="/tree/master/discordnim.nim#L1192"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1186" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1192" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildMemberAddRole"><a name="GuildMemberAddRole.e,Session,string,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildMemberAddRole</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">userid</span><span class="Other">,</span> <span class="Identifier">roleid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Adds a role to a guild member
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1192"
+href="/tree/master/discordnim.nim#L1198"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1192" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1198" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildMemberRemoveRole"><a name="GuildMemberRemoveRole.e,Session,string,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildMemberRemoveRole</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">userid</span><span class="Other">,</span> <span class="Identifier">roleid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Removes a role from a guild member
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1197"
+href="/tree/master/discordnim.nim#L1203"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1197" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1203" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildRemoveMember"><a name="GuildRemoveMember.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildRemoveMember</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">userid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Removes a guild membe from the guild
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1202"
+href="/tree/master/discordnim.nim#L1208"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1202" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1208" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildBans"><a name="GuildBans.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildBans</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">User</span><span class="Other">]</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Returns all users who have been banned from the guild
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1207"
+href="/tree/master/discordnim.nim#L1213"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1207" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1213" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildBanUser"><a name="GuildBanUser.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildBanUser</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">userid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Bans a user from the guild
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1214"
+href="/tree/master/discordnim.nim#L1220"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1214" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1220" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildRemoveBan"><a name="GuildRemoveBan.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildRemoveBan</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">userid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Removes a ban from the guild
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1219"
+href="/tree/master/discordnim.nim#L1225"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1219" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1225" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildRoles"><a name="GuildRoles.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildRoles</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">Role</span><span class="Other">]</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Returns all guild roles
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1224"
+href="/tree/master/discordnim.nim#L1230"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1224" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1230" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildRole"><a name="GuildRole.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildRole</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">roleid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Role</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Returns a role with the given id.
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1230"
+href="/tree/master/discordnim.nim#L1236"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1230" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1236" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildRoleCreate"><a name="GuildRoleCreate.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildRoleCreate</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Role</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Creates a new role in the guild Excuse the P in the name, the name conflicts with another declaration
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1250"
+href="/tree/master/discordnim.nim#L1256"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1250" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1256" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildRoleEditPosition"><a name="GuildRoleEditPosition.e,Session,string,seq[Role]"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildRoleEditPosition</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">roles</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">Role</span><span class="Other">]</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">Role</span><span class="Other">]</span> <span class="Other pragmabegin">{.</span><div class="pragma">
@@ -4221,9 +4241,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Edits the positions of a guilds roles roles and returns the new roles order
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1258"
+href="/tree/master/discordnim.nim#L1264"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1258" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1264" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildRoleEdit"><a name="GuildRoleEdit.e,Session,string,string,string,int,int,bool,bool"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildRoleEdit</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">roleid</span><span class="Other">,</span> <span class="Identifier">name</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">permissions</span><span class="Other">,</span> <span class="Identifier">color</span><span class="Other">:</span> <span class="Identifier">int</span><span class="Other">;</span>
@@ -4231,72 +4251,72 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Edits a role
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1266"
+href="/tree/master/discordnim.nim#L1272"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1266" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1272" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildRoleDelete"><a name="GuildRoleDelete.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildRoleDelete</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">roleid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Deletes a role Excuse the P in the name, the name conflicts with another declaration
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1274"
+href="/tree/master/discordnim.nim#L1280"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1274" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1280" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildPruneCount"><a name="GuildPruneCount.e,Session,string,int"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildPruneCount</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">days</span><span class="Other">:</span> <span class="Identifier">int</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">int</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Returns the number of members who would get kicked during a prune operation
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1280"
+href="/tree/master/discordnim.nim#L1286"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1280" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1286" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildPruneBegin"><a name="GuildPruneBegin.e,Session,string,int"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildPruneBegin</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">days</span><span class="Other">:</span> <span class="Identifier">int</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">int</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Begins a prune operation and kicks all members who haven't been active for N days
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1292"
+href="/tree/master/discordnim.nim#L1298"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1292" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1298" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildVoiceRegions"><a name="GuildVoiceRegions.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildVoiceRegions</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">VoiceRegion</span><span class="Other">]</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Lists all voice regions in a guild
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1305"
+href="/tree/master/discordnim.nim#L1311"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1305" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1311" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildInvites"><a name="GuildInvites.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildInvites</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">Invite</span><span class="Other">]</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Lists all guild invites
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1312"
+href="/tree/master/discordnim.nim#L1318"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1312" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1318" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildIntegrations"><a name="GuildIntegrations.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildIntegrations</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">Integration</span><span class="Other">]</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Lists all guild integrations
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1319"
+href="/tree/master/discordnim.nim#L1325"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1319" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1325" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildIntegrationCreate"><a name="GuildIntegrationCreate.e,Session,string,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildIntegrationCreate</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">typ</span><span class="Other">,</span> <span class="Identifier">id</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Creates a new guild integration
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1326"
+href="/tree/master/discordnim.nim#L1332"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1326" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1332" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildIntegrationEdit"><a name="GuildIntegrationEdit.e,Session,string,string,int,int,bool"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildIntegrationEdit</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">integrationid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span>
@@ -4304,36 +4324,36 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Edits a guild integration
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1332"
+href="/tree/master/discordnim.nim#L1338"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1332" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1338" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildIntegrationDelete"><a name="GuildIntegrationDelete.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildIntegrationDelete</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">integration</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Deletes a guild Integration
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1338"
+href="/tree/master/discordnim.nim#L1344"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1338" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1344" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildIntegrationSync"><a name="GuildIntegrationSync.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildIntegrationSync</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">,</span> <span class="Identifier">integration</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Syncs an existing guild integration
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1343"
+href="/tree/master/discordnim.nim#L1349"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1343" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1349" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GetGuildEmbed"><a name="GetGuildEmbed.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GetGuildEmbed</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">GuildEmbed</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Gets a GuildEmbed
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1348"
+href="/tree/master/discordnim.nim#L1354"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1348" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1354" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildEmbedEdit"><a name="GuildEmbedEdit.e,Session,string,bool,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildEmbedEdit</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">enabled</span><span class="Other">:</span> <span class="Identifier">bool</span><span class="Other">;</span> <span class="Identifier">channel</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">GuildEmbed</span> <span class="Other pragmabegin">{.</span><div class="pragma">
@@ -4341,153 +4361,153 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Edits a GuildEmbed
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1355"
+href="/tree/master/discordnim.nim#L1361"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1355" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1361" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GetInvite"><a name="GetInvite.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GetInvite</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">code</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Invite</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Gets an invite with code
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1363"
+href="/tree/master/discordnim.nim#L1369"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1363" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1369" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="InviteDelete"><a name="InviteDelete.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">InviteDelete</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">code</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Invite</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Deletes an invite
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1370"
+href="/tree/master/discordnim.nim#L1376"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1370" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1376" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="Me"><a name="Me.e,Session"></a><pre><span class="Keyword">method</span> <span class="Identifier">Me</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">User</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Returns the current user
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1377"
+href="/tree/master/discordnim.nim#L1383"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1377" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1383" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GetUser"><a name="GetUser.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GetUser</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">userid</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">User</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Gets a user
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1384"
+href="/tree/master/discordnim.nim#L1390"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1384" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1390" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="EditUsername"><a name="EditUsername.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">EditUsername</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">name</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">User</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Edits the current users username
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1399"
+href="/tree/master/discordnim.nim#L1405"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1399" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1405" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="EditAvatar"><a name="EditAvatar.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">EditAvatar</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">avatar</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">User</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Changes the current users avatar
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1407"
+href="/tree/master/discordnim.nim#L1413"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1407" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1413" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="Guilds"><a name="Guilds.e,Session"></a><pre><span class="Keyword">method</span> <span class="Identifier">Guilds</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">UserGuild</span><span class="Other">]</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Lists the current users guilds
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1415"
+href="/tree/master/discordnim.nim#L1421"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1415" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1421" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="LeaveGuild"><a name="LeaveGuild.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">LeaveGuild</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Makes the current user leave the specified guild
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1422"
+href="/tree/master/discordnim.nim#L1428"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1422" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1428" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="DMs"><a name="DMs.e,Session"></a><pre><span class="Keyword">method</span> <span class="Identifier">DMs</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">DChannel</span><span class="Other">]</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Lists all active DM channels
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1427"
+href="/tree/master/discordnim.nim#L1433"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1427" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1433" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="DMCreate"><a name="DMCreate.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">DMCreate</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">recipient</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">DChannel</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Creates a new DM channel
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1434"
+href="/tree/master/discordnim.nim#L1440"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1434" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1440" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="VoiceRegions"><a name="VoiceRegions.e,Session"></a><pre><span class="Keyword">method</span> <span class="Identifier">VoiceRegions</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">VoiceRegion</span><span class="Other">]</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Lists all voice regions
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1442"
+href="/tree/master/discordnim.nim#L1448"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1442" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1448" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="WebhookCreate"><a name="WebhookCreate.e,Session,string,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">WebhookCreate</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channel</span><span class="Other">,</span> <span class="Identifier">name</span><span class="Other">,</span> <span class="Identifier">avatar</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Webhook</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Creates a webhook
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1449"
+href="/tree/master/discordnim.nim#L1455"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1449" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1455" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="ChannelWebhooks"><a name="ChannelWebhooks.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">ChannelWebhooks</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">channel</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">Webhook</span><span class="Other">]</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Lists all webhooks in a channel
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1457"
+href="/tree/master/discordnim.nim#L1463"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1457" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1463" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GuildWebhooks"><a name="GuildWebhooks.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GuildWebhooks</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">guild</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">seq</span><span class="Other">[</span><span class="Identifier">Webhook</span><span class="Other">]</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Lists all webhooks in a guild
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1464"
+href="/tree/master/discordnim.nim#L1470"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1464" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1470" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="GetWebhookWithToken"><a name="GetWebhookWithToken.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">GetWebhookWithToken</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">webhook</span><span class="Other">,</span> <span class="Identifier">token</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Webhook</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Gets a webhook with a token
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1471"
+href="/tree/master/discordnim.nim#L1477"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1471" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1477" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="WebhookEdit"><a name="WebhookEdit.e,Session,string,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">WebhookEdit</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">webhook</span><span class="Other">,</span> <span class="Identifier">name</span><span class="Other">,</span> <span class="Identifier">avatar</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Webhook</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Edits a webhook
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1478"
+href="/tree/master/discordnim.nim#L1484"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1478" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1484" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="WebhookEditWithToken"><a name="WebhookEditWithToken.e,Session,string,string,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">WebhookEditWithToken</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">webhook</span><span class="Other">,</span> <span class="Identifier">token</span><span class="Other">,</span> <span class="Identifier">name</span><span class="Other">,</span> <span class="Identifier">avatar</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Webhook</span> <span class="Other pragmabegin">{.</span><div class="pragma">
@@ -4495,18 +4515,18 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Edits a webhook with a token
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1486"
+href="/tree/master/discordnim.nim#L1492"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1486" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1492" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="WebhookDelete"><a name="WebhookDelete.e,Session,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">WebhookDelete</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">webhook</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Webhook</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span> <span class="Identifier">gcsafe</span></div><span class="Other pragmaend">.}</span></pre></dt>
 <dd>
 Deletes a webhook
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1494"
+href="/tree/master/discordnim.nim#L1500"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1494" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1500" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="WebhookDeleteWithToken"><a name="WebhookDeleteWithToken.e,Session,string,string"></a><pre><span class="Keyword">method</span> <span class="Identifier">WebhookDeleteWithToken</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">webhook</span><span class="Other">,</span> <span class="Identifier">token</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span><span class="Other">:</span> <span class="Identifier">Webhook</span> <span class="Other pragmabegin">{.</span><div class="pragma"><span class="Identifier">base</span><span class="Other">,</span>
@@ -4514,9 +4534,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Deltes a webhook with a token
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1501"
+href="/tree/master/discordnim.nim#L1507"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1501" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1507" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <dt id="ExecuteWebhook"><a name="ExecuteWebhook.e,Session,string,string,bool,WebhookParams"></a><pre><span class="Keyword">method</span> <span class="Identifier">ExecuteWebhook</span><span class="Operator">*</span><span class="Other">(</span><span class="Identifier">s</span><span class="Other">:</span> <span class="Identifier">Session</span><span class="Other">;</span> <span class="Identifier">webhook</span><span class="Other">,</span> <span class="Identifier">token</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">wait</span><span class="Other">:</span> <span class="Identifier">bool</span><span class="Other">;</span>
@@ -4524,9 +4544,9 @@ class="link-seesrc" target="_blank">Source</a>
 <dd>
 Executes a webhook
 &nbsp;&nbsp;<a
-href="/tree/master/discordnim.nim#L1508"
+href="/tree/master/discordnim.nim#L1514"
 class="link-seesrc" target="_blank">Source</a>
-<a href="/edit/devel/discordnim.nim#L1508" class="link-seesrc" target="_blank" >Edit</a>
+<a href="/edit/devel/discordnim.nim#L1514" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 
@@ -4539,7 +4559,7 @@ class="link-seesrc" target="_blank">Source</a>
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br/>
-        <small>Made with Nim. Generated: 2017-04-14 21:09:51 UTC</small>
+        <small>Made with Nim. Generated: 2017-04-14 21:43:36 UTC</small>
       </div>
     </div>
   </div>
