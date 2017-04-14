@@ -336,13 +336,17 @@ type
     GuildMemberAdd* = object of GuildMember
     GuildMemberUpdate* = object of GuildMember
     GuildMemberRemove* = object of GuildMember
+    GuildMembersChunk* = object
+        guild_id: string
+        query: string
+        limit: int
     GuildCreate* = object of Guild
     GuildUpdate* = object of Guild
     GuildBanAdd* = object of User
     GuildBanRemove* = object of User
     ChannelCreate* = object of DChannel
     ChannelUpdate* = object of DChannel
-    ChannelRemove* = object of DChannel
+    ChannelDelete* = object of DChannel
     MessageReactionAdd* = object
         user_id: string
         message_id: string
@@ -374,7 +378,7 @@ type
         # Temporary until better solution is found
         channelCreate*:            proc(s: Session, p: ChannelCreate) {.gcsafe.}
         channelUpdate*:            proc(s: Session, p: ChannelUpdate) {.gcsafe.}
-        channelDelete*:            proc(s: Session, p: ChannelRemove) {.gcsafe.}
+        channelDelete*:            proc(s: Session, p: ChannelDelete) {.gcsafe.}
         guildCreate*:              proc(s: Session, p: GuildCreate) {.gcsafe.}
         guildUpdate*:              proc(s: Session, p: GuildUpdate) {.gcsafe.}
         guildDelete*:              proc(s: Session, p: GuildDelete) {.gcsafe.}
@@ -385,6 +389,7 @@ type
         guildMemberAdd*:           proc(s: Session, p: GuildMemberAdd) {.gcsafe.}
         guildMemberUpdate*:        proc(s: Session, p: GuildMemberUpdate) {.gcsafe.}
         guildMemberRemove*:        proc(s: Session, p: GuildMemberRemove) {.gcsafe.}
+        guildMembersChunk*:        proc(s: Session, p: GuildMembersChunk) {.gcsafe.}
         guildRoleCreate*:          proc(s: Session, p: GuildRoleCreateObj) {.gcsafe.}
         guildRoleUpdate*:          proc(s: Session, p: GuildRoleUpdateObj) {.gcsafe.}
         guildRoleDelete*:          proc(s: Session, p: GuildRoleDeleteObj) {.gcsafe.}
@@ -613,7 +618,7 @@ method Login(s : Session, email, password : string) {.base.} =
 method initEvents(s: Session) {.base.} =
     s.channelCreate =            proc(s: Session, p: ChannelCreate) = return
     s.channelUpdate =            proc(s: Session, p: ChannelUpdate) = return
-    s.channelDelete =            proc(s: Session, p: ChannelRemove) = return
+    s.channelDelete =            proc(s: Session, p: ChannelDelete) = return
     s.guildCreate =              proc(s: Session, p: GuildCreate) = return
     s.guildUpdate =              proc(s: Session, p: GuildUpdate) = return
     s.guildDelete =              proc(s: Session, p: GuildDelete) = return
@@ -624,6 +629,7 @@ method initEvents(s: Session) {.base.} =
     s.guildMemberAdd =           proc(s: Session, p: GuildMemberAdd) = return
     s.guildMemberUpdate =        proc(s: Session, p: GuildMemberUpdate) = return
     s.guildMemberRemove =        proc(s: Session, p: GuildMemberRemove) = return
+    s.guildMembersChunk =        proc(s: Session, p: GuildMembersChunk) = return
     s.guildRoleCreate =          proc(s: Session, p: GuildRoleCreateObj) = return
     s.guildRoleUpdate =          proc(s: Session, p: GuildRoleUpdateObj) = return
     s.guildRoleDelete =          proc(s: Session, p: GuildRoleDeleteObj) = return
@@ -1592,7 +1598,7 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
             if s.cache.cacheChannels: s.cache.updateChannel(payload)
             spawn s.channelUpdate(s, payload)
         of "CHANNEL_DELETE":
-            let payload = to[ChannelRemove]($data)
+            let payload = to[ChannelDelete]($data)
             if s.cache.cacheChannels: s.cache.removeChannel(payload.id)
             spawn s.channelDelete(s, payload)
         of "GUILD_CREATE":
@@ -1631,6 +1637,9 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
             let payload = to[GuildMemberRemove]($data)
             if s.cache.cacheGuildMembers: s.cache.removeGuildMember(payload)
             spawn s.guildMemberRemove(s, payload)
+        of "GUILD_MEMBERS_CHUNK":
+            let payload = to[GuildMembersChunk]($data)
+            spawn s.guildMembersChunk(s, payload)
         of "GUILD_ROLE_CREATE":
             let payload = to[GuildRoleCreateObj]($data)
             if s.cache.cacheRoles: s.cache.roles[payload.role.id] = payload.role
@@ -1670,6 +1679,8 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
         of "TYPING_START":
             let payload = to[TypingStart]($data)
             spawn s.typingStart(s, payload)
+        of "USER_SETTINGS_UPDATE":
+            discard
         of "USER_UPDATE":
             let payload = to[User]($data)
             spawn s.userUpdate(s, payload)
