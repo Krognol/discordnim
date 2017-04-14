@@ -1789,7 +1789,7 @@ proc `$`*(c: DChannel): string {.gcsafe, inline.} =
 
 proc `$`*(e: Emoji): string {.gcsafe, inline.} =
     ## Stringifies an emoji.
-    ## e.g: :emijoName:129837192873
+    ## e.g: :emojiName:129837192873
     result = ":" & e.name & ":" & e.id
 
 proc `@`*(u: User): string {.gcsafe, inline.} =
