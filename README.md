@@ -18,8 +18,9 @@ It holds all REST API methods and gateway events.
 Initialising a `Session`:
 
 ```nim
-proc someMessageCreateProc(s: Session, m: Message) =
-    ## do something
+proc someMessageCreateProc(s: Session, m: MessageCreate) =
+    if m.content == "ping":
+        discard s.SendMessage(m.channel_id, "pong!")
 
 let session = NewSession("Bot <your token>")
 ## Add your gateway event methods
@@ -27,7 +28,7 @@ let session = NewSession("Bot <your token>")
 session.messageCreate = someMessageCreateProc
 
 ## Lastly you connect 
-s.StartSession()
+waitFor s.StartSession()
 runForever()
 ```
 
