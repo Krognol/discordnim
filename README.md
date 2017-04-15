@@ -29,7 +29,6 @@ session.messageCreate = someMessageCreateProc
 
 ## Lastly you connect 
 waitFor s.StartSession()
-runForever()
 ```
 
 All programs have to be compiled with the `-d:ssl` and `--threads:on` flags
