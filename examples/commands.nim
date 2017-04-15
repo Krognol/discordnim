@@ -20,4 +20,3 @@ let s = NewSession("Bot <token>")
 s.messageCreate = messageCreate
 
 asyncCheck s.SessionStart()
-runForever()

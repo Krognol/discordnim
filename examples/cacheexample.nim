@@ -40,4 +40,3 @@ s.cache.cacheGuildMembers = true
 s.cache.cacheUsers = true
 
 asyncCheck s.SessionStart()
-runForever()

@@ -19,13 +19,10 @@ proc main() =
             discard s.SendMessage(m.channel_id, "Message removed: " & cachedMessages[m.id])
             cachedMessages.del(m.id)
 
-
-
     let s = NewSession("Bot <lol token>")
     s.messageCreate = messageCreate
     s.messageDelete = messageDelete
 
     asyncCheck s.SessionStart()
-    runForever()
 
 main()
