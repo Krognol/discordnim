@@ -375,6 +375,7 @@ type
         shouldResume: bool
         suspended: bool
         invalidated: bool
+        stop: bool
         # Temporary until better solution is found
         channelCreate*:            proc(s: Session, p: ChannelCreate) {.gcsafe.}
         channelUpdate*:            proc(s: Session, p: ChannelUpdate) {.gcsafe.}
@@ -561,7 +562,8 @@ method Release(b : ref Bucket, headers : HttpHeaders) {.base.} =
 # REST API json objects
 
 method Request(s : Session, bucketid: var string, meth, url, contenttype, b : string, sequence : int, mp: MultipartData = nil): Response {.base, gcsafe.} =
-    var client = newHttpClient("DiscordBot(https://github.com/Krognol/discordnim, v" & VERSION & ")", sslContext = newContext(verifyMode = CVerifyNone))
+    var client = newHttpClient(sslContext = newContext(verifyMode = CVerifyNone))
+    client.headers["User-Agent"] = "DiscordBot (https://github.com/Krognol/discordnim, v" & VERSION & ")"
     
     if bucketid == "":
         bucketid = split(url, "?", 2)[0]
@@ -918,25 +920,23 @@ method SendMessageTTS*(s: Session, channelid, message: string): Message {.base, 
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
     result = to[Message](res.body)
 
-#[
-    ## TODO
-    ## On hold; returns 401
+# SendFileWithMessage and SendFile won't work
+# without editing the httpclient lib
 method SendFileWithMessage*(s: Session, channelid, name, message: string): Message {.base, gcsafe.} =
+    ## Sends a file to a channel along with a message
     var data = newMultipartData()
     var url = EndpointCreateMessage(channelid)
 
-    # Still can't figure it out  
     let payload = %*{"content": message}
-    #data.add("payload_json", $payload, contentType = "application/json")
     data = data.addFiles({"file": name})
-    let res = s.Request(url, "POST", url, "multipart/form-data", $payload, 0, data)
-    echo res.body
-    let msg = to[Message](res.body)
-    return msg
+    data.add("payload_json", $payload, contentType = "application/json")
+    let res = s.Request(url, "POST", url, "multipart/form-data", "", 0, data)
+    result = to[Message](res.body)
 
 method SendFile*(s: Session, channelid, name: string): Message {.base, gcsafe.} =
-    return s.SendFileWithMessage(channelid, name, "")
-]#
+    ## Sends a file to a channel
+    result = s.SendFileWithMessage(channelid, name, "")
+
 method MessageAddReaction*(s: Session, channelid, messageid, emojiid: string) {.base, gcsafe.} =
     ## Adds a reaction to a message
     var url = EndpointCreateReaction(channelid, messageid, emojiid)
@@ -1548,7 +1548,7 @@ proc identify(s: Session) {.async, base.} =
 
 proc startHeartbeats(t: tuple[s: Session, i: int]) {.thread, gcsafe.} =
     var hb: JsonNode
-    while not t.s.suspended:
+    while not t.s.suspended and not t.s.stop:
         if t.s.Sequence == 0:
             hb = %*{"op": OP_HEARTBEAT, "d": nil}
         else:
@@ -1717,7 +1717,7 @@ method shouldResumeSession(s: Session): bool {.base.} =
 proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.}  = 
     await s.identify()
     var thread: array[0..1, Thread[(Session, int)]]
-    while not isClosed(s.Connection.sock):
+    while not isClosed(s.Connection.sock) and not s.stop:
         let res = await s.Connection.readData(true)
             
         let data = parseJson(res.data)
@@ -1772,10 +1772,12 @@ proc SessionStart*(s: Session){.async, gcsafe.} =
         echo getCurrentExceptionMsg()
         return
 
+    # Need to find a way to gracefully stop the program
+    while not s.stop:
+        poll()
+
 
 # Helper functions
-
-
 
 proc `$`*(u: User): string {.gcsafe, inline.} =
     ## Stringifies a user.
