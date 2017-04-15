@@ -409,17 +409,17 @@ type
         onResume*:                 proc(s: Session, p: Resumed) {.gcsafe.}
         onReady*:                  proc(s: Session, p: Ready) {.gcsafe.}
     RateLimiter = object
-        Mut: Lock
-        Global: ref Bucket
-        Buckets: Table[string, ref Bucket]
-        GlobalRateLimit: TimeInterval
+        mut: Lock
+        global: ref Bucket
+        buckets: Table[string, ref Bucket]
+        globalRateLimit: TimeInterval
     Bucket = object
-        Mut: Lock
-        Key: string
-        Remaining: int
-        Limit: int
-        Reset: TimeInfo
-        Global: ref Bucket
+        mut: Lock
+        key: string
+        remaining: int
+        limit: int
+        reset: TimeInfo
+        global: ref Bucket
     
 
 # Gateway op codes
@@ -470,53 +470,53 @@ const
     MANAGE_EMOJIS* = 0x40000000
 
 proc newRateLimiter(): ref RateLimiter =
-    let b = new(Bucket)
-    b[] = Bucket(Mut: Lock(), Key: "global", Reset: getLocalTime(fromSeconds(epochTime())))
-    var rl = new(RateLimiter)
-    rl[]= RateLimiter(Mut: Lock(), Buckets: initTable[string, ref Bucket](), Global: b)
+    var b = new Bucket
+    b[] = Bucket(mut: Lock(), key: "global", reset: getLocalTime(fromSeconds(epochTime())))
+    var rl = new RateLimiter
+    rl[]= RateLimiter(mut: Lock(), buckets: initTable[string, ref Bucket](), global: b)
     return rl
 
 method getBucket(r: ref RateLimiter, key: string): ref Bucket {.base.} =
-    initLock(r.Mut)
-    defer: deinitLock(r.Mut)
+    initLock(r.mut)
+    defer: deinitLock(r.mut)
 
-    if hasKey(r.Buckets, key):
-        return r.Buckets[key]
+    if hasKey(r.buckets, key):
+        return r.buckets[key]
 
     var b = new Bucket
 
-    b.Remaining = 1
-    b.Key = key
-    b.Global = r.Global
-    r.Buckets[key] = b
+    b.remaining = 1
+    b.key = key
+    b.global = r.global
+    r.buckets[key] = b
     return b
 
 method lockBucket(r : ref RateLimiter, bid : string): ref Bucket {.base.} =
     var b = r.getBucket(bid)
 
-    initLock(b.Mut)
+    initLock(b.mut)
 
-    if b.Remaining < 1 and toTime(b.Reset) - getTime() > 0:
-        sleep int(toTime(b.Reset) - getTime())
+    if b.remaining < 1 and toTime(b.reset) - getTime() > 0:
+        sleep int(toTime(b.reset) - getTime())
 
-    initLock(r.Global.Mut)
-    deinitLock(r.Global.Mut)
+    initLock(r.global.mut)
+    deinitLock(r.global.mut)
     return b
 
 proc sleepUntil(pa : int32, b : ref Bucket) =
     var sleepTo = getTime() + pa.seconds
-    initLock(b.Global.Mut)
+    initLock(b.global.mut)
 
     var sleepdur = sleepTo - getTime()
 
     if sleepdur > 0:
         sleep(int(sleepdur))
 
-    deinitLock(b.Global.Mut)
+    deinitLock(b.global.mut)
     return
 
 method Release(b : ref Bucket, headers : HttpHeaders) {.base.} =
-    defer: deinitLock(b.Mut)
+    defer: deinitLock(b.mut)
 
     if headers == nil:
         return
@@ -544,17 +544,17 @@ method Release(b : ref Bucket, headers : HttpHeaders) {.base.} =
 
     if retryAfter != "" and retryAfter != nil:
         var pa = parseInt(retryAfter)
-        b.Reset = (getTime() + pa.milliseconds).getLocalTime
+        b.reset = (getTime() + pa.milliseconds).getLocalTime
     elif reset != "" and reset != nil:
         var dt = parse($headers["Date"], "ddd, dd MMM yyyy HH:mm:ss")
         var delta = parseInt(reset)
         var retry_after = int64(dt.toTime().toSeconds())-delta
         let t = retry_after.fromSeconds()
-        b.Reset = t.getGMTime
+        b.reset = t.getGMTime
 
     if remaining != "" and remaining != nil:
         var pr = remaining.parseInt
-        b.Remaining = pr
+        b.remaining = pr
 
     return
 
@@ -564,7 +564,7 @@ method Release(b : ref Bucket, headers : HttpHeaders) {.base.} =
 method Request(s : Session, bucketid: var string, meth, url, contenttype, b : string, sequence : int, mp: MultipartData = nil): Response {.base, gcsafe.} =
     var client = newHttpClient(sslContext = newContext(verifyMode = CVerifyNone))
     client.headers["User-Agent"] = "DiscordBot (https://github.com/Krognol/discordnim, v" & VERSION & ")"
-    
+
     if bucketid == "":
         bucketid = split(url, "?", 2)[0]
 
@@ -581,6 +581,7 @@ method Request(s : Session, bucketid: var string, meth, url, contenttype, b : st
         res = client.post(url, b, mp)
     bucket.Release(res.headers)
 
+    result = res
     case res.status:
     of "502":
         if sequence < 5:
@@ -592,7 +593,6 @@ method Request(s : Session, bucketid: var string, meth, url, contenttype, b : st
     else: discard
 
     client.close()
-    return res
 
 
 
@@ -653,7 +653,6 @@ method initEvents(s: Session) {.base.} =
 
 proc NewSession*(args: varargs[string, `$`]): Session =
     ## Creates a new Session
-    
     var 
         s = Session(Mut: Lock(), Compress: false, Limiter: newRateLimiter(), 
                     cache: Cache(users: initTable[string, User](), 
@@ -663,8 +662,8 @@ proc NewSession*(args: varargs[string, `$`]): Session =
                             )
                     )
 
-        auth: string = ""
-        pass: string = ""
+        auth = ""
+        pass = ""
     
     for arg in args:
         if auth == "":
@@ -1519,47 +1518,6 @@ method ExecuteWebhook*(s: Session, webhook, token: string, wait: bool, payload: 
 type
   IdentifyError* = object of Exception
 
-proc identify(s: Session) {.async, base.} =
-    var properties = %*{
-        "$os": system.hostOS,
-        "$browser": "Discordnim v"&VERSION,
-        "$device": "Discordnim v"&VERSION,
-        "$referrer": "",
-        "$referring_domain": ""
-    }
-
-    var payload = %*{
-        "op": OP_IDENTIFY,
-        "d": %*{
-            "token": s.Token,
-            "properties": properties,
-        }
-    }
-    
-    if s.ShardCount > 1:
-        if s.ShardID >= s.ShardCount:
-            raise newException(IdentifyError, "ShardID has to be lower than ShardCount")
-        payload["shard"] = %*[s.ShardID, s.ShardCount]
-
-    try:
-        await s.Connection.sock.sendText($payload, true)
-    except:
-        echo "Error sending identify packet\c\L" & getCurrentExceptionMsg() 
-
-proc startHeartbeats(t: tuple[s: Session, i: int]) {.thread, gcsafe.} =
-    var hb: JsonNode
-    while not t.s.suspended and not t.s.stop:
-        if t.s.Sequence == 0:
-            hb = %*{"op": OP_HEARTBEAT, "d": nil}
-        else:
-            hb = %*{"op": OP_HEARTBEAT, "d": t.s.Sequence}
-        try:
-            waitFor t.s.Connection.sock.sendText($hb, true)
-        except:
-            echo "error sending heartbeat, returning"
-            return
-        sleep t.i
-
 proc handleDispatch(s: Session, event: string, data: JsonNode) =
     case event:
         of "READY":
@@ -1585,114 +1543,157 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
             for guild in payload.guilds:
                 s.cache.guilds[guild.id] = guild
                 
-            spawn s.onReady(s, payload)            
+            s.onReady(s, payload)            
         of "RESUMED":
             let payload = to[Resumed]($data)
-            spawn s.onResume(s, payload)
+            s.onResume(s, payload)
         of "CHANNEL_CREATE":
             let payload = to[ChannelCreate]($data)
             if s.cache.cacheChannels: s.cache.channels[payload.id] = payload
-            spawn s.channelCreate(s, payload)
+            s.channelCreate(s, payload)
         of "CHANNEL_UPDATE":
             let payload = to[ChannelUpdate]($data)
             if s.cache.cacheChannels: s.cache.updateChannel(payload)
-            spawn s.channelUpdate(s, payload)
+            s.channelUpdate(s, payload)
         of "CHANNEL_DELETE":
             let payload = to[ChannelDelete]($data)
             if s.cache.cacheChannels: s.cache.removeChannel(payload.id)
-            spawn s.channelDelete(s, payload)
+            s.channelDelete(s, payload)
         of "GUILD_CREATE":
             let payload = to[GuildCreate]($data)
             if s.cache.cacheGuilds: s.cache.guilds[payload.id] = payload
-            spawn s.guildCreate(s, payload)
+            s.guildCreate(s, payload)
         of "GUILD_UPDATE":
             let payload = to[GuildUpdate]($data)
             if s.cache.cacheGuilds: s.cache.updateGuild(payload)
-            spawn s.guildUpdate(s, payload)
+            s.guildUpdate(s, payload)
         of "GUILD_DELETE":
             let payload = to[GuildDelete]($data)
             if s.cache.cacheGuilds: s.cache.removeGuild(payload.id)
-            spawn s.guildDelete(s, payload)
+            s.guildDelete(s, payload)
         of "GUILD_BAN_ADD":
             let payload = to[GuildBanAdd]($data)
-            spawn s.guildBanAdd(s, payload)
+            s.guildBanAdd(s, payload)
         of "GUILD_BAN_REMOVE":
             let payload = to[GuildBanRemove]($data)
-            spawn s.guildBanRemove(s, payload)
+            s.guildBanRemove(s, payload)
         of "GUILD_EMOJIS_UPDATE":
             let payload = to[GuildEmojisUpdate]($data)
-            spawn s.guildEmojisUpdate(s, payload)
+            s.guildEmojisUpdate(s, payload)
         of "GUILD_INTEGRATIONS_UPDATE":
             let payload = to[GuildIntegrationsUpdate]($data)
-            spawn s.guildIntegrationsUpdate(s, payload)
+            s.guildIntegrationsUpdate(s, payload)
         of "GUILD_MEMBER_ADD":
             let payload = to[GuildMemberAdd]($data)
             if s.cache.cacheGuildMembers: s.cache.addGuildMember(payload)
-            spawn s.guildMemberAdd(s, payload)
+            s.guildMemberAdd(s, payload)
         of "GUILD_MEMBER_UPDATE":
             let payload = to[GuildMemberUpdate]($data)
             if s.cache.cacheGuildMembers: s.cache.updateGuildMember(payload)
-            spawn s.guildMemberUpdate(s, payload)
+            s.guildMemberUpdate(s, payload)
         of "GUILD_MEMBER_REMOVE":
             let payload = to[GuildMemberRemove]($data)
             if s.cache.cacheGuildMembers: s.cache.removeGuildMember(payload)
-            spawn s.guildMemberRemove(s, payload)
+            s.guildMemberRemove(s, payload)
         of "GUILD_MEMBERS_CHUNK":
             let payload = to[GuildMembersChunk]($data)
-            spawn s.guildMembersChunk(s, payload)
+            s.guildMembersChunk(s, payload)
         of "GUILD_ROLE_CREATE":
             let payload = to[GuildRoleCreateObj]($data)
             if s.cache.cacheRoles: s.cache.roles[payload.role.id] = payload.role
-            spawn s.guildRoleCreate(s, payload)
+            s.guildRoleCreate(s, payload)
         of "GUILD_ROLE_UPDATE":
             let payload = to[GuildRoleUpdateObj]($data)
             if s.cache.cacheRoles: s.cache.updateRole(payload.role)
-            spawn s.guildRoleUpdate(s, payload)
+            s.guildRoleUpdate(s, payload)
         of "GUILD_ROLE_DELETE":
             let payload = to[GuildRoleDeleteObj]($data)
             if s.cache.cacheRoles: s.cache.removeRole(payload.role_id)
-            spawn s.guildRoleDelete(s, payload)
+            s.guildRoleDelete(s, payload)
         of "MESSAGE_CREATE":
             let payload = to[MessageCreate]($data)
-            spawn s.messageCreate(s, payload)
+            s.messageCreate(s, payload)
         of "MESSAGE_UPDATE":
             let payload = to[MessageUpdate]($data)
-            spawn s.messageUpdate(s, payload)
+            s.messageUpdate(s, payload)
         of "MESSAGE_DELETE":
             let payload = to[MessageDelete]($data)
-            spawn s.messageDelete(s, payload)
+            s.messageDelete(s, payload)
         of "MESSAGE_DELETE_BULK":
             let payload = to[MessageDeleteBulk]($data)
-            spawn s.messageDeleteBulk(s, payload)
+            s.messageDeleteBulk(s, payload)
         of "MESSAGE_REACTION_ADD":
             let payload = to[MessageReactionAdd]($data)
-            spawn s.messageReactionAdd(s, payload)
+            s.messageReactionAdd(s, payload)
         of "MESSAGE_REACTION_REMOVE":
             let payload = to[MessageReactionRemove]($data)
-            spawn s.messageReactionRemove(s, payload)
+            s.messageReactionRemove(s, payload)
         of "MESSAGE_REACTION_REMOVE_ALL":
             let payload = to[MessageReactionRemoveAll]($data)
-            spawn s.messageReactionRemoveAll(s, payload)
+            s.messageReactionRemoveAll(s, payload)
         of "PRESENCE_UPDATE":
             let payload = to[PresenceUpdate]($data)
-            spawn s.presenceUpdate(s, payload)
+            s.presenceUpdate(s, payload)
         of "TYPING_START":
             let payload = to[TypingStart]($data)
-            spawn s.typingStart(s, payload)
-        of "USER_SETTINGS_UPDATE":
-            discard
+            s.typingStart(s, payload)
         of "USER_UPDATE":
             let payload = to[User]($data)
-            spawn s.userUpdate(s, payload)
+            s.userUpdate(s, payload)
         of "VOICE_STATE_UPDATE":
             let payload = to[VoiceState]($data)
-            spawn s.voiceStateUpdate(s, payload)
+            s.voiceStateUpdate(s, payload)
         of "VOICE_SERVER_UPDATE":
             let payload = to[VoiceServerUpdate]($data)
-            spawn s.voiceServerUpdate(s, payload)
+            s.voiceServerUpdate(s, payload)
+        of "USER_SETTINGS_UPDATE":
+            discard
         else:
             echo "Unknown websocket event :: " & event & "\c\L" & $data
-    sync()
+
+proc identify(s: Session) {.async, base.} =
+    var properties = %*{
+        "$os": system.hostOS,
+        "$browser": "Discordnim v"&VERSION,
+        "$device": "Discordnim v"&VERSION,
+        "$referrer": "",
+        "$referring_domain": ""
+    }
+
+    var payload = %*{
+        "op": OP_IDENTIFY,
+        "d": %*{
+            "token": s.Token,
+            "properties": properties,
+        }
+    }
+    if s.ShardCount > 1:
+        if s.ShardID >= s.ShardCount:
+            raise newException(IdentifyError, "ShardID has to be lower than ShardCount")
+        payload["shard"] = %*[s.ShardID, s.ShardCount]
+
+    try:
+        await s.Connection.sock.sendText($payload, true)
+    except:
+        echo "Error sending identify packet\c\L" & getCurrentExceptionMsg()
+
+var sesseq: int = 0
+
+proc startHeartbeats(t: tuple[s: Session, i: int]) {.thread, gcsafe.} =
+    var hb: JsonNode
+    while not t.s.stop:
+        # Ugly, disgusting, gross
+        # TODO : FIX
+        t.s.Sequence = sesseq
+        if t.s.Sequence == 0:
+            hb = %*{"op": OP_HEARTBEAT, "d": nil}
+        else:
+            hb = %*{"op": OP_HEARTBEAT, "d": t.s.Sequence}
+        try:
+            asyncCheck t.s.Connection.sock.sendText($hb, true)
+        except:
+            return
+        sleep t.i
 
 proc resume(s: Session) {.async, gcsafe.} =
     let payload = %*{
@@ -1724,6 +1725,13 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.}  =
  
         if data["s"].kind != JNull:
             s.Sequence = int(data["s"].num)
+            # This is awful and gross
+            # ref Session and ptr Session
+            # would not work and would not 
+            # set the new sequence
+            # so heartbeats would always
+            # send `"d": null`
+            sesseq = int(data["s"].num)
             
         case data["op"].num:
             of OP_HELLO:
@@ -1732,15 +1740,13 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.}  =
                 else:
                     let interval = data["d"].fields["heartbeat_interval"].num
                     createThread(thread[0], startHeartbeats, (s, int(interval)))
-                    joinThreads(thread)
             of OP_HEARTBEAT:
                 let hb = %*{"op": OP_HEARTBEAT, "d": s.Sequence}
-                waitFor s.Connection.sock.sendText($hb, true)
+                await s.Connection.sock.sendText($hb, true)
             of OP_INVALID_SESSION:
                 s.Sequence = 0
                 s.Session_ID = ""
                 s.invalidated = true
-                echo "session invalidated"
                 if data["d"].bval == false:
                     await s.identify()
             of OP_RECONNECT:
@@ -1748,12 +1754,14 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.}  =
                 await s.reconnect()
             of OP_DISPATCH:
                 let event = data["t"].str
-                handleDispatch(s, event, data["d"])
+                spawn handleDispatch(s, event, data["d"])
                 sync()
             else:
                 echo $data
+    joinThread(thread[0])
     echo "connection closed\c\L" 
     s.suspended = true
+    s.Connection.sock.close()
     return
 
 proc SessionStart*(s: Session){.async, gcsafe.} =
@@ -1764,14 +1772,12 @@ proc SessionStart*(s: Session){.async, gcsafe.} =
     s.suspended = true
     try:
         let socket = await newAsyncWebsocket("gateway.discord.gg", Port 443, "/"&GATEWAYVERSION, ssl = true)
-        echo "connected"
         s.Connection = socket
         s.Sequence = 0 
-        waitFor sessionHandleSocketMessage(s)
+        asyncCheck sessionHandleSocketMessage(s)
     except:
-        echo getCurrentExceptionMsg()
         return
-
+    
     # Need to find a way to gracefully stop the program
     while not s.stop:
         poll()
