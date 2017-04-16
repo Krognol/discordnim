@@ -360,22 +360,23 @@ type
     MessageReactionRemoveAll* = object
         message_id: string
         channel_id: string
-    Session* = ref object
-        Mut: Lock
-        Token*: string
-        Compress*: bool
-        ShardID*: int
-        ShardCount*: int
-        Sequence: int
-        Gateway*: string
-        Session_ID: string
-        Limiter: ref RateLimiter   
-        Connection*: AsyncWebSocket
+    Session* = ref SessionImpl
+    SessionImpl = object
+        mut: Lock
+        token*: string
+        compress*: bool
+        shardID*: int
+        shardCount*: int
+        gateway*: string
+        session_ID: string
+        limiter: ref RateLimiter   
+        connection*: AsyncWebSocket
         cache*: Cache
         shouldResume: bool
         suspended: bool
         invalidated: bool
         stop: bool
+        sequence: int
         # Temporary until better solution is found
         channelCreate*:            proc(s: Session, p: ChannelCreate) {.gcsafe.}
         channelUpdate*:            proc(s: Session, p: ChannelUpdate) {.gcsafe.}
@@ -561,17 +562,17 @@ method Release(b : ref Bucket, headers : HttpHeaders) {.base.} =
 
 # REST API json objects
 
-method Request(s : Session, bucketid: var string, meth, url, contenttype, b : string, sequence : int, mp: MultipartData = nil): Response {.base, gcsafe.} =
+method Request(s: Session, bucketid: var string, meth, url, contenttype, b : string, sequence : int, mp: MultipartData = nil): Response {.base, gcsafe.} =
     var client = newHttpClient(sslContext = newContext(verifyMode = CVerifyNone))
     client.headers["User-Agent"] = "DiscordBot (https://github.com/Krognol/discordnim, v" & VERSION & ")"
 
     if bucketid == "":
         bucketid = split(url, "?", 2)[0]
 
-    var bucket = s.Limiter.lockBucket(bucketid)
+    var bucket = s.limiter.lockBucket(bucketid)
 
-    if s.Token != "" and s.Token != nil:
-        client.headers["Authorization"] = s.Token
+    if s.token != "" and s.token != nil:
+        client.headers["Authorization"] = s.token
 
     client.headers["Content-Type"] = contenttype
     var res: Response
@@ -603,10 +604,10 @@ method GetGateway(s: Session): string {.base.} =
         url: string
         shards: int
     let t = to[Temp](res.body)
-    s.ShardCount = t.shards
+    s.shardCount = t.shards
     result = t.url
 
-method Login(s : Session, email, password : string) {.base.} =
+method Login(s: Session, email, password : string) {.base.} =
     var payload = %*{"email": email, "password": password}
     var id = EndpointLogin()
     let res = s.Request(id, "POST", id, "application/json", $payload, 0)
@@ -614,7 +615,7 @@ method Login(s : Session, email, password : string) {.base.} =
         Token: string
 
     var t = to[Temp](res.body)
-    s.Token = t.Token
+    s.token = t.Token
 
 # Temporary until a better solution is found
 method initEvents(s: Session) {.base.} =
@@ -654,7 +655,7 @@ method initEvents(s: Session) {.base.} =
 proc NewSession*(args: varargs[string, `$`]): Session =
     ## Creates a new Session
     var 
-        s = Session(Mut: Lock(), Compress: false, Limiter: newRateLimiter(), 
+        s = Session(mut: Lock(), compress: false, limiter: newRateLimiter(), 
                     cache: Cache(users: initTable[string, User](), 
                                  guilds: initTable[string, Guild](), 
                                  channels: initTable[string, DChannel](),
@@ -665,24 +666,25 @@ proc NewSession*(args: varargs[string, `$`]): Session =
         auth = ""
         pass = ""
     
+    s.initEvents()
     for arg in args:
         if auth == "":
             auth = arg
         elif pass == "":
             pass = arg
-        elif s.Token == "":
-            s.Token = arg
-            
+        elif s.token == "":
+            s.token = arg
+    
 
     if pass == "":
-        s.Token = auth
+        s.token = auth
     else:
         s.Login(auth, pass)
-        if s.Token == "":
+        if s.token == "":
             echo "Failed to get auth token"
             return nil
-    s.Gateway = s.GetGateway().strip&"/"&GATEWAYVERSION
-    s.initEvents()
+    s.gateway = s.GetGateway().strip&"/"&GATEWAYVERSION
+    
     return s
 
 
@@ -1533,7 +1535,7 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
                 guilds: to[seq[Guild]]($json["guilds"]),
                 trace: to[seq[string]]($json["_trace"])
             )
-            s.Session_ID = payload.session_id
+            s.session_ID = payload.session_id
             s.cache.version = payload.v
             s.cache.me = payload.user
             s.cache.users[payload.user.id] = payload.user
@@ -1659,21 +1661,21 @@ proc identify(s: Session) {.async, base.} =
         "$referrer": "",
         "$referring_domain": ""
     }
-
+    
     var payload = %*{
         "op": OP_IDENTIFY,
         "d": %*{
-            "token": s.Token,
+            "token": s.token,
             "properties": properties,
         }
     }
-    if s.ShardCount > 1:
-        if s.ShardID >= s.ShardCount:
+    if s.shardCount > 1:
+        if s.shardID >= s.shardCount:
             raise newException(IdentifyError, "ShardID has to be lower than ShardCount")
-        payload["shard"] = %*[s.ShardID, s.ShardCount]
+        payload["shard"] = %*[s.shardID, s.shardCount]
 
     try:
-        await s.Connection.sock.sendText($payload, true)
+        await s.connection.sock.sendText($payload, true)
     except:
         echo "Error sending identify packet\c\L" & getCurrentExceptionMsg()
 
@@ -1684,68 +1686,68 @@ proc startHeartbeats(t: tuple[s: Session, i: int]) {.thread, gcsafe.} =
     while not t.s.stop:
         # Ugly, disgusting, gross
         # TODO : FIX
-        t.s.Sequence = sesseq
-        if t.s.Sequence == 0:
+        if sesseq == 0:
             hb = %*{"op": OP_HEARTBEAT, "d": nil}
         else:
-            hb = %*{"op": OP_HEARTBEAT, "d": t.s.Sequence}
+            hb = %*{"op": OP_HEARTBEAT, "d": sesseq}
         try:
-            asyncCheck t.s.Connection.sock.sendText($hb, true)
+            asyncCheck t.s.connection.sock.sendText($hb, true)
         except:
             return
         sleep t.i
 
 proc resume(s: Session) {.async, gcsafe.} =
     let payload = %*{
-        "token": s.Token,
-        "session_id": s.Session_ID,
-        "seq": s.Sequence
+        "token": s.token,
+        "session_id": s.session_ID,
+        "seq": sesseq
     }
 
-    await s.Connection.sock.sendText($payload, true)
+    await s.connection.sock.sendText($payload, true)
 
 proc reconnect(s: Session) {.async, gcsafe.} =
-    await s.Connection.close()
-    discard s.Connection
-    s.Connection = await newAsyncWebsocket("gateway.discord.gg", Port 443, "/"&GATEWAYVERSION, ssl = true)
-    s.Sequence = 0
-    s.Session_ID = ""
+    await s.connection.close()
+    s.connection = nil
+    s.connection = await newAsyncWebsocket("gateway.discord.gg", Port 443, "/"&GATEWAYVERSION, ssl = true)
+    sesseq = 0
+    s.session_ID = ""
     await s.identify()
 
 method shouldResumeSession(s: Session): bool {.base.} =
     return (not s.invalidated) and (not s.suspended)
 
-proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.}  = 
+# Concurrency in Nim is a bitch
+proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
     await s.identify()
-    var thread: array[0..1, Thread[(Session, int)]]
-    while not isClosed(s.Connection.sock) and not s.stop:
-        let res = await s.Connection.readData(true)
+    var thread: Thread[(ref Session, int)]#array[0..1, Thread[(ptr Session, int)]]
+    while not isClosed(s.connection.sock) and not s.stop:
+        let res = await s.connection.readData(true)
             
         let data = parseJson(res.data)
  
         if data["s"].kind != JNull:
-            s.Sequence = int(data["s"].num)
+            let i = data["s"].num.int
             # This is awful and gross
             # ref Session and ptr Session
             # would not work and would not 
             # set the new sequence
             # so heartbeats would always
             # send `"d": null`
-            sesseq = int(data["s"].num)
+            sesseq = i
             
         case data["op"].num:
             of OP_HELLO:
                 if s.shouldResumeSession():
                     await s.resume()
                 else:
-                    let interval = data["d"].fields["heartbeat_interval"].num
-                    createThread(thread[0], startHeartbeats, (s, int(interval)))
+                    let interval = data["d"].fields["heartbeat_interval"].num.int
+                    createThread(thread, startHeartbeats, (s, interval))
             of OP_HEARTBEAT:
-                let hb = %*{"op": OP_HEARTBEAT, "d": s.Sequence}
-                await s.Connection.sock.sendText($hb, true)
+                let hb = %*{"op": OP_HEARTBEAT, "d": sesseq}
+                await s.connection.sock.sendText($hb, true)
             of OP_INVALID_SESSION:
-                s.Sequence = 0
-                s.Session_ID = ""
+                sesseq = 0
+                s.session_ID = ""
                 s.invalidated = true
                 if data["d"].bval == false:
                     await s.identify()
@@ -1758,22 +1760,21 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.}  =
                 sync()
             else:
                 echo $data
-    joinThread(thread[0])
+    joinThread(thread)
     echo "connection closed\c\L" 
     s.suspended = true
-    s.Connection.sock.close()
+    s.connection.sock.close()
     return
 
 proc SessionStart*(s: Session){.async, gcsafe.} =
     ## Starts a Session
-    if s.Connection != nil:
+    if s.connection != nil:
         echo "Session is already connected"
         return
     s.suspended = true
     try:
         let socket = await newAsyncWebsocket("gateway.discord.gg", Port 443, "/"&GATEWAYVERSION, ssl = true)
-        s.Connection = socket
-        s.Sequence = 0 
+        s.connection = socket
         asyncCheck sessionHandleSocketMessage(s)
     except:
         return
@@ -1919,3 +1920,12 @@ proc newWebhookParams*(content, username, avatarurl: string = "",
         embeds: embeds
     )
 
+proc messageGuild*(s: Session, m: Message): string =
+    if s.cache.cacheChannels:
+        var (chan, exists) = s.cache.getChannel(m.channel_id)
+        if exists:
+            return chan.guild_id
+    var chan = s.GetChannel(m.channel_id)
+    if chan != DChannel():
+        return chan.guild_id
+    result = ""
