@@ -1921,6 +1921,10 @@ proc newWebhookParams*(content, username, avatarurl: string = "",
     )
 
 proc messageGuild*(s: Session, m: Message): string =
+    ## Returns the guild id of the guild
+    ## the message was sent in.<br>
+    ## Returns an empty string if it can't find the guild in the cache
+    ## or by requesting it from the API.
     if s.cache.cacheChannels:
         var (chan, exists) = s.cache.getChannel(m.channel_id)
         if exists:
