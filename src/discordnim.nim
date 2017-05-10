@@ -471,7 +471,7 @@ const
     MANAGE_EMOJIS* = 0x40000000
 
 proc newRateLimiter(): ref RateLimiter =
-    var b = new Bucket
+    var b = new(ref Bucket)
     b[] = Bucket(mut: Lock(), key: "global", reset: getLocalTime(fromSeconds(epochTime())))
     var rl = new RateLimiter
     rl[]= RateLimiter(mut: Lock(), buckets: initTable[string, ref Bucket](), global: b)
@@ -484,7 +484,7 @@ method getBucket(r: ref RateLimiter, key: string): ref Bucket {.base.} =
     if hasKey(r.buckets, key):
         return r.buckets[key]
 
-    var b = new Bucket
+    var b = new(ref Bucket)
 
     b.remaining = 1
     b.key = key
@@ -587,7 +587,7 @@ method Request(s: Session, bucketid: var string, meth, url, contenttype, b : str
     of "502":
         if sequence < 5:
             res = s.Request(bucketid, meth, url, contenttype, b, sequence+1)
-    of "409":
+    of "429":
         var rl = parseJson(res.body)
         sleep int(rl["retry_after"].num)
         res = s.Request(bucketid, meth, url, contenttype, b, sequence)
@@ -1719,7 +1719,7 @@ method shouldResumeSession(s: Session): bool {.base.} =
 # Concurrency in Nim is a bitch
 proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
     await s.identify()
-    var thread: Thread[(ref Session, int)]#array[0..1, Thread[(ptr Session, int)]]
+    var thread: Thread[(Session, int)]
     while not isClosed(s.connection.sock) and not s.stop:
         let res = await s.connection.readData(true)
             
