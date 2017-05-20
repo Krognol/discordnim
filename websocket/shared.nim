@@ -119,13 +119,13 @@ proc newAsyncWebsocket*(host: string, port: Port, path: string, ssl = false,
     let sp = ln.split(": ")
     if sp.len < 2: continue
     echo sp
-    if sp[0].toLower == "sec-websocket-protocol":
+    if sp[0].toLowerAscii == "sec-websocket-protocol":
       if protocols.len > 0 and protocols.find(sp[1]) == -1:
         raise newException(ProtocolError, "server does not support any of our protocols")
       else: ws.protocol = sp[1]
 
     # raise newException(ProtocolError, "unknown server response " & ln)
-    if sp[0].toLower == "sec-websocket-accept":
+    if sp[0].toLowerAscii == "sec-websocket-accept":
       # The server appends the fixed string 258EAFA5-E914-47DA-95CA-C5AB0DC85B11
       # (a GUID) to the value from Sec-WebSocket-Key header (which is not decoded
       # from base64), applies the SHA-1 hashing function, and encodes the result
