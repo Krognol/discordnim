@@ -1,6 +1,6 @@
 include endpoints
 import httpclient, marshal, json, re, cgi,
-       locks, tables, times, strutils, net, macros,
+       locks, tables, times, strutils, net,
        os, typetraits, websocket/shared, asyncdispatch, asyncnet, threadpool
 type
     Overwrite* = object
@@ -199,7 +199,7 @@ type
         `type`*: string
         revoked*: bool
         integrations*: seq[Integration]
-    VoiceState* = object
+    VoiceState* = object of RootObj
         guild_id*: string
         channel_id*: string
         user_id*: string
@@ -274,13 +274,13 @@ type
         emojis*: seq[Emoji]
     GuildIntegrationsUpdate* = object
         guild_id*: string
-    GuildRoleCreateObj* = object
+    GuildRoleCreate* = object
         guild_id*: string
         role*: Role
-    GuildRoleUpdateObj* = object
+    GuildRoleUpdate* = object
         guild_id*: string
         role*: Role
-    GuildRoleDeleteObj* = object
+    GuildRoleDelete* = object
         guild_id*: string
         role_id*: string
     MessageDeleteBulk* = object
@@ -347,6 +347,8 @@ type
     ChannelCreate* = object of DChannel
     ChannelUpdate* = object of DChannel
     ChannelDelete* = object of DChannel
+    UserUpdate* = object of User
+    VoiceStateUpdate* = object of VoiceState
     MessageReactionAdd* = object
         user_id: string
         message_id: string
@@ -392,9 +394,9 @@ type
         guildMemberUpdate*:        proc(s: Session, p: GuildMemberUpdate) {.gcsafe.}
         guildMemberRemove*:        proc(s: Session, p: GuildMemberRemove) {.gcsafe.}
         guildMembersChunk*:        proc(s: Session, p: GuildMembersChunk) {.gcsafe.}
-        guildRoleCreate*:          proc(s: Session, p: GuildRoleCreateObj) {.gcsafe.}
-        guildRoleUpdate*:          proc(s: Session, p: GuildRoleUpdateObj) {.gcsafe.}
-        guildRoleDelete*:          proc(s: Session, p: GuildRoleDeleteObj) {.gcsafe.}
+        guildRoleCreate*:          proc(s: Session, p: GuildRoleCreate) {.gcsafe.}
+        guildRoleUpdate*:          proc(s: Session, p: GuildRoleUpdate) {.gcsafe.}
+        guildRoleDelete*:          proc(s: Session, p: GuildRoleDelete) {.gcsafe.}
         messageCreate*:            proc(s: Session, p: MessageCreate) {.gcsafe.}
         messageUpdate*:            proc(s: Session, p: MessageUpdate) {.gcsafe.}
         messageDelete*:            proc(s: Session, p: MessageDelete) {.gcsafe.}
@@ -404,8 +406,8 @@ type
         messageReactionRemoveAll*: proc(s: Session, p: MessageReactionRemoveAll) {.gcsafe.}
         presenceUpdate*:           proc(s: Session, p: PresenceUpdate) {.gcsafe.}
         typingStart*:              proc(s: Session, p: TypingStart) {.gcsafe.}
-        userUpdate*:               proc(s: Session, p: User) {.gcsafe.}
-        voiceStateUpdate*:         proc(s: Session, p: VoiceState) {.gcsafe.}
+        userUpdate*:               proc(s: Session, p: UserUpdate) {.gcsafe.}
+        voiceStateUpdate*:         proc(s: Session, p: VoiceStateUpdate) {.gcsafe.}
         voiceServerUpdate*:        proc(s: Session, p: VoiceServerUpdate) {.gcsafe.}
         onResume*:                 proc(s: Session, p: Resumed) {.gcsafe.}
         onReady*:                  proc(s: Session, p: Ready) {.gcsafe.}
@@ -477,7 +479,7 @@ proc newRateLimiter(): ref RateLimiter =
     rl[]= RateLimiter(mut: Lock(), buckets: initTable[string, ref Bucket](), global: b)
     return rl
 
-method getBucket(r: ref RateLimiter, key: string): ref Bucket {.base.} =
+method getBucket(r: ref RateLimiter, key: string): ref Bucket {.gcsafe, base.} =
     initLock(r.mut)
     defer: deinitLock(r.mut)
 
@@ -492,7 +494,7 @@ method getBucket(r: ref RateLimiter, key: string): ref Bucket {.base.} =
     r.buckets[key] = b
     return b
 
-method lockBucket(r : ref RateLimiter, bid : string): ref Bucket {.base.} =
+method lockBucket(r : ref RateLimiter, bid : string): ref Bucket {.gcsafe, base.} =
     var b = r.getBucket(bid)
 
     initLock(b.mut)
@@ -516,7 +518,7 @@ proc sleepUntil(pa : int32, b : ref Bucket) =
     deinitLock(b.global.mut)
     return
 
-method Release(b : ref Bucket, headers : HttpHeaders) {.base.} =
+method Release(b : ref Bucket, headers : HttpHeaders) {.gcsafe, base.} =
     defer: deinitLock(b.mut)
 
     if headers == nil:
@@ -603,7 +605,7 @@ method GetGateway(s: Session): string {.base.} =
     type Temp = object
         url: string
         shards: int
-    let t = to[Temp](res.body)
+    let t = marshal.to[Temp](res.body)
     s.shardCount = t.shards
     result = t.url
 
@@ -614,7 +616,7 @@ method Login(s: Session, email, password : string) {.base.} =
     type Temp = object
         Token: string
 
-    var t = to[Temp](res.body)
+    var t = marshal.to[Temp](res.body)
     s.token = t.Token
 
 # Temporary until a better solution is found
@@ -633,9 +635,9 @@ method initEvents(s: Session) {.base.} =
     s.guildMemberUpdate =        proc(s: Session, p: GuildMemberUpdate) = return
     s.guildMemberRemove =        proc(s: Session, p: GuildMemberRemove) = return
     s.guildMembersChunk =        proc(s: Session, p: GuildMembersChunk) = return
-    s.guildRoleCreate =          proc(s: Session, p: GuildRoleCreateObj) = return
-    s.guildRoleUpdate =          proc(s: Session, p: GuildRoleUpdateObj) = return
-    s.guildRoleDelete =          proc(s: Session, p: GuildRoleDeleteObj) = return
+    s.guildRoleCreate =          proc(s: Session, p: GuildRoleCreate) = return
+    s.guildRoleUpdate =          proc(s: Session, p: GuildRoleUpdate) = return
+    s.guildRoleDelete =          proc(s: Session, p: GuildRoleDelete) = return
     s.messageCreate =            proc(s: Session, p: MessageCreate) = return
     s.messageUpdate =            proc(s: Session, p: MessageUpdate) = return
     s.messageDelete =            proc(s: Session, p: MessageDelete) = return
@@ -645,8 +647,8 @@ method initEvents(s: Session) {.base.} =
     s.messageReactionRemoveAll = proc(s: Session, p: MessageReactionRemoveAll) = return
     s.presenceUpdate =           proc(s: Session, p: PresenceUpdate) = return
     s.typingStart =              proc(s: Session, p: TypingStart) = return
-    s.userUpdate =               proc(s: Session, p: User) = return
-    s.voiceStateUpdate =         proc(s: Session, p: VoiceState) = return
+    s.userUpdate =               proc(s: Session, p: UserUpdate) = return
+    s.voiceStateUpdate =         proc(s: Session, p: VoiceStateUpdate) = return
     s.voiceServerUpdate =        proc(s: Session, p: VoiceServerUpdate) = return
     s.onResume =                 proc(s: Session, p: Resumed) = return
     s.onReady =                  proc(s: Session, p: Ready) = return
@@ -684,7 +686,7 @@ proc NewSession*(args: varargs[string, `$`]): Session =
             echo "Failed to get auth token"
             return nil
     s.gateway = s.GetGateway().strip&"/"&GATEWAYVERSION
-    
+
     return s
 
 
@@ -850,7 +852,7 @@ method GetChannel*(s: Session, channel_id: string): DChannel {.base, gcsafe.} =
 
     var url = EndpointGetChannel(channel_id)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[DChannel](res.body)
+    result = marshal.to[DChannel](res.body)
 
     if s.cache.cacheChannels:
         s.cache.channels[result.id] = result
@@ -859,13 +861,14 @@ method ModifyChannel*(s: Session, channelid: string, params: ChannelParams): Gui
     ## Modifies a channel with the ChannelParams
     var url = EndpointModifyChannel(channelid)
     let res = s.Request(url, "PATCH", url, "application/json", $$params, 0)
-    result = to[Guild](res.body)
+    result = marshal.to[Guild](res.body)
+
 
 method DeleteChannel*(s: Session, channelid: string): DChannel {.base, gcsafe.} =
     ## Deletes a channel
     var url = EndpointDeleteChannel(channelid)
     let res = s.Request(url, "DELETE", url, "application/json", "", 0)
-    result = to[DChannel](res.body)
+    result = marshal.to[DChannel](res.body)
 
 method ChannelMessages*(s: Session, channelid: string, before, after, around: string, limit: int): seq[Message] {.base, gcsafe.} =
     ## Returns a channels messages
@@ -885,13 +888,13 @@ method ChannelMessages*(s: Session, channelid: string, before, after, around: st
         url = url & "limit=" & $limit
 
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[Message]](res.body)
+    result = marshal.to[seq[Message]](res.body)
 
 method ChannelMessage*(s: Session, channelid, messageid: string): Message {.base, gcsafe.} =
     ## Returns a message from a channel
     var url = EndpointGetChannelMessage(channelid, messageid)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[Message](res.body)
+    result = marshal.to[Message](res.body)
 
 
 method SendMessage*(s: Session, channelid, message: string): Message {.base, gcsafe.} =
@@ -899,7 +902,7 @@ method SendMessage*(s: Session, channelid, message: string): Message {.base, gcs
     var url = EndpointCreateMessage(channelid)
     let payload = %*{"content": message}
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = to[Message](res.body)
+    result = marshal.to[Message](res.body)
     
 
 method SendMessageEmbed*(s: Session, channelid: string, embed: Embed): Message {.base, gcsafe.} =
@@ -912,14 +915,14 @@ method SendMessageEmbed*(s: Session, channelid: string, embed: Embed): Message {
     }
 
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = to[Message](res.body)
+    result = marshal.to[Message](res.body)
 
 method SendMessageTTS*(s: Session, channelid, message: string): Message {.base, gcsafe.} =
     ## Sends a TTS message to a channel
     var url = EndpointCreateMessage(channelid)
     let payload = %*{"content": message, "tts": true}
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = to[Message](res.body)
+    result = marshal.to[Message](res.body)
 
 # SendFileWithMessage and SendFile won't work
 # without editing the httpclient lib
@@ -932,7 +935,7 @@ method SendFileWithMessage*(s: Session, channelid, name, message: string): Messa
     data = data.addFiles({"file": name})
     data.add("payload_json", $payload, contentType = "application/json")
     let res = s.Request(url, "POST", url, "multipart/form-data", "", 0, data)
-    result = to[Message](res.body)
+    result = marshal.to[Message](res.body)
 
 method SendFile*(s: Session, channelid, name: string): Message {.base, gcsafe.} =
     ## Sends a file to a channel
@@ -957,7 +960,7 @@ method MessageGetReactions*(s: Session, channelid, messageid, emojiid: string): 
     ## Gets a message's reactions
     var url = EndpointGetMessageReactions(channelid, messageid, emojiid)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[User]](res.body)
+    result = marshal.to[seq[User]](res.body)
    
 
 method MessageDeleteAllReactions*(s: Session, channelid, messageid: string) {.base, gcsafe.} =
@@ -970,7 +973,7 @@ method EditMessage*(s: Session, channelid, messageid, content: string): Message 
     var url = EndpointEditMessage(channelid, messageid)
     let payload = %*{"content": content}
     let res = s.Request(url, "PATCH", url, "application/json", $payload, 0)
-    result = to[Message](res.body)
+    result = marshal.to[Message](res.body)
     
 
 method DeleteMessage*(s: Session, channelid, messageid: string) {.base, gcsafe.} =
@@ -994,7 +997,7 @@ method ChannelInvites*(s: Session, channel: string): seq[Invite] {.base, gcsafe.
     ## Returns all invites to a channel
     var url = EndpointGetChannelInvites(channel)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[Invite]](res.body)
+    result = marshal.to[seq[Invite]](res.body)
    
 
 method CreateChannelInvite*(s: Session, channel: string, max_age, max_uses: int, temp, unique: bool): Invite {.base, gcsafe.} =
@@ -1002,7 +1005,7 @@ method CreateChannelInvite*(s: Session, channel: string, max_age, max_uses: int,
     var url = EndpointCreateChannelInvite(channel)
     let payload = %*{"max_age": max_age, "max_uses": max_uses, "temp": temp, "unique": unique}
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = to[Invite](res.body)
+    result = marshal.to[Invite](res.body)
     
 
 method DeleteChannelPermission*(s: Session, channel, target: string) {.base, gcsafe.} =
@@ -1019,7 +1022,7 @@ method ChannelPinnedMessages*(s: Session, channel: string): seq[Message] {.base,
     ## Returns all pinned messages in a channel
     var url = EndpointGetPinnedMessages(channel)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[Message]](res.body)
+    result = marshal.to[seq[Message]](res.body)
     
 
 method ChannelPinMessage*(s: Session, channel, message: string) {.base, gcsafe.} =
@@ -1042,7 +1045,7 @@ method CreateGroupDM*(s: Session, accesstokens: seq[string], nicks: seq[AddGroup
     var url = EndpointCreateGroupDM()
     let payload = %*{"access_tokens": accesstokens, "nicks": nicks}
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = to[DChannel](res.body)
+    result = marshal.to[DChannel](res.body)
 
 method GroupDMAddUser*(s: Session, channelid, userid, access_token, nick: string) {.base, gcsafe.} =
     ## Adds a user to a group dm.
@@ -1063,7 +1066,7 @@ method CreateGuild*(s: Session, name: string): Guild {.base, gcsafe.} =
     var url = EndpointCreateGuild()
     let payload = %*{"name": name}
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = to[Guild](res.body)
+    result = marshal.to[Guild](res.body)
     
 
 method GetGuild*(s: Session, id: string): Guild {.base, gcsafe.} =
@@ -1076,7 +1079,7 @@ method GetGuild*(s: Session, id: string): Guild {.base, gcsafe.} =
 
     var url = EndpointGetGuild(id)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[Guild](res.body)
+    result = marshal.to[Guild](res.body)
    
     if s.cache.cacheGuilds:
         s.cache.guilds[result.id] = result
@@ -1089,21 +1092,21 @@ method ModifyGuild*(s: Session, guild: string, settings: GuildParams): Guild {.b
     ## Modifies a guild with the GuildParams
     var url = EndpointModifyGuild(guild)
     let res = s.Request(url, "PATCH", url, "application/json", $$settings, 0)
-    result = to[Guild](res.body)
+    result = marshal.to[Guild](res.body)
     
 
 method DeleteGuild*(s: Session, guild: string): Guild {.base, gcsafe.} =
     ## Deletes a guild
     var url = EndpointDeleteGuild(guild)
     let res = s.Request(url, "DELETE", url, "application/json", "", 0)
-    result = to[Guild](res.body)
+    result = marshal.to[Guild](res.body)
     
 
 method GuildChannels*(s: Session, guild: string): seq[DChannel] {.base, gcsafe.} =
     ## Returns all guild channels
     var url = EndpointGetGuildChannels(guild)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[DChannel]](res.body)
+    result = marshal.to[seq[DChannel]](res.body)
    
 
 method GuildChannelCreate*(s: Session, guild, channelname: string, voice: bool): DChannel {.base, gcsafe.} =
@@ -1111,7 +1114,7 @@ method GuildChannelCreate*(s: Session, guild, channelname: string, voice: bool):
     var url = EndpointCreateGuildChannel(guild)
     let payload = %*{"name": channelname, "voice": voice}
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = to[DChannel](res.body)
+    result = marshal.to[DChannel](res.body)
     
 
 method ModifyGuildChannelPosition*(s: Session, guild, channel: string, position: int): seq[DChannel] {.base, gcsafe.} =
@@ -1119,7 +1122,7 @@ method ModifyGuildChannelPosition*(s: Session, guild, channel: string, position:
     var url = EndpointModifyGuildChannelPositions(guild)
     let payload = %*{"id": channel, "position": position}
     let res = s.Request(url, "PATCH", url, "application/json", $payload, 0)
-    result = to[seq[DChannel]](res.body)
+    result = marshal.to[seq[DChannel]](res.body)
    
 
 method GuildMembers*(s: Session, guild: string, limit, after: int): seq[GuildMember] {.base, gcsafe.} =
@@ -1132,7 +1135,7 @@ method GuildMembers*(s: Session, guild: string, limit, after: int): seq[GuildMem
         url = url & "after=" & $after & "&"
 
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[GuildMember]](res.body)
+    result = marshal.to[seq[GuildMember]](res.body)
     
 
 method GetGuildMember*(s: Session, guild, userid: string): GuildMember {.base, gcsafe.} =
@@ -1146,7 +1149,7 @@ method GetGuildMember*(s: Session, guild, userid: string): GuildMember {.base, g
 
     var url = EndpointGetGuildMember(guild, userid)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[GuildMember](res.body)
+    result = marshal.to[GuildMember](res.body)
     
     if s.cache.cacheGuildMembers:
         s.cache.addGuildMember(result)
@@ -1156,7 +1159,7 @@ method GuildAddMember*(s: Session, guild, userid, accesstoken: string): GuildMem
     var url = EndpointAddGuildMember(guild, userid)
     let payload = %*{"access_token": accesstoken}
     let res = s.Request(url, "PUT", url, "application/json", $payload, 0)
-    result = to[GuildMember](res.body)
+    result = marshal.to[GuildMember](res.body)
     
 
 method GuildMemberRoles*(s: Session, guild, userid: string, roles: seq[string]) {.base, gcsafe.} =
@@ -1215,7 +1218,7 @@ method GuildBans*(s: Session, guild: string): seq[User] {.base, gcsafe.} =
     ## Returns all users who have been banned from the guild
     var url = EndpointGetGuildBans(guild)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[User]](res.body)
+    result = marshal.to[seq[User]](res.body)
    
 
 method GuildBanUser*(s: Session, guild, userid: string) {.base, gcsafe.} =
@@ -1232,7 +1235,7 @@ method GuildRoles*(s: Session, guild: string): seq[Role] {.base, gcsafe.} =
     ## Returns all guild roles
     var url = EndpointGetGuildRoles(guild)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[Role]](res.body)
+    result = marshal.to[seq[Role]](res.body)
     
 method GuildRole*(s: Session, guild, roleid: string): Role {.base, gcsafe.} =
     ## Returns a role with the given id.
@@ -1254,33 +1257,31 @@ method GuildRole*(s: Session, guild, roleid: string): Role {.base, gcsafe.} =
         s.cache.roles[result.id] = result
 
 
-method GuildRoleCreate*(s: Session, guild: string): Role {.base, gcsafe.} =
+method GuildCreateRole*(s: Session, guild: string): Role {.base, gcsafe.} =
     ## Creates a new role in the guild
-    ## Excuse the P in the name, the name conflicts with another declaration
     var url = EndpointCreateGuildRole(guild)
     let res = s.Request(url, "POST", url, "application/json", "", 0)
-    result = to[Role](res.body)
+    result = marshal.to[Role](res.body)
     
 
-method GuildRoleEditPosition*(s: Session, guild: string, roles: seq[Role]): seq[Role] {.base, gcsafe.} =
+method GuildEditRolePosition*(s: Session, guild: string, roles: seq[Role]): seq[Role] {.base, gcsafe.} =
     ## Edits the positions of a guilds roles roles
     ## and returns the new roles order
     var url = EndpointModifyGuildRolePositions(guild)
     let res = s.Request(url, "PATCH", url, "application/json", $$roles, 0)
-    result = to[seq[Role]](res.body)
+    result = marshal.to[seq[Role]](res.body)
     
 
-method GuildRoleEdit*(s: Session, guild, roleid, name: string, permissions, color: int, hoist, mentionable: bool): Role {.base, gcsafe.} =
+method GuildEditRole*(s: Session, guild, roleid, name: string, permissions, color: int, hoist, mentionable: bool): Role {.base, gcsafe.} =
     ## Edits a role
     var url = EndpointModifyGuildRole(guild, roleid)
     let payload = %*{"name": name, "permissions": permissions, "color": color, "hoist": hoist, "mentionable": mentionable}
     let res = s.Request(url, "PATCH", url, "application/json", $payload, 0)
-    result = to[Role](res.body)
+    result = marshal.to[Role](res.body)
    
 
-method GuildRoleDelete*(s: Session, guild, roleid: string) {.base, gcsafe.} =
+method GuildDeleteRole*(s: Session, guild, roleid: string) {.base, gcsafe.} =
     ## Deletes a role
-    ## Excuse the P in the name, the name conflicts with another declaration
     var url = EndpointDeleteGuildRole(guild, roleid)
     discard s.Request(url, "DELETE", url, "application/json", "", 0)
 
@@ -1290,10 +1291,10 @@ method GuildPruneCount*(s: Session, guild: string, days: int): int {.base, gcsaf
     var url = EndpointGetGuildPruneCount(guild) & "?days=" & $days
     let res = s.Request(url, "GET", "", "application/json", "", 0)
 
-    type temp = ref object
+    type Temp = object
         pruned: int
 
-    let t = to[temp](res.body)
+    let t = marshal.to[Temp](res.body)
     return t.pruned
 
 method GuildPruneBegin*(s: Session, guild: string, days: int): int {.base, gcsafe.} =
@@ -1303,31 +1304,31 @@ method GuildPruneBegin*(s: Session, guild: string, days: int): int {.base, gcsaf
     var url = EndpointBeginGuildPruneCount(guild) & "?days=" & $days
     let res = s.Request(url, "POST", "", "application/json", "", 0)
 
-    type temp = ref object
+    type Temp = object
         pruned: int
 
-    let t = to[temp](res.body)
+    let t = marshal.to[Temp](res.body)
     return t.pruned
 
 method GuildVoiceRegions*(s: Session, guild: string): seq[VoiceRegion] {.base, gcsafe.} =
     ## Lists all voice regions in a guild
     var url = EndpointGetGuildVoiceRegions(guild)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[VoiceRegion]](res.body)
+    result = marshal.to[seq[VoiceRegion]](res.body)
     
 
 method GuildInvites*(s: Session, guild: string): seq[Invite] {.base, gcsafe.} =
     ## Lists all guild invites
     var url = EndpointGetGuildInvites(guild)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[Invite]](res.body)
+    result = marshal.to[seq[Invite]](res.body)
     
 
 method GuildIntegrations*(s: Session, guild: string): seq[Integration] {.base, gcsafe.} =
     ## Lists all guild integrations
     var url = EndpointGetGuildIntegrations(guild)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[Integration]](res.body)
+    result = marshal.to[seq[Integration]](res.body)
     
 
 method GuildIntegrationCreate*(s: Session, guild, typ, id: string) {.base, gcsafe.} =
@@ -1356,7 +1357,7 @@ method GetGuildEmbed*(s: Session, guild: string): GuildEmbed {.base, gcsafe.} =
     ## Gets a GuildEmbed
     var url = EndpointGetGuildEmbed(guild)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[GuildEmbed](res.body)
+    result = marshal.to[GuildEmbed](res.body)
     
 
 method GuildEmbedEdit*(s: Session, guild: string, enabled: bool, channel: string): GuildEmbed {.base, gcsafe.} =
@@ -1364,28 +1365,28 @@ method GuildEmbedEdit*(s: Session, guild: string, enabled: bool, channel: string
     var url = EndpointModifyGuildEmbed(guild)
     let embed = GuildEmbed(enabled: enabled, channel_id: channel)
     let res = s.Request(url, "PATCH", url, "application/json", $$embed, 0)
-    result = to[GuildEmbed](res.body)
+    result = marshal.to[GuildEmbed](res.body)
    
 
 method GetInvite*(s: Session, code: string): Invite {.base, gcsafe.} =
     ## Gets an invite with code
     var url = EndpointGetInvite(code)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[Invite](res.body)
+    result = marshal.to[Invite](res.body)
    
 
 method InviteDelete*(s: Session, code: string): Invite {.base, gcsafe.} =
     ## Deletes an invite
     var url = EndpointDeleteInvite(code)
     let res = s.Request(url, "DELETE", url, "application/json", "", 0)
-    result = to[Invite](res.body)
+    result = marshal.to[Invite](res.body)
     
 
 method Me*(s: Session): User {.base, gcsafe.} =
     ## Returns the current user
     var url = EndpointGetCurrentUser()
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[User](res.body)
+    result = marshal.to[User](res.body)
    
 
 method GetUser*(s: Session, userid: string): User {.base, gcsafe.} =
@@ -1398,7 +1399,7 @@ method GetUser*(s: Session, userid: string): User {.base, gcsafe.} =
 
     var url = EndpointGetUser(userid)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[User](res.body)
+    result = marshal.to[User](res.body)
 
     if s.cache.cacheUsers:
         s.cache.users[result.id] = result
@@ -1408,7 +1409,7 @@ method EditUsername*(s: Session, name: string): User {.base, gcsafe.} =
     var url = EndpointGetCurrentUser()
     let payload = %*{"username": name}
     let res = s.Request(url, "PATCH", url, "application/json", $payload, 0)
-    result = to[User](res.body)
+    result = marshal.to[User](res.body)
     
 
 method EditAvatar*(s: Session, avatar: string): User {.base, gcsafe.} =
@@ -1416,14 +1417,14 @@ method EditAvatar*(s: Session, avatar: string): User {.base, gcsafe.} =
     var url = EndpointGetCurrentUser()
     let payload = %*{"avatar": avatar}
     let res = s.Request(url, "PATCH", url, "application/json", $payload, 0)
-    result = to[User](res.body)
+    result = marshal.to[User](res.body)
     
 
 method Guilds*(s: Session): seq[UserGuild] {.base, gcsafe.} =
     ## Lists the current users guilds
     var url = EndpointGetCurrentUserGuilds()
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[UserGuild]](res.body)
+    result = marshal.to[seq[UserGuild]](res.body)
     
 
 method LeaveGuild*(s: Session, guild: string) {.base, gcsafe.} =
@@ -1431,26 +1432,26 @@ method LeaveGuild*(s: Session, guild: string) {.base, gcsafe.} =
     var url = EndpointLeaveGuild(guild)
     discard s.Request(url, "DELETE", url, "application/json", "", 0)
 
-method DMs*(s: Session): seq[DChannel] {.base, gcsafe.} =
+method ActivePrivateChannels*(s: Session): seq[DChannel] {.base, gcsafe.} =
     ## Lists all active DM channels
     var url = EndpointGetUserDMs()
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[DChannel]](res.body)
+    result = marshal.to[seq[DChannel]](res.body)
     
 
-method DMCreate*(s: Session, recipient: string): DChannel {.base, gcsafe.} =
+method PrivateChannelCreate*(s: Session, recipient: string): DChannel {.base, gcsafe.} =
     ## Creates a new DM channel
     var url = EndpointCreateDM()
     let payload = %*{"recipient_id": recipient}
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = to[DChannel](res.body)
+    result = marshal.to[DChannel](res.body)
     
 
 method VoiceRegions*(s: Session): seq[VoiceRegion] {.base, gcsafe.} =
     ## Lists all voice regions
     var url = EndpointListVoiceRegions()
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[VoiceRegion]](res.body)
+    result = marshal.to[seq[VoiceRegion]](res.body)
     
 
 method WebhookCreate*(s: Session, channel, name, avatar: string): Webhook {.base, gcsafe.} =
@@ -1458,28 +1459,28 @@ method WebhookCreate*(s: Session, channel, name, avatar: string): Webhook {.base
     var url = EndpointCreateWebhook(channel)
     let payload = %*{"name": name, "avatar": avatar}
     let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = to[Webhook](res.body)
+    result = marshal.to[Webhook](res.body)
    
 
 method ChannelWebhooks*(s: Session, channel: string): seq[Webhook] {.base, gcsafe.} =
     ## Lists all webhooks in a channel
     var url = EndpointGetChannelWebhooks(channel)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[Webhook]](res.body)
+    result = marshal.to[seq[Webhook]](res.body)
    
 
 method GuildWebhooks*(s: Session, guild: string): seq[Webhook] {.base, gcsafe.} =
     ## Lists all webhooks in a guild
     var url = EndpointGetGuildWebhook(guild)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[seq[Webhook]](res.body)
+    result = marshal.to[seq[Webhook]](res.body)
     
 
 method GetWebhookWithToken*(s: Session, webhook, token: string): Webhook {.base, gcsafe.} =
     ## Gets a webhook with a token
     var url = EndpointGetWebhookWithToken(webhook, token)
     let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = to[Webhook](res.body)
+    result = marshal.to[Webhook](res.body)
     
 
 method WebhookEdit*(s: Session, webhook, name, avatar: string): Webhook {.base, gcsafe.} =
@@ -1487,7 +1488,7 @@ method WebhookEdit*(s: Session, webhook, name, avatar: string): Webhook {.base, 
     var url = EndpointModifyWebhook(webhook)
     let payload = %*{"name": name, "avatar": avatar}
     let res = s.Request(url, "PATCH", url, "application/json", $payload, 0)
-    result = to[Webhook](res.body)
+    result = marshal.to[Webhook](res.body)
     
 
 method WebhookEditWithToken*(s: Session, webhook, token, name, avatar: string): Webhook {.base, gcsafe.} =
@@ -1495,21 +1496,21 @@ method WebhookEditWithToken*(s: Session, webhook, token, name, avatar: string): 
     var url = EndpointModifyWebhookWithToken(webhook, token)
     let payload = %*{"name": name, "avatar": avatar}
     let res = s.Request(url, "PATCH", url, "application/json", $payload, 0)
-    result = to[Webhook](res.body)
+    result = marshal.to[Webhook](res.body)
     
 
 method WebhookDelete*(s: Session, webhook: string): Webhook {.base, gcsafe.} =
     ## Deletes a webhook
     var url = EndpointDeleteWebhook(webhook)
     let res = s.Request(url, "DELETE", url, "application/json", "", 0)
-    result = to[Webhook](res.body)
+    result = marshal.to[Webhook](res.body)
     
 
 method WebhookDeleteWithToken*(s: Session, webhook, token: string): Webhook {.base, gcsafe.} =
     ## Deltes a webhook with a token
     var url = EndpointDeleteWebhookWithToken(webhook, token)
     let res = s.Request(url, "DELETE", url, "application/json", "", 0)
-    result = to[Webhook](res.body)
+    result = marshal.to[Webhook](res.body)
     
 
 method ExecuteWebhook*(s: Session, webhook, token: string, wait: bool, payload: WebhookParams) {.base, gcsafe.} =
@@ -1523,17 +1524,16 @@ type
 proc handleDispatch(s: Session, event: string, data: JsonNode) =
     case event:
         of "READY":
-            let json = parseJson($data)
             var payload = Ready(
-                v: int(json["v"].num),
-                user_settings: json["user_settings"],
-                user: to[User]($json["user"]),
-                session_id: json["session_id"].str,
-                relationships: json["relationships"],
-                private_channels: to[seq[DChannel]]($json["private_channels"]),
-                presences: to[seq[Presence]]($json["presences"]),
-                guilds: to[seq[Guild]]($json["guilds"]),
-                trace: to[seq[string]]($json["_trace"])
+                v: int(data["v"].num),
+                user_settings: data["user_settings"],
+                user: marshal.to[User]($data["user"]),
+                session_id: data["session_id"].str,
+                relationships: data["relationships"],
+                private_channels: marshal.to[seq[DChannel]]($data["private_channels"]),
+                presences: marshal.to[seq[Presence]]($data["presences"]),
+                guilds: marshal.to[seq[Guild]]($data["guilds"]),
+                trace: data["_trace"].to(seq[string])
             )
             s.session_ID = payload.session_id
             s.cache.version = payload.v
@@ -1544,116 +1544,116 @@ proc handleDispatch(s: Session, event: string, data: JsonNode) =
             
             for guild in payload.guilds:
                 s.cache.guilds[guild.id] = guild
-                
+
             s.onReady(s, payload)            
         of "RESUMED":
-            let payload = to[Resumed]($data)
+            let payload = marshal.to[Resumed]($data)
             s.onResume(s, payload)
         of "CHANNEL_CREATE":
-            let payload = to[ChannelCreate]($data)
+            let payload = marshal.to[ChannelCreate]($data)
             if s.cache.cacheChannels: s.cache.channels[payload.id] = payload
             s.channelCreate(s, payload)
         of "CHANNEL_UPDATE":
-            let payload = to[ChannelUpdate]($data)
+            let payload = marshal.to[ChannelUpdate]($data)
             if s.cache.cacheChannels: s.cache.updateChannel(payload)
             s.channelUpdate(s, payload)
         of "CHANNEL_DELETE":
-            let payload = to[ChannelDelete]($data)
+            let payload = marshal.to[ChannelDelete]($data)
             if s.cache.cacheChannels: s.cache.removeChannel(payload.id)
             s.channelDelete(s, payload)
         of "GUILD_CREATE":
-            let payload = to[GuildCreate]($data)
+            let payload = marshal.to[GuildCreate]($data)
             if s.cache.cacheGuilds: s.cache.guilds[payload.id] = payload
             s.guildCreate(s, payload)
         of "GUILD_UPDATE":
-            let payload = to[GuildUpdate]($data)
+            let payload = marshal.to[GuildUpdate]($data)
             if s.cache.cacheGuilds: s.cache.updateGuild(payload)
             s.guildUpdate(s, payload)
         of "GUILD_DELETE":
-            let payload = to[GuildDelete]($data)
+            let payload = marshal.to[GuildDelete]($data)
             if s.cache.cacheGuilds: s.cache.removeGuild(payload.id)
             s.guildDelete(s, payload)
         of "GUILD_BAN_ADD":
-            let payload = to[GuildBanAdd]($data)
+            let payload = marshal.to[GuildBanAdd]($data)
             s.guildBanAdd(s, payload)
         of "GUILD_BAN_REMOVE":
-            let payload = to[GuildBanRemove]($data)
+            let payload = marshal.to[GuildBanRemove]($data)
             s.guildBanRemove(s, payload)
         of "GUILD_EMOJIS_UPDATE":
-            let payload = to[GuildEmojisUpdate]($data)
+            let payload = marshal.to[GuildEmojisUpdate]($data)
             s.guildEmojisUpdate(s, payload)
         of "GUILD_INTEGRATIONS_UPDATE":
-            let payload = to[GuildIntegrationsUpdate]($data)
+            let payload = marshal.to[GuildIntegrationsUpdate]($data)
             s.guildIntegrationsUpdate(s, payload)
         of "GUILD_MEMBER_ADD":
-            let payload = to[GuildMemberAdd]($data)
+            let payload = marshal.to[GuildMemberAdd]($data)
             if s.cache.cacheGuildMembers: s.cache.addGuildMember(payload)
             s.guildMemberAdd(s, payload)
         of "GUILD_MEMBER_UPDATE":
-            let payload = to[GuildMemberUpdate]($data)
+            let payload = marshal.to[GuildMemberUpdate]($data)
             if s.cache.cacheGuildMembers: s.cache.updateGuildMember(payload)
             s.guildMemberUpdate(s, payload)
         of "GUILD_MEMBER_REMOVE":
-            let payload = to[GuildMemberRemove]($data)
+            let payload = marshal.to[GuildMemberRemove]($data)
             if s.cache.cacheGuildMembers: s.cache.removeGuildMember(payload)
             s.guildMemberRemove(s, payload)
         of "GUILD_MEMBERS_CHUNK":
-            let payload = to[GuildMembersChunk]($data)
+            let payload = marshal.to[GuildMembersChunk]($data)
             s.guildMembersChunk(s, payload)
         of "GUILD_ROLE_CREATE":
-            let payload = to[GuildRoleCreateObj]($data)
+            let payload = marshal.to[GuildRoleCreate]($data)
             if s.cache.cacheRoles: s.cache.roles[payload.role.id] = payload.role
             s.guildRoleCreate(s, payload)
         of "GUILD_ROLE_UPDATE":
-            let payload = to[GuildRoleUpdateObj]($data)
+            let payload = marshal.to[GuildRoleUpdate]($data)
             if s.cache.cacheRoles: s.cache.updateRole(payload.role)
             s.guildRoleUpdate(s, payload)
         of "GUILD_ROLE_DELETE":
-            let payload = to[GuildRoleDeleteObj]($data)
+            let payload = marshal.to[GuildRoleDelete]($data)
             if s.cache.cacheRoles: s.cache.removeRole(payload.role_id)
             s.guildRoleDelete(s, payload)
         of "MESSAGE_CREATE":
-            let payload = to[MessageCreate]($data)
+            let payload = marshal.to[MessageCreate]($data)
             s.messageCreate(s, payload)
         of "MESSAGE_UPDATE":
-            let payload = to[MessageUpdate]($data)
+            let payload = marshal.to[MessageUpdate]($data)
             s.messageUpdate(s, payload)
         of "MESSAGE_DELETE":
-            let payload = to[MessageDelete]($data)
+            let payload = marshal.to[MessageDelete]($data)
             s.messageDelete(s, payload)
         of "MESSAGE_DELETE_BULK":
-            let payload = to[MessageDeleteBulk]($data)
+            let payload = marshal.to[MessageDeleteBulk]($data)
             s.messageDeleteBulk(s, payload)
         of "MESSAGE_REACTION_ADD":
-            let payload = to[MessageReactionAdd]($data)
+            let payload = marshal.to[MessageReactionAdd]($data)
             s.messageReactionAdd(s, payload)
         of "MESSAGE_REACTION_REMOVE":
-            let payload = to[MessageReactionRemove]($data)
+            let payload = marshal.to[MessageReactionRemove]($data)
             s.messageReactionRemove(s, payload)
         of "MESSAGE_REACTION_REMOVE_ALL":
-            let payload = to[MessageReactionRemoveAll]($data)
+            let payload = marshal.to[MessageReactionRemoveAll]($data)
             s.messageReactionRemoveAll(s, payload)
         of "PRESENCE_UPDATE":
-            let payload = to[PresenceUpdate]($data)
+            let payload = marshal.to[PresenceUpdate]($data)
             s.presenceUpdate(s, payload)
         of "TYPING_START":
-            let payload = to[TypingStart]($data)
+            let payload = marshal.to[TypingStart]($data)
             s.typingStart(s, payload)
         of "USER_UPDATE":
-            let payload = to[User]($data)
+            let payload = marshal.to[UserUpdate]($data)
             s.userUpdate(s, payload)
         of "VOICE_STATE_UPDATE":
-            let payload = to[VoiceState]($data)
+            let payload = marshal.to[VoiceStateUpdate]($data)
             s.voiceStateUpdate(s, payload)
         of "VOICE_SERVER_UPDATE":
-            let payload = to[VoiceServerUpdate]($data)
+            let payload = marshal.to[VoiceServerUpdate]($data)
             s.voiceServerUpdate(s, payload)
         of "USER_SETTINGS_UPDATE":
             discard
         else:
             echo "Unknown websocket event :: " & event & "\c\L" & $data
 
-proc identify(s: Session) {.async, base.} =
+proc identify(s: Session) {.async.} =
     var properties = %*{
         "$os": system.hostOS,
         "$browser": "Discordnim v"&VERSION,
@@ -1713,7 +1713,7 @@ proc reconnect(s: Session) {.async, gcsafe.} =
     s.session_ID = ""
     await s.identify()
 
-method shouldResumeSession(s: Session): bool {.base.} =
+proc shouldResumeSession(s: Session): bool {.gcsafe.} =
     return (not s.invalidated) and (not s.suspended)
 
 # Concurrency in Nim is a bitch
@@ -1727,12 +1727,8 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
  
         if data["s"].kind != JNull:
             let i = data["s"].num.int
-            # This is awful and gross
-            # ref Session and ptr Session
-            # would not work and would not 
-            # set the new sequence
-            # so heartbeats would always
-            # send `"d": null`
+            # Crappy workaround for thread limitations
+            # :(
             sesseq = i
             
         case data["op"].num:
@@ -1788,42 +1784,50 @@ proc SessionStart*(s: Session){.async, gcsafe.} =
 
 proc `$`*(u: User): string {.gcsafe, inline.} =
     ## Stringifies a user.
+    ##
     ## e.g: Username#1234
     result = u.username & "#" & u.discriminator
 
 proc `$`*(c: DChannel): string {.gcsafe, inline.} =
     ## Stringifies a channel.
+    ##
     ## e.g: #channel-name
     result = "#" & c.name
 
 proc `$`*(e: Emoji): string {.gcsafe, inline.} =
     ## Stringifies an emoji.
+    ##
     ## e.g: :emojiName:129837192873
     result = ":" & e.name & ":" & e.id
 
 proc `@`*(u: User): string {.gcsafe, inline.} =
     ## Returns a message formatted user mention.
+    ##
     ## e.g: <@109283102983019283>
     result = "<@" & u.id & ">"
 
 proc `@`*(c: DChannel): string {.gcsafe, inline.} = 
     ## Returns a message formatted channel mention.
+    ##
     ## e.g: <#1239810283>
     result = "<#" & c.id & ">"
 
 proc `@`*(r: Role): string {.gcsafe, inline.} =
     ## Returns a message formatted role mention
+    ##
     ## e.g: <@&129837128937>
     result = "<@&" & r.id & ">"
 
 proc `@`*(e: Emoji): string {.gcsafe, inline.} =
     ## Returns a message formated emoji.
+    ##
     ## e.g: <:emojiName:1920381>
     result = "<" & $e & ">"
 
 proc StripMentions*(msg: Message): string {.gcsafe.} =  
     ## Strips all user mentions from a message
     ## and replaces them with plaintext
+    ##
     ## e.g: <@1901092738173> -> @Username#1234
     if msg.mentions == nil: return msg.content
 
