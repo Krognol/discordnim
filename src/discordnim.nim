@@ -4,54 +4,51 @@ import marshal, json, cgi, discordobjects, endpoints,
        websocket/shared, asyncdispatch, asyncnet, threadpool
 
 # Gateway op codes
-
+{.hint[XDeclaredButNotUsed]: off.}
 const 
-    OP_DISPATCH = 0
-    OP_HEARTBEAT = 1
-    OP_IDENTIFY = 2
-    OP_STATUS_UPDATE = 3
-    OP_VOICE_STATE_UPDATE = 4
-    OP_VOICE_SERVER_PING = 5
-    OP_RESUME = 6
-    OP_RECONNECT = 7
+    OP_DISPATCH              = 0
+    OP_HEARTBEAT             = 1
+    OP_IDENTIFY              = 2
+    OP_STATUS_UPDATE         = 3
+    OP_VOICE_STATE_UPDATE    = 4
+    OP_VOICE_SERVER_PING     = 5
+    OP_RESUME                = 6
+    OP_RECONNECT             = 7
     OP_REQUEST_GUILD_MEMBERS = 8
-    OP_INVALID_SESSION = 9
-    OP_HELLO = 10
-    OP_HEARTBEAT_ACK = 11
+    OP_INVALID_SESSION       = 9
+    OP_HELLO                 = 10
+    OP_HEARTBEAT_ACK         = 11
 
 
 # Permissions 
 const
     CREATE_INSTANT_INVITE* = 0x00000001
-    KICK_MEMBERS* = 0x00000002
-    BAN_MEMBERS* = 0x00000004
-    ADMINISTRATOR* = 0x00000008
-    MANAGE_CHANNELS* = 0x00000010
-    MANAGE_GUILD* = 0x00000020
-    ADD_REACTIONS* = 0x00000040
-    READ_MESSAGES* = 0x00000400
-    SEND_MESSAGES* = 0x00000800
-    SEND_TTS_MESSAGES* = 0x00001000
-    MANAGE_MESSAGES* = 0x00002000
-    EMBED_LINKS* = 0x00004000
-    ATTACH_FILES* = 0x00008000
-    READ_MESSAGE_HISTORY* = 0x00010000
-    MENTION_EVERYONE* = 0x00020000
-    USE_EXTERNAL_EMOJIS* = 0x00040000
-    CONNECT* = 0x00100000
-    SPEAK* = 0x00200000
-    MUTE_MEMBERS* = 0x00400000
-    DEAFEN_MEMBERS* = 0x00800000
-    MOVE_MEMBERS* = 0x01000000
-    USE_VAD* = 0x02000000
-    CHANGE_NICKNAME* = 0x04000000
-    MANAGE_NICKNAMES* = 0x08000000
-    MANAGE_ROLES* = 0x10000000
-    MANAGE_WEBHOOKS* = 0x20000000
-    MANAGE_EMOJIS* = 0x40000000
-
-
-
+    KICK_MEMBERS*          = 0x00000002
+    BAN_MEMBERS*           = 0x00000004
+    ADMINISTRATOR*         = 0x00000008
+    MANAGE_CHANNELS*       = 0x00000010
+    MANAGE_GUILD*          = 0x00000020
+    ADD_REACTIONS*         = 0x00000040
+    READ_MESSAGES*         = 0x00000400
+    SEND_MESSAGES*         = 0x00000800
+    SEND_TTS_MESSAGES*     = 0x00001000
+    MANAGE_MESSAGES*       = 0x00002000
+    EMBED_LINKS*           = 0x00004000
+    ATTACH_FILES*          = 0x00008000
+    READ_MESSAGE_HISTORY*  = 0x00010000
+    MENTION_EVERYONE*      = 0x00020000
+    USE_EXTERNAL_EMOJIS*   = 0x00040000
+    CONNECT*               = 0x00100000
+    SPEAK*                 = 0x00200000
+    MUTE_MEMBERS*          = 0x00400000
+    DEAFEN_MEMBERS*        = 0x00800000
+    MOVE_MEMBERS*          = 0x01000000
+    USE_VAD*               = 0x02000000
+    CHANGE_NICKNAME*       = 0x04000000
+    MANAGE_NICKNAMES*      = 0x08000000
+    MANAGE_ROLES*          = 0x10000000
+    MANAGE_WEBHOOKS*       = 0x20000000
+    MANAGE_EMOJIS*         = 0x40000000
 
 method GetGateway(s: Session): string {.base.} =
     var url = Gateway()
@@ -112,13 +109,17 @@ proc NewSession*(args: varargs[string, `$`]): Session =
     ## Creates a new Session
     var rl = newRateLimiter()
     var
-        s = Session(mut: Lock(), compress: false, limiter: rl, 
-                    cache: Cache(users: initTable[string, User](), 
-                                 guilds: initTable[string, Guild](), 
-                                 channels: initTable[string, DChannel](),
-                                 roles: initTable[string, Role]()
-                            )
+        s = Session(
+            mut: Lock(), 
+            compress: false, 
+            limiter: rl, 
+            cache: Cache(
+                users: initTable[string, User](), 
+                guilds: initTable[string, Guild](), 
+                channels: initTable[string, DChannel](),
+                roles: initTable[string, Role]()
                     )
+            )
 
         auth = ""
         pass = ""
@@ -307,13 +308,12 @@ proc identify(s: Session) {.async.} =
     except:
         echo "Error sending identify packet\c\L" & getCurrentExceptionMsg()
 
-var sesseq: int = 0
+# Really wish I didn't have to do this
+var sesseq = 0
 
 proc startHeartbeats(t: tuple[s: Session, i: int]) {.thread, gcsafe.} =
     var hb: JsonNode
     while not t.s.stop:
-        # Ugly, disgusting, gross
-        # TODO : FIX
         if sesseq == 0:
             hb = %*{"op": OP_HEARTBEAT, "d": nil}
         else:
@@ -403,7 +403,7 @@ proc SessionStart*(s: Session){.async, gcsafe.} =
         asyncCheck sessionHandleSocketMessage(s)
     except:
         return
-    
+
     # Need to find a way to gracefully stop the program
     while not s.stop:
         poll()

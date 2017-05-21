@@ -1,5 +1,5 @@
 import json, tables, locks, websocket/shared, times, httpclient, strutils, os
-
+{.hint[XDeclaredButNotUsed]: off.}
 type
     RateLimiter = object of RootObj 
         mut: locks.Lock
@@ -100,8 +100,6 @@ method Release(b : ref Bucket, headers : HttpHeaders) {.gcsafe, base.} =
     if remaining != "" and remaining != nil:
         var pr = remaining.parseInt
         b.remaining = pr
-
-    return
 
 type 
     Overwrite* = object

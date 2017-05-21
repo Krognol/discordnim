@@ -21,7 +21,6 @@ method Request(s: Session, bucketid: var string, meth, url, contenttype, b : str
         res = client.post(url, b, mp)
     bucket.Release(res.headers)
 
-    result = res
     case res.status:
     of "502":
         if sequence < 5:
@@ -32,6 +31,7 @@ method Request(s: Session, bucketid: var string, meth, url, contenttype, b : str
         res = s.Request(bucketid, meth, url, contenttype, b, sequence)
     else: discard
 
+    result = res
     client.close()
 
 

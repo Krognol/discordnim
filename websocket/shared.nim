@@ -28,7 +28,7 @@ import random, net, asyncdispatch, asyncnet, base64, times, strutils, securehash
 
 
 import private/hex
-
+{.warning[Deprecated]: off.}
 const WebsocketUserAgent* = "websocket.nim (https://github.com/niv/websocket.nim)"
 
 type

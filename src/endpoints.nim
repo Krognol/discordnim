@@ -1,5 +1,5 @@
 # Channel endpoints
-
+{.hint[XDeclaredButNotUsed]: off.}
 const
     BASE: string = "https://discordapp.com/api"
     GATEWAYVERSION: string = "?v=6&encoding=json"
