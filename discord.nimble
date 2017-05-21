@@ -1,11 +1,11 @@
 # Package
 
-version       = "0.1.0"
+version       = "1.2.3"
 author        = "Krognol"
 description   = "Discord library for nim"
 license       = "MIT"
 
 # Dependencies
 
-requires "nim >= 0.16.0"
+requires "nim >= 0.17.0"
 
