@@ -1,7 +1,7 @@
 # Wish i could split this up a bit, but errors because cyclical includes
 include restapi
 import marshal, json, cgi, discordobjects, endpoints,
-       websocket/shared, asyncdispatch, asyncnet, threadpool
+       websocket/shared, asyncdispatch, asyncnet, uri
 
 # Gateway op codes
 {.hint[XDeclaredButNotUsed]: off.}
@@ -113,6 +113,7 @@ proc NewSession*(args: varargs[string, `$`]): Session =
             mut: Lock(), 
             compress: false, 
             limiter: rl, 
+            sequence: 0,
             cache: Cache(
                 users: initTable[string, User](), 
                 guilds: initTable[string, Guild](), 
@@ -150,7 +151,7 @@ proc NewSession*(args: varargs[string, `$`]): Session =
 type
   IdentifyError* = object of Exception
 
-proc handleDispatch(s: Session, event: string, data: JsonNode) =
+method handleDispatch(s: Session, event: string, data: JsonNode){.gcsafe, base.} =
     case event:
         of "READY":
             var payload = Ready(
@@ -298,7 +299,7 @@ proc identify(s: Session) {.async.} =
             "properties": properties,
         }
     }
-    if s.shardCount > 1:
+    if s.shardCount > 1: 
         if s.shardID >= s.shardCount:
             raise newException(IdentifyError, "ShardID has to be lower than ShardCount")
         payload["shard"] = %*[s.shardID, s.shardCount]
@@ -308,57 +309,54 @@ proc identify(s: Session) {.async.} =
     except:
         echo "Error sending identify packet\c\L" & getCurrentExceptionMsg()
 
-# Really wish I didn't have to do this
-var sesseq = 0
-
-proc startHeartbeats(t: tuple[s: Session, i: int]) {.thread, gcsafe.} =
-    var hb: JsonNode
-    while not t.s.stop:
-        if sesseq == 0:
-            hb = %*{"op": OP_HEARTBEAT, "d": nil}
-        else:
-            hb = %*{"op": OP_HEARTBEAT, "d": sesseq}
-        try:
-            asyncCheck t.s.connection.sock.sendText($hb, true)
-        except:
-            return
-        sleep t.i
-
 proc resume(s: Session) {.async, gcsafe.} =
     let payload = %*{
         "token": s.token,
         "session_id": s.session_ID,
-        "seq": sesseq
+        "seq": s.sequence
     }
-
     await s.connection.sock.sendText($payload, true)
 
 proc reconnect(s: Session) {.async, gcsafe.} =
     await s.connection.close()
     s.connection = nil
     s.connection = await newAsyncWebsocket("gateway.discord.gg", Port 443, "/"&GATEWAYVERSION, ssl = true)
-    sesseq = 0
+    s.sequence = 0
     s.session_ID = ""
     await s.identify()
 
 proc shouldResumeSession(s: Session): bool {.gcsafe.} =
     return (not s.invalidated) and (not s.suspended)
 
-# Concurrency in Nim is a bitch
+method setupHeartbeats(s: Session) {.async, gcsafe, base.} =
+    var hb: JsonNode
+    
+    while not s.stop:
+        if s.sequence == 0:
+            hb = %*{"op": OP_HEARTBEAT, "d": nil}
+        else:
+            hb = %*{"op": OP_HEARTBEAT, "d": s.sequence}
+
+        try:
+            await s.connection.sock.sendText($hb, true)
+            await sleepAsync(s.interval)        
+        except:
+            echo getCurrentExceptionMsg()
+            return
+
 proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
     await s.identify()
-    var thread: Thread[(Session, int)]
+
+    var res: tuple[opcode: Opcode, data: string]
     while not isClosed(s.connection.sock) and not s.stop:
-        let res = await s.connection.readData(true)
-            
+        res = await s.connection.sock.readData(true)
+        
         let data = parseJson(res.data)
- 
+         
         if data["s"].kind != JNull:
             let i = data["s"].num.int
-            # Crappy workaround for thread limitations
-            # :(
-            sesseq = i
-            
+            s.sequence = i
+
         case data["op"].num:
             of OP_HELLO:
                 if s.shouldResumeSession():
@@ -366,12 +364,15 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
                 else:
                     s.suspended = false
                     let interval = data["d"].fields["heartbeat_interval"].num.int
-                    createThread(thread, startHeartbeats, (s, interval))
+                    s.interval = interval
+                    asyncCheck s.setupHeartbeats()
             of OP_HEARTBEAT:
-                let hb = %*{"op": OP_HEARTBEAT, "d": sesseq}
+                let hb = %*{"op": OP_HEARTBEAT, "d": s.sequence}
                 await s.connection.sock.sendText($hb, true)
+            of OP_HEARTBEAT_ACK:
+                continue
             of OP_INVALID_SESSION:
-                sesseq = 0
+                s.sequence = 0
                 s.session_ID = ""
                 s.invalidated = true
                 if data["d"].bval == false:
@@ -381,15 +382,18 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
                 await s.reconnect()
             of OP_DISPATCH:
                 let event = data["t"].str
-                spawn handleDispatch(s, event, data["d"])
-                sync()
+                s.handleDispatch(event, data["d"])
             else:
                 echo $data
-    joinThread(thread)
+
     echo "connection closed\c\L" 
     s.suspended = true
     s.connection.sock.close()
     return
+
+# For gracefuler shutdown
+proc d_quit() {.noconv.} =
+    quit 0
 
 proc SessionStart*(s: Session){.async, gcsafe.} =
     ## Starts a Session
@@ -398,12 +402,13 @@ proc SessionStart*(s: Session){.async, gcsafe.} =
         return
     s.suspended = true
     try:
-        let socket = await newAsyncWebsocket("gateway.discord.gg", Port 443, "/"&GATEWAYVERSION, ssl = true)
+        let socket = await newAsyncWebsocket("gateway.discord.gg", Port(443), path = "/"&GATEWAYVERSION, ssl = true, useragent = "DiscordNim(https://github.com/Krognol/discordnim v"&VERSION)
         s.connection = socket
         asyncCheck sessionHandleSocketMessage(s)
     except:
+        echo getCurrentException().msg
         return
 
-    # Need to find a way to gracefully stop the program
+    setControlCHook(d_quit)
     while not s.stop:
         poll()

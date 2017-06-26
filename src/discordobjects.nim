@@ -1,4 +1,4 @@
-import json, tables, locks, websocket/shared, times, httpclient, strutils, os
+import json, tables, locks, websocket/client, times, httpclient, strutils, os
 {.hint[XDeclaredButNotUsed]: off.}
 type
     RateLimiter = object of RootObj 
@@ -7,7 +7,7 @@ type
         buckets: Table[string, ref Bucket]
         globalRateLimit: TimeInterval
     Bucket = object
-        mut: locks.Lock
+        mut: locks.Lock 
         key: string
         remaining: int
         limit: int
@@ -466,7 +466,7 @@ type
         mut: Lock
         token*: string
         compress*: bool
-        shardID*: int
+        shardID*: int 
         shardCount*: int
         gateway*: string
         session_ID: string
@@ -478,6 +478,7 @@ type
         invalidated: bool
         stop: bool
         sequence: int
+        interval: int
         # Temporary until better solution is found
         channelCreate*:            proc(s: Session, p: ChannelCreate) {.gcsafe.}
         channelUpdate*:            proc(s: Session, p: ChannelUpdate) {.gcsafe.}
