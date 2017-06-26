@@ -1,5 +1,5 @@
 ## Has to be compiled with 
-## '-d:ssl' and '--threads:on' flags
+## '-d:ssl' flag
 
 import asyncdispatch, discord, logging
 

@@ -43,7 +43,7 @@ session.messageCreate = someMessageCreateProc
 waitFor s.StartSession()
 ```
 
-All programs have to be compiled with the `-d:ssl` and `--threads:on` flags.
+All programs have to be compiled with the `-d:ssl` flag.
 
 [Documentation](https://krognol.github.io/discordnim/)
 
