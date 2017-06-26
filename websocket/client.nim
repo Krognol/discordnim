@@ -33,11 +33,9 @@ import private/hex
 const WebsocketUserAgent* = "websocket.nim (https://github.com/niv/websocket.nim)"
 
 type
-  PingRequest = Future[void]
   AsyncWebSocketObj = object of RootObj
     sock*: AsyncSocket
     protocol*: string
-    pingtable: Table[int, PingRequest]
 
   AsyncWebSocket* = ref AsyncWebSocketObj
 
@@ -58,12 +56,15 @@ proc newAsyncWebsocket*(host: string, port: Port, path: string, ssl = false,
     when not defined(ssl):
       raise newException(Exception, "Cannot connect over SSL without -d:ssl")
     else:
-      let ctx = newContext(protSSLv23, verifyMode = CVerifyNone)
+      let ctx = newContext(protTLSv1, verifyMode = CVerifyNone)
       ctx.wrapSocket(s)
 
   await s.connect(host, port)
   await s.send("GET " & path & " HTTP/1.1\c\L")
-  await s.send("Host: " & host & ":" & $port & "\c\L")
+  if port != Port(80):
+    await s.send("Host: " & host & ":" & $port & "\c\L")
+  else:
+    await s.send("Host: " & host & "\c\L")
   await s.send("User-Agent: " & userAgent & "\c\L")
   await s.send("Upgrade: websocket\c\L")
   await s.send("Connection: Upgrade\c\L")
@@ -84,12 +85,11 @@ proc newAsyncWebsocket*(host: string, port: Port, path: string, ssl = false,
       "server did not reply with a websocket upgrade: " & hdr)
 
   let ws = new AsyncWebSocket
-  ws.pingtable = initTable[int, PingRequest]()
   ws.sock = s
 
   while true:
     let ln = await s.recvLine()
-    if ln == "\c\L": break
+    if ln == "\r\L": break
     let sp = ln.split(": ")
     if sp.len < 2: continue
     echo sp

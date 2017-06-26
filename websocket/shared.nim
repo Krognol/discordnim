@@ -1,44 +1,5 @@
-import random, net, asyncdispatch, asyncnet, base64, times, strutils, securehash,
-  nativesockets, streams, tables, oids, uri
-
-## Example
-## -------
-##
-## .. code-block::nim
-##   import websocket, asyncnet, asyncdispatch
-##
-##   let ws = waitFor newAsyncWebsocket("echo.websocket.org",
-##     Port 80, "/?encoding=text", ssl = false)
-##   echo "connected!"
-##
-##   proc reader() {.async.} =
-##     while true:
-##       let read = await ws.sock.readData(true)
-##       echo "read: " & $read
-##
-##   proc ping() {.async.} =
-##     while true:
-##       await sleepAsync(6000)
-##       echo "ping"
-##       await ws.sock.sendPing(true)
-##
-##   asyncCheck reader()
-##   asyncCheck ping()
-##   runForever()
-
-
-import private/hex
-{.warning[Deprecated]: off.}
-const WebsocketUserAgent* = "websocket.nim (https://github.com/niv/websocket.nim)"
-
-type
-  PingRequest = Future[void]
-  AsyncWebSocketObj = object of RootObj
-    sock*: AsyncSocket
-    protocol*: string
-    pingtable: Table[int, PingRequest]
-
-  AsyncWebSocket* = ref AsyncWebSocketObj
+import asyncdispatch, asyncnet, streams, nativesockets, strutils, tables,
+  times, oids, random
 
 type
   ProtocolError* = object of Exception
@@ -66,76 +27,6 @@ type
     opcode: Opcode ## The opcode of this frame.
 
     data: string ## App data
-
-proc newAsyncWebsocket*(host: string, port: Port, path: string, ssl = false,
-    additionalHeaders: seq[(string, string)] = @[],
-    protocols: seq[string] = @[],
-    userAgent: string = WebsocketUserAgent
-   ): Future[AsyncWebSocket] {.async.} =
-  ## Create a new websocket and connect immediately.
-  ## Optionally give a list of protocols to negotiate; keep empty to accept the
-  ## one the server offers (if any).
-  ## The negotiated protocol is in `AsyncWebSocket.protocol`.
-
-  let key = encode($(getTime().int))
-
-  let s = newAsyncSocket()
-  if ssl:
-    when not defined(ssl):
-      raise newException(Exception, "Cannot connect over SSL without -d:ssl")
-    else:
-      let ctx = newContext(protSSLv23, verifyMode = CVerifyNone)
-      ctx.wrapSocket(s)
-
-  await s.connect(host, port)
-  await s.send("GET " & path & " HTTP/1.1\c\L")
-  await s.send("Host: " & host & ":" & $port & "\c\L")
-  await s.send("User-Agent: " & userAgent & "\c\L")
-  await s.send("Upgrade: websocket\c\L")
-  await s.send("Connection: Upgrade\c\L")
-  await s.send("Cache-Control: no-cache\c\L")
-  await s.send("Sec-WebSocket-Key: " & key & "\c\L")
-  await s.send("Sec-WebSocket-Version: 13\c\L")
-  if protocols.len > 0:
-    await s.send("Sec-WebSocket-Protocol: " & protocols.join(", ") & "\c\L")
-  for h in additionalHeaders:
-    await s.send(h[0] & ": " & h[1] & "\c\L")
-
-  await s.send("\c\L")
-
-  let hdr = await s.recvLine()
-  if not hdr.startsWith("HTTP/1.1 101 "):
-    s.close()
-    raise newException(ProtocolError,
-      "server did not reply with a websocket upgrade: " & hdr)
-
-  let ws = new AsyncWebSocket
-  ws.pingtable = initTable[int, PingRequest]()
-  ws.sock = s
-
-  while true:
-    let ln = await s.recvLine()
-    if ln == "\c\L": break
-    let sp = ln.split(": ")
-    if sp.len < 2: continue
-    echo sp
-    if sp[0].toLowerAscii == "sec-websocket-protocol":
-      if protocols.len > 0 and protocols.find(sp[1]) == -1:
-        raise newException(ProtocolError, "server does not support any of our protocols")
-      else: ws.protocol = sp[1]
-
-    # raise newException(ProtocolError, "unknown server response " & ln)
-    if sp[0].toLowerAscii == "sec-websocket-accept":
-      # The server appends the fixed string 258EAFA5-E914-47DA-95CA-C5AB0DC85B11
-      # (a GUID) to the value from Sec-WebSocket-Key header (which is not decoded
-      # from base64), applies the SHA-1 hashing function, and encodes the result
-      # using base64.
-      let theirs = sp[1]
-      let expected = secureHash(key & "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
-      if theirs != decodeHex($expected).encode:
-        raise newException(ProtocolError, "websocket-key did not match. proxy messing with you?")
-
-  result = ws
 
 proc makeFrame*(f: Frame): string =
   ## Generate valid websocket frame data, ready to be sent over the wire.
@@ -188,54 +79,12 @@ proc makeFrame*(f: Frame): string =
     data.len
   ))
 
-
 proc makeFrame*(opcode: Opcode, data: string, masked: bool): string =
   ## A convenience shorthand.
   result = makeFrame((fin: true, rsv1: false, rsv2: false, rsv3: false,
     masked: masked, opcode: opcode, data: data))
 
-proc newAsyncWebsocket*(uri: Uri, additionalHeaders: seq[(string, string)] = @[], 
-    protocols: seq[string] = @[],
-    userAgent: string = WebsocketUserAgent
-   ): Future[AsyncWebSocket] {.async.} =
-  var ssl: bool
-  if uri.scheme == "ws":
-    ssl = false
-  elif uri.scheme == "wss":
-    ssl = true
-  else:
-    raise newException(ProtocolError, "uri scheme has to be 'ws' for plaintext or 'wss' for websocket over ssl.")
-
-  let port = Port(uri.port.parseInt())
-  return await newAsyncWebsocket(uri.hostname, port , uri.path, ssl,
-    additionalHeaders, protocols, userAgent)
-  
-proc newAsyncWebsocket*(uri: string, additionalHeaders: seq[(string, string)] = @[], 
-    protocols: seq[string] = @[],
-    userAgent: string = WebsocketUserAgent
-   ): Future[AsyncWebSocket] {.async.} =
-  let uriBuf = parseUri(uri)
-  return await newAsyncWebsocket(uriBuf, additionalHeaders, protocols, userAgent)
-
-# proc sendFrameData(ws: AsyncWebSocket, data: string): Future[void] {.async.} =
-#   await ws.sock.send(data)
-
-proc close*(ws: AsyncWebSocket): Future[void] {.async.} =
-  ## Closes the socket.
-
-  defer: ws.sock.close()
-  await ws.sock.send(makeFrame(Opcode.Close, "", true))
-
-# proc readData(ws: AsyncWebSocket): auto {.async.} =
-#   ## This is an alias for
-
-
-
-
-
-
-
-proc recvFrame*(ws: AsyncWebSocket): Future[Frame] {.async.} =
+proc recvFrame*(ws: AsyncSocket): Future[Frame] {.async.} =
   ## Read a full frame off the given socket.
   ##
   ## You probably want to use the higher-level variant, `readData`.
@@ -245,8 +94,8 @@ proc recvFrame*(ws: AsyncWebSocket): Future[Frame] {.async.} =
     (b and lookupTable[idx]) != 0
 
   var f: Frame
-  let hdr = await(ws.sock.recv(2))
-  if hdr.len != 2: raise newException(IOError, "socket closed\c\L")
+  let hdr = await(ws.recv(2))
+  if hdr.len != 2: raise newException(IOError, "socket closed")
 
   let b0 = hdr[0].uint8
   let b1 = hdr[1].uint8
@@ -265,13 +114,13 @@ proc recvFrame*(ws: AsyncWebSocket): Future[Frame] {.async.} =
 
   let hdrLen = b1 and 0x7f
   if hdrLen == 0x7e:
-    var lenstr = await(ws.sock.recv(2, {}))
+    var lenstr = await(ws.recv(2, {}))
     if lenstr.len != 2: raise newException(IOError, "socket closed")
 
     finalLen = cast[ptr int16](lenstr[0].addr)[].htons
 
   elif hdrLen == 0x7f:
-    var lenstr = await(ws.sock.recv(8, {}))
+    var lenstr = await(ws.recv(8, {}))
     if lenstr.len != 8: raise newException(IOError, "socket closed")
     # we just assume it's a 32bit int, since no websocket will EVER
     # send more than 2GB of data in a single packet. Right? Right?
@@ -283,10 +132,10 @@ proc recvFrame*(ws: AsyncWebSocket): Future[Frame] {.async.} =
   f.masked = (b1 and 0x80) == 0x80
   var maskingKey = ""
   if f.masked:
-    maskingKey = await(ws.sock.recv(4, {}))
+    maskingKey = await(ws.recv(4, {}))
     # maskingKey = cast[ptr uint32](lenstr[0].addr)[]
 
-  f.data = await(ws.sock.recv(finalLen, {}))
+  f.data = await(ws.recv(finalLen, {}))
   if f.data.len != finalLen: raise newException(IOError, "socket closed")
 
   if f.masked:
@@ -296,10 +145,9 @@ proc recvFrame*(ws: AsyncWebSocket): Future[Frame] {.async.} =
 
 # Internal hashtable that tracks pings sent out, per socket.
 # key is the socket fd
-# # tuple[data: string, fut: Future[void]]
-#  var reqPing = initTable[int, PingRequest]()
+ # tuple[data: string, fut: Future[void]]
 
-proc readData*(ws: AsyncWebSocket, isClientSocket: bool):
+proc readData*(ws: AsyncSocket, isClientSocket: bool):
     Future[tuple[opcode: Opcode, data: string]] {.async.} =
 
   ## Reads reassembled data off the websocket and give you joined frame data.
@@ -316,33 +164,35 @@ proc readData*(ws: AsyncWebSocket, isClientSocket: bool):
   ##
   ## Will raise IOError when the socket disconnects and ProtocolError on any
   ## websocket-related issues.
+ 
   var resultData = ""
   var resultOpcode: Opcode
   while true:
     let f = await ws.recvFrame()
     # Merge sequentially read frames.
     resultData &= f.data
+ 
     case f.opcode
       of Opcode.Close:
         # handle case: ping never arrives and client closes the connection
-        let ex = newException(IOError, "socket closed by remote peer\c\L"&resultData)
+        let ex = newException(IOError, "socket closed by remote peer")
 
-        if ws.pingtable.hasKey(ws.sock.getFD().AsyncFD.int):
-          ws.pingtable[ws.sock.getFD().AsyncFD.int].fail(ex)
-          ws.pingtable.del(ws.sock.getFD().AsyncFD.int)
+        if ws.reqPing.hasKey(ws.getFD().AsyncFD.int):
+          ws.reqPing[ws.getFD().AsyncFD.int].fail(ex)
+          ws.reqPing.del(ws.getFD().AsyncFD.int)
 
         raise ex
 
       of Opcode.Ping:
-        await ws.sock.send(makeFrame(Opcode.Pong, f.data, isClientSocket))
+        await ws.send(makeFrame(Opcode.Pong, f.data, isClientSocket))
 
       of Opcode.Pong:
-        if ws.pingtable.hasKey(ws.sock.getFD().AsyncFD.int):
-          ws.pingtable[ws.sock.getFD().AsyncFD.int].complete()
+        if ws.reqPing.hasKey(ws.getFD().AsyncFD.int):
+          ws.reqPing[ws.getFD().AsyncFD.int].complete()
 
         else: discard  # thanks, i guess?
 
-      of Opcode.Cont:
+      of Opcode.Cont: 
         if not f.fin: continue
 
       of Opcode.Text, Opcode.Binary:
@@ -351,7 +201,7 @@ proc readData*(ws: AsyncWebSocket, isClientSocket: bool):
         if not f.fin: continue
 
       else:
-        ws.sock.close()
+        ws.close()
         raise newException(ProtocolError, "received invalid opcode: " & $f.opcode)
 
     result = (resultOpcode, resultData)

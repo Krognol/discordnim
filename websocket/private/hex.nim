@@ -20,7 +20,7 @@ proc nibbleToChar(nibble: int): char =
   try:
     if nibble < byteMapLen:
       return byteMap[nibble];
-  except ValueError:
+  except EInvalidValue:
     echo "Hex string character out of range for valid hex char"
 
 proc encodeHex*(str: string): string =
