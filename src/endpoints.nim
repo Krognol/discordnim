@@ -3,7 +3,7 @@
 const
     BASE: string = "https://discordapp.com/api"
     GATEWAYVERSION: string = "?v=6&encoding=json"
-    VERSION: string = "1.2.3"
+    VERSION: string = "1.3.0"
 
 proc Gateway(): string =
     return BASE & "/gateway/bot"
