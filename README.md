@@ -2,11 +2,11 @@
 
 A Discord library for Nim. 
 
-Websockets from [niv/websocket.nim](https://github.com/niv/websocket.nim) -- Slightly altered to make functional for threads.
+Websockets from [niv/websocket.nim](https://github.com/niv/websocket.nim) -- Slightly altered.
 
 # Installing
 
-This assumes that you have your Nim environment (including [Nimble](https://github.com/nim-lang/nimble)) already set up, and that your Nim version is `0.16.0` or greater.
+This assumes that you have your Nim environment (including [Nimble](https://github.com/nim-lang/nimble)) already set up, and that your Nim version is `0.17.0` or greater.
 You can check your version with `nim --version`
 
 ```
