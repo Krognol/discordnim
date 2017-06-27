@@ -1,34 +1,39 @@
 include discordobjects, endpoints
 import httpclient, asyncnet, strutils, json, marshal, net, re
 
-method Request(s: Session, bucketid: var string, meth, url, contenttype, b : string, sequence : int, mp: MultipartData = nil): Response {.base, gcsafe.} =
-    var client = newHttpClient(sslContext = newContext(verifyMode = CVerifyNone))
+method Request(s: Session, 
+                bucketid, meth, url, contenttype, b : string, 
+                sequence : int, 
+                mp: MultipartData = nil): Future[AsyncResponse] {.base, gcsafe, async.} =
+
+    var client = newAsyncHttpClient(sslContext = newContext(verifyMode = CVerifyNone))
     client.headers["User-Agent"] = "DiscordBot (https://github.com/Krognol/discordnim, v" & VERSION & ")"
-
+    var id: string
     if bucketid == "":
-        bucketid = split(url, "?", 2)[0]
+        id = split(url, "?", 2)[0]
 
-    var bucket = s.limiter.lockBucket(bucketid)
+    var bucket = await s.limiter.lockBucket(id)
 
     if s.token != "" and s.token != nil:
         client.headers["Authorization"] = s.token
 
     client.headers["Content-Type"] = contenttype
-    var res: Response
+    var res: AsyncResponse
     if mp == nil:
-        res = client.request(url, meth, b)
+        res = await client.request(url, meth, b)
     elif mp != nil and meth == "POST":
-        res = client.post(url, b, mp)
-    bucket.Release(res.headers)
+        res = await client.post(url, b, mp)
+    await bucket.Release(res.headers)
 
     case res.status:
     of "502":
         if sequence < 5:
-            res = s.Request(bucketid, meth, url, contenttype, b, sequence+1)
+            res = await s.Request(id, meth, url, contenttype, b, sequence+1)
     of "429":
-        var rl = parseJson(res.body)
-        sleep int(rl["retry_after"].num)
-        res = s.Request(bucketid, meth, url, contenttype, b, sequence)
+        let resbody = await res.body()
+        var rl = parseJson(resbody)
+        await sleepAsync(int(rl["retry_after"].num))
+        res = await s.Request(id, meth, url, contenttype, b, sequence)
     else: discard
 
     result = res
@@ -39,9 +44,10 @@ type
     CacheError* = object of Exception
 
 # Caching stuff
-
 proc getGuild*(c: Cache, id: string): tuple[guild: Guild, exists: bool]  =
     if c == nil: raise newException(CacheError, "The cache is nil")
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
 
     if c.guilds.hasKey(id):
         return (c.guilds[id], true)
@@ -53,17 +59,22 @@ proc removeGuild*(c: Cache, guildid: string) {.raises: CacheError.}  =
 
     if not c.guilds.hasKey(guildid):
         raise newException(CacheError, "Guild not in cache")
-
+    
+    initLock(c.lock)
     c.guilds.del(guildid)
-
+    deinitLock(c.lock)
 
 proc updateGuild*(c: Cache, guild: Guild) {.raises: CacheError.}  =
     if c == nil: raise newException(CacheError, "The cache is nil")
-
+    
+    initLock(c.lock)
     c.guilds[guild.id] = guild
+    deinitLock(c.lock)
 
 proc getUser*(c: Cache, id: string): tuple[user: User, exists: bool]  =
     if c == nil: raise newException(CacheError, "The cache is nil")
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
 
     if c.users.hasKey(id):
         return (c.users[id], true)
@@ -72,7 +83,8 @@ proc getUser*(c: Cache, id: string): tuple[user: User, exists: bool]  =
 
 proc removeUser*(c: Cache, id: string) {.raises: CacheError.}  =
     if c == nil: raise newException(CacheError, "The cache is nil")
-
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
     if not c.users.hasKey(id):
         raise newException(CacheError, "User not in cache")
 
@@ -81,10 +93,14 @@ proc removeUser*(c: Cache, id: string) {.raises: CacheError.}  =
 proc updateUser*(c: Cache, user: User) {.raises: CacheError.}  =
     if c == nil: raise newException(CacheError, "The cache is nil")
 
+    initLock(c.lock)
     c.users[user.id] = user
+    deinitLock(c.lock)
 
 proc getChannel*(c: Cache, id: string): tuple[channel: DChannel, exists: bool]  =
     if c == nil: raise newException(CacheError, "The cache is nil")
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
 
     if c.channels.hasKey(id):
         return (c.channels[id], true)
@@ -93,6 +109,8 @@ proc getChannel*(c: Cache, id: string): tuple[channel: DChannel, exists: bool]  
 
 proc updateChannel*(c: Cache, chan: DChannel) {.raises: CacheError.}  =
     if c == nil: raise newException(CacheError, "The cache is nil")
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
 
     if not c.channels.hasKey(chan.id):
         raise newException(CacheError, "Channel not in cache")
@@ -101,7 +119,8 @@ proc updateChannel*(c: Cache, chan: DChannel) {.raises: CacheError.}  =
 
 proc removeChannel*(c: Cache, chan: string) {.raises: CacheError.}  =
     if c == nil: raise newException(CacheError, "The cache is nil")
-
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
     if not c.channels.hasKey(chan):
         raise newException(CacheError, "Channel not in cache")
 
@@ -109,12 +128,14 @@ proc removeChannel*(c: Cache, chan: string) {.raises: CacheError.}  =
 
 proc getGuildMember*(c: Cache, guild, memberid: string): tuple[member: GuildMember, exists: bool]  =
     if c == nil: raise newException(CacheError, "The cache is nil")
-
+    
     var (guild, exists) = c.getGuild(guild)
 
     if not exists:
         return (GuildMember(), false)
-
+    
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
     for member in guild.members:
         if member.user.id == memberid:
             return (member, true)
@@ -123,13 +144,15 @@ proc getGuildMember*(c: Cache, guild, memberid: string): tuple[member: GuildMemb
 
 proc addGuildMember*(c: Cache, member: GuildMember)  =
     if c == nil: raise newException(CacheError, "The cache is nil")
-
+    
     var (guild, exists) = c.getGuild(member.guild_id)
 
     if not exists:
         raise newException(CacheError, "Guild not in cache")
 
+    initLock(c.lock)
     guild.members.add(member)
+    deinitLock(c.lock)
 
 proc updateGuildMember*(c: Cache, m: GuildMember)  =
     if c == nil: raise newException(CacheError, "The cache is nil")
@@ -139,6 +162,8 @@ proc updateGuildMember*(c: Cache, m: GuildMember)  =
     if not exists:
         raise newException(CacheError, "Guild not in cache")
 
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
     for i, member in guild.members:
         if member.user.id == m.user.id:
             guild.members[i] = m
@@ -151,7 +176,9 @@ proc removeGuildMember*(c: Cache, gmember: GuildMember)  =
 
     if not exists:
         raise newException(CacheError, "Guild not in cache")
-
+    
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
     for i, member in guild.members:
         if member.user.id == gmember.user.id:
             guild.members.del(i)
@@ -164,7 +191,9 @@ proc getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bool
 
     if not exists:
         return (Role(), false)
-
+    
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
     for role in guild.roles:
         if role.id == roleid:
             return (role, true)
@@ -173,6 +202,8 @@ proc getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bool
 
 proc updateRole*(c: Cache, role: Role) {.raises: CacheError.} =
     if c == nil: raise newException(CacheError, "The cache is nil")
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
 
     if not c.roles.hasKey(role.id):
         raise newException(CacheError, "Role not in cache")
@@ -181,13 +212,15 @@ proc updateRole*(c: Cache, role: Role) {.raises: CacheError.} =
 
 proc removeRole*(c: Cache, role: string) {.raises: CacheError.} =
     if c == nil: raise newException(CacheError, "The cache is nil")
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
 
     if not c.roles.hasKey(role):
         raise newException(CacheError, "Role not in cache")
 
     c.roles.del(role)
 
-method GetChannel*(s: Session, channel_id: string): DChannel {.base, gcsafe.} =
+method GetChannel*(s: Session, channel_id: string): Future[DChannel] {.base, gcsafe, async.} =
     ## Returns the channel with the given ID
     if s.cache.cacheChannels:
         var (chan, exists) = s.cache.getChannel(channel_id)
@@ -196,25 +229,28 @@ method GetChannel*(s: Session, channel_id: string): DChannel {.base, gcsafe.} =
             return chan
 
     var url = EndpointGetChannel(channel_id)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[DChannel](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[DChannel](body)
 
     if s.cache.cacheChannels:
         s.cache.channels[result.id] = result
 
-method ModifyChannel*(s: Session, channelid: string, params: ChannelParams): Guild {.base, gcsafe.} =
+method ModifyChannel*(s: Session, channelid: string, params: ChannelParams): Future[Guild] {.base, gcsafe, async.} =
     ## Modifies a channel with the ChannelParams
     var url = EndpointModifyChannel(channelid)
-    let res = s.Request(url, "PATCH", url, "application/json", $$params, 0)
-    result = marshal.to[Guild](res.body) 
+    let res = await s.Request(url, "PATCH", url, "application/json", $$params, 0)
+    let body = await res.body()
+    result = marshal.to[Guild](body) 
 
-method DeleteChannel*(s: Session, channelid: string): DChannel {.base, gcsafe.} =
+method DeleteChannel*(s: Session, channelid: string): Future[DChannel] {.base, gcsafe, async.} =
     ## Deletes a channel
     var url = EndpointDeleteChannel(channelid)
-    let res = s.Request(url, "DELETE", url, "application/json", "", 0)
-    result = marshal.to[DChannel](res.body)
+    let res = await s.Request(url, "DELETE", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[DChannel](body)
 
-method ChannelMessages*(s: Session, channelid: string, before, after, around: string, limit: int): seq[Message] {.base, gcsafe.} =
+method ChannelMessages*(s: Session, channelid: string, before, after, around: string, limit: int): Future[seq[Message]] {.base, gcsafe, async.} =
     ## Returns a channels messages
     ## Maximum of 100 messages
     var url = EndpointGetChannelMessages(channelid) & "/?"
@@ -231,25 +267,28 @@ method ChannelMessages*(s: Session, channelid: string, before, after, around: st
     if limit > 0 and limit <= 100:
         url = url & "limit=" & $limit
 
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[seq[Message]](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[seq[Message]](body)
 
-method ChannelMessage*(s: Session, channelid, messageid: string): Message {.base, gcsafe.} =
+method ChannelMessage*(s: Session, channelid, messageid: string): Future[Message] {.base, gcsafe, async.} =
     ## Returns a message from a channel
     var url = EndpointGetChannelMessage(channelid, messageid)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[Message](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[Message](body)
 
 
-method SendMessage*(s: Session, channelid, message: string): Message {.base, gcsafe.} =
+method SendMessage*(s: Session, channelid, message: string): Future[Message] {.base, gcsafe, async.} =
     ## Sends a regular text message to a channel
     var url = EndpointCreateMessage(channelid)
     let payload = %*{"content": message}
-    let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = marshal.to[Message](res.body)
+    let res = await s.Request(url, "POST", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[Message](body)
     
 
-method SendMessageEmbed*(s: Session, channelid: string, embed: Embed): Message {.base, gcsafe.} =
+method SendMessageEmbed*(s: Session, channelid: string, embed: Embed): Future[Message] {.base, gcsafe, async.} =
     ## Sends an Embed message to a channel
     var url = EndpointCreateMessage(channelid)
 
@@ -258,19 +297,21 @@ method SendMessageEmbed*(s: Session, channelid: string, embed: Embed): Message {
         "embed": embed
     }
 
-    let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = marshal.to[Message](res.body)
+    let res = await s.Request(url, "POST", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[Message](body)
 
-method SendMessageTTS*(s: Session, channelid, message: string): Message {.base, gcsafe.} =
+method SendMessageTTS*(s: Session, channelid, message: string): Future[Message] {.base, gcsafe, async.} =
     ## Sends a TTS message to a channel
     var url = EndpointCreateMessage(channelid)
     let payload = %*{"content": message, "tts": true}
-    let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = marshal.to[Message](res.body)
+    let res = await s.Request(url, "POST", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[Message](body)
 
 # SendFileWithMessage and SendFile won't work
 # without editing the httpclient lib
-method SendFileWithMessage*(s: Session, channelid, name, message: string): Message {.base, gcsafe.} =
+method SendFileWithMessage*(s: Session, channelid, name, message: string): Future[Message] {.base, gcsafe, async.} =
     ## Sends a file to a channel along with a message
     var data = newMultipartData()
     var url = EndpointCreateMessage(channelid)
@@ -278,105 +319,111 @@ method SendFileWithMessage*(s: Session, channelid, name, message: string): Messa
     let payload = %*{"content": message}
     data = data.addFiles({"file": name})
     data.add("payload_json", $payload, contentType = "application/json")
-    let res = s.Request(url, "POST", url, "multipart/form-data", "", 0, data)
-    result = marshal.to[Message](res.body)
+    let res = await s.Request(url, "POST", url, "multipart/form-data", "", 0, data)
+    let body = await res.body()
+    result = marshal.to[Message](body)
 
-method SendFile*(s: Session, channelid, name: string): Message {.base, gcsafe.} =
+method SendFile*(s: Session, channelid, name: string): Future[Message] {.base, gcsafe, async.} =
     ## Sends a file to a channel
-    result = s.SendFileWithMessage(channelid, name, "")
+    result = await s.SendFileWithMessage(channelid, name, "")
 
-method MessageAddReaction*(s: Session, channelid, messageid, emojiid: string) {.base, gcsafe.} =
+method MessageAddReaction*(s: Session, channelid, messageid, emojiid: string) {.base, gcsafe, async.} =
     ## Adds a reaction to a message
     var url = EndpointCreateReaction(channelid, messageid, emojiid)
-    discard s.Request(url, "PUT", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "PUT", url, "application/json", "", 0)
 
-method MessageDeleteOwnReaction*(s: Session, channelid, messageid, emojiid: string) {.base, gcsafe.} =
+method MessageDeleteOwnReaction*(s: Session, channelid, messageid, emojiid: string) {.base, gcsafe, async.} =
     ## Deletes your own reaction to a message
     var url = EndpointDeleteOwnReaction(channelid, messageid, emojiid)
-    discard s.Request(url, "DELETE", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "DELETE", url, "application/json", "", 0)
 
-method MessageDeleteReaction*(s: Session, channelid, messageid, emojiid, userid: string) {.base, gcsafe.} =
+method MessageDeleteReaction*(s: Session, channelid, messageid, emojiid, userid: string) {.base, gcsafe, async.} =
     ## Deletes a reaction from a user from a message
     var url = EndpointDeleteUserReaction(channelid, messageid, emojiid, userid)
-    discard s.Request(url, "DELETE", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "DELETE", url, "application/json", "", 0)
 
-method MessageGetReactions*(s: Session, channelid, messageid, emojiid: string): seq[User] {.base, gcsafe.} =
+method MessageGetReactions*(s: Session, channelid, messageid, emojiid: string): Future[seq[User]] {.base, gcsafe, async.} =
     ## Gets a message's reactions
     var url = EndpointGetMessageReactions(channelid, messageid, emojiid)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[seq[User]](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[seq[User]](body)
    
 
-method MessageDeleteAllReactions*(s: Session, channelid, messageid: string) {.base, gcsafe.} =
+method MessageDeleteAllReactions*(s: Session, channelid, messageid: string) {.base, gcsafe, async.} =
     ## Deletes all reactions on a message
     var url = EndpointDeleteAllReactions(channelid, messageid)
-    discard s.Request(url, "DELETE", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "DELETE", url, "application/json", "", 0)
 
-method EditMessage*(s: Session, channelid, messageid, content: string): Message {.base, gcsafe.} =
+method EditMessage*(s: Session, channelid, messageid, content: string): Future[Message] {.base, gcsafe, async.} =
     ## Edits a message's contents
     var url = EndpointEditMessage(channelid, messageid)
     let payload = %*{"content": content}
-    let res = s.Request(url, "PATCH", url, "application/json", $payload, 0)
-    result = marshal.to[Message](res.body)
+    let res = await s.Request(url, "PATCH", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[Message](body)
     
 
-method DeleteMessage*(s: Session, channelid, messageid: string) {.base, gcsafe.} =
+method DeleteMessage*(s: Session, channelid, messageid: string) {.base, gcsafe, async.} =
     ## Deletes a message
     var url = EndpointDeleteMessage(channelid, messageid)
-    discard s.Request(url, "DELETE", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "DELETE", url, "application/json", "", 0)
 
-method BulkDeleteMessages*(s: Session, channelid: string, messages: seq[string]) {.base, gcsafe.} =
+method BulkDeleteMessages*(s: Session, channelid: string, messages: seq[string]) {.base, gcsafe, async.} =
     ## Deletes messages in bulk
     ## Will not delete messages older than 2 weeks
     var url = EndpointBulkDelete(channelid)
     let payload = %*{"messages": $messages}
-    discard s.Request(url, "DELETE", url, "application/json", $payload, 0)
+    asyncCheck s.Request(url, "DELETE", url, "application/json", $payload, 0)
 
-method EditChannelPermissions*(s: Session, channelid: string, overwrite: Overwrite) {.base, gcsafe.} =
+method EditChannelPermissions*(s: Session, channelid: string, overwrite: Overwrite) {.base, gcsafe, async.} =
     ## Edits a channel's permissions
     var url = EndpointEditChannelPermissions(channelid, overwrite.id)
-    discard s.Request(url, "PUT", url, "application/json", $$overwrite, 0)
+    asyncCheck s.Request(url, "PUT", url, "application/json", $$overwrite, 0)
 
-method ChannelInvites*(s: Session, channel: string): seq[Invite] {.base, gcsafe.} =
+method ChannelInvites*(s: Session, channel: string): Future[seq[Invite]] {.base, gcsafe, async.} =
     ## Returns all invites to a channel
     var url = EndpointGetChannelInvites(channel)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[seq[Invite]](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[seq[Invite]](body)
    
 
-method CreateChannelInvite*(s: Session, channel: string, max_age, max_uses: int, temp, unique: bool): Invite {.base, gcsafe.} =
+method CreateChannelInvite*(s: Session, channel: string, max_age, max_uses: int, temp, unique: bool): Future[Invite] {.base, gcsafe, async.} =
     ## Creates an invite to a channel
     var url = EndpointCreateChannelInvite(channel)
     let payload = %*{"max_age": max_age, "max_uses": max_uses, "temp": temp, "unique": unique}
-    let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = marshal.to[Invite](res.body)
+    let res = await s.Request(url, "POST", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[Invite](body)
     
 
-method DeleteChannelPermission*(s: Session, channel, target: string) {.base, gcsafe.} =
+method DeleteChannelPermission*(s: Session, channel, target: string) {.base, gcsafe, async.} =
     ## Deletes a channel permission
     var url = EndpointDeleteChannelPermission(channel, target)
-    discard s.Request(url, "DELETE", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "DELETE", url, "application/json", "", 0)
 
-method TriggerTypingIndicator*(s: Session, channel: string) {.base, gcsafe.} =
+method TriggerTypingIndicator*(s: Session, channel: string) {.base, gcsafe, async.} =
     ## Triggers the "X is typing" indicator
     var url = EndpointTriggerTypingIndicator(channel)
-    discard s.Request(url, "POST", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "POST", url, "application/json", "", 0)
 
-method ChannelPinnedMessages*(s: Session, channel: string): seq[Message] {.base, gcsafe.} =
+method ChannelPinnedMessages*(s: Session, channel: string): Future[seq[Message]] {.base, gcsafe, async.} =
     ## Returns all pinned messages in a channel
     var url = EndpointGetPinnedMessages(channel)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[seq[Message]](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[seq[Message]](body)
     
 
-method ChannelPinMessage*(s: Session, channel, message: string) {.base, gcsafe.} =
+method ChannelPinMessage*(s: Session, channel, message: string) {.base, gcsafe, async.} =
     ## Pins a message in a channel
     var url = EndpointAddPinnedChannelMessage(channel, message)
-    discard s.Request(url, "PUT", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "PUT", url, "application/json", "", 0)
 
-method ChannelDeletePinnedMessage*(s: Session, channel, message: string) {.base, gcsafe.} =
+method ChannelDeletePinnedMessage*(s: Session, channel, message: string) {.base, gcsafe, async.} =
     var url = EndpointDeletePinnedChannelMessage(channel, message)
-    discard s.Request(url, "DELETE", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "DELETE", url, "application/json", "", 0)
 
 # This might work?
 type AddGroupDMUser* = object
@@ -384,36 +431,38 @@ type AddGroupDMUser* = object
     nick: string
 
 # This might work?
-method CreateGroupDM*(s: Session, accesstokens: seq[string], nicks: seq[AddGroupDMUser]): DChannel {.base, gcsafe.} =
+method CreateGroupDM*(s: Session, accesstokens: seq[string], nicks: seq[AddGroupDMUser]): Future[DChannel] {.base, gcsafe, async.} =
     ## Creates a group DM channel
     var url = EndpointCreateGroupDM()
     let payload = %*{"access_tokens": accesstokens, "nicks": nicks}
-    let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = marshal.to[DChannel](res.body)
+    let res = await s.Request(url, "POST", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[DChannel](body)
 
-method GroupDMAddUser*(s: Session, channelid, userid, access_token, nick: string) {.base, gcsafe.} =
+method GroupDMAddUser*(s: Session, channelid, userid, access_token, nick: string) {.base, gcsafe, async.} =
     ## Adds a user to a group dm.
     ## Requires the 'gdm.join' scope.
     var url = EndpointGroupDMAddRecipient(channelid, userid)
     let payload = %*{"access_token": access_token, "nick": nick}
-    discard s.Request(url, "PUT", url, "application/json", $payload, 0)
+    asyncCheck s.Request(url, "PUT", url, "application/json", $payload, 0)
     
 
-method GroupdDMRemoveUser*(s: Session, channelid, userid: string) {.base, gcsafe.} =
+method GroupdDMRemoveUser*(s: Session, channelid, userid: string) {.base, gcsafe, async.} =
     ## Removes a user from a group dm.
     var url = EndpointGroupDMRemoveRecipient(channelid, userid)
-    discard s.Request(url, "DELETE", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "DELETE", url, "application/json", "", 0)
 
-method CreateGuild*(s: Session, name: string): Guild {.base, gcsafe.} =
+method CreateGuild*(s: Session, name: string): Future[Guild] {.base, gcsafe, async.} =
     ## Creates a guild
     ## This endpoint is limited to 10 active guilds
     var url = EndpointCreateGuild()
     let payload = %*{"name": name}
-    let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = marshal.to[Guild](res.body)
+    let res = await s.Request(url, "POST", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[Guild](body)
     
 
-method GetGuild*(s: Session, id: string): Guild {.base, gcsafe.} =
+method GetGuild*(s: Session, id: string): Future[Guild] {.base, gcsafe, async.} =
     ## Gets a guild
     if s.cache.cacheGuilds:
         var (guild, exists) = s.cache.getGuild(id)
@@ -422,8 +471,9 @@ method GetGuild*(s: Session, id: string): Guild {.base, gcsafe.} =
             return guild
 
     var url = EndpointGetGuild(id)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[Guild](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[Guild](body)
    
     if s.cache.cacheGuilds:
         s.cache.guilds[result.id] = result
@@ -432,57 +482,63 @@ method GetGuild*(s: Session, id: string): Guild {.base, gcsafe.} =
             for role in result.roles:
                 s.cache.roles[role.id] = role
 
-method ModifyGuild*(s: Session, guild: string, settings: GuildParams): Guild {.base, gcsafe.} =
+method ModifyGuild*(s: Session, guild: string, settings: GuildParams): Future[Guild] {.base, gcsafe, async.} =
     ## Modifies a guild with the GuildParams
     var url = EndpointModifyGuild(guild)
-    let res = s.Request(url, "PATCH", url, "application/json", $$settings, 0)
-    result = marshal.to[Guild](res.body)
+    let res = await s.Request(url, "PATCH", url, "application/json", $$settings, 0)
+    let body = await res.body()
+    result = marshal.to[Guild](body)
     
 
-method DeleteGuild*(s: Session, guild: string): Guild {.base, gcsafe.} =
+method DeleteGuild*(s: Session, guild: string): Future[Guild] {.base, gcsafe, async.} =
     ## Deletes a guild
     var url = EndpointDeleteGuild(guild)
-    let res = s.Request(url, "DELETE", url, "application/json", "", 0)
-    result = marshal.to[Guild](res.body)
+    let res = await s.Request(url, "DELETE", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[Guild](body)
     
 
-method GuildChannels*(s: Session, guild: string): seq[DChannel] {.base, gcsafe.} =
+method GuildChannels*(s: Session, guild: string): Future[seq[DChannel]] {.base, gcsafe, async.} =
     ## Returns all guild channels
     var url = EndpointGetGuildChannels(guild)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[seq[DChannel]](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[seq[DChannel]](body)
    
 
-method GuildChannelCreate*(s: Session, guild, channelname: string, voice: bool): DChannel {.base, gcsafe.} =
+method GuildChannelCreate*(s: Session, guild, channelname: string, voice: bool): Future[DChannel] {.base, gcsafe, async.} =
     ## Creates a new channel in a guild
     var url = EndpointCreateGuildChannel(guild)
     let payload = %*{"name": channelname, "voice": voice}
-    let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = marshal.to[DChannel](res.body)
+    let res = await s.Request(url, "POST", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[DChannel](body)
     
 
-method ModifyGuildChannelPosition*(s: Session, guild, channel: string, position: int): seq[DChannel] {.base, gcsafe.} =
+method ModifyGuildChannelPosition*(s: Session, guild, channel: string, position: int): Future[seq[DChannel]] {.base, gcsafe, async.} =
     ## Reorders the position of a channel and returns the new order
     var url = EndpointModifyGuildChannelPositions(guild)
     let payload = %*{"id": channel, "position": position}
-    let res = s.Request(url, "PATCH", url, "application/json", $payload, 0)
-    result = marshal.to[seq[DChannel]](res.body)
+    let res = await s.Request(url, "PATCH", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[seq[DChannel]](body)
    
 
-method GuildMembers*(s: Session, guild: string, limit, after: int): seq[GuildMember] {.base, gcsafe.} =
+method ListGuildMembers*(s: Session, guild: string, limit, after: int): Future[seq[GuildMember]] {.base, gcsafe, async.} =
     ## Returns up to 1000 guild members
     var url = EndpointListGuildMembers(guild) & "?"
 
     if limit > 1:
-        url = url & "limit=" & $limit & "&"
+        url &= "limit=" & $limit & "&"
     if after > 0:
-        url = url & "after=" & $after & "&"
+        url &= "after=" & $after & "&"
 
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[seq[GuildMember]](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[seq[GuildMember]](body)
     
 
-method GetGuildMember*(s: Session, guild, userid: string): GuildMember {.base, gcsafe.} =
+method GetGuildMember*(s: Session, guild, userid: string): Future[GuildMember] {.base, gcsafe, async.} =
     ## Returns a guild member with the userid
 
     if s.cache.cacheGuildMembers:
@@ -492,96 +548,100 @@ method GetGuildMember*(s: Session, guild, userid: string): GuildMember {.base, g
             return member
 
     var url = EndpointGetGuildMember(guild, userid)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[GuildMember](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[GuildMember](body)
     
     if s.cache.cacheGuildMembers:
         s.cache.addGuildMember(result)
 
-method GuildAddMember*(s: Session, guild, userid, accesstoken: string): GuildMember {.base, gcsafe.} =
+method GuildAddMember*(s: Session, guild, userid, accesstoken: string): Future[GuildMember] {.base, gcsafe, async.} =
     ## Adds a guild member to the guild
     var url = EndpointAddGuildMember(guild, userid)
     let payload = %*{"access_token": accesstoken}
-    let res = s.Request(url, "PUT", url, "application/json", $payload, 0)
-    result = marshal.to[GuildMember](res.body)
+    let res = await s.Request(url, "PUT", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[GuildMember](body)
     
 
-method GuildMemberRoles*(s: Session, guild, userid: string, roles: seq[string]) {.base, gcsafe.} =
+method GuildMemberRoles*(s: Session, guild, userid: string, roles: seq[string]) {.base, gcsafe, async.} =
     ## Modifies a guild member's roles
     var url = EndpointModifyGuildMember(guild, userid)
     let payload = %*{"roles": $roles}
-    discard s.Request(url, "PATCH", url, "application/json", $payload, 0)
+    asyncCheck s.Request(url, "PATCH", url, "application/json", $payload, 0)
 
-method GuildMemberNick*(s: Session, guild, userid, nick: string) {.base, gcsafe.} =
+method GuildMemberNick*(s: Session, guild, userid, nick: string) {.base, gcsafe, async.} =
     ## Sets the nickname of a member
     var url = EndpointModifyGuildMember(guild, userid)
     let payload = %*{"nick": nick}
-    discard s.Request(url, "PATCH", url, "application/json", $payload, 0)
+    asyncCheck s.Request(url, "PATCH", url, "application/json", $payload, 0)
 
-method GuildMemberMute*(s: Session, guild, userid: string, mute: bool) {.base, gcsafe.} =
+method GuildMemberMute*(s: Session, guild, userid: string, mute: bool) {.base, gcsafe, async.} =
     ## Mutes a guild member
     var url = EndpointModifyGuildMember(guild, userid)
     let payload = %*{"mute": mute}
-    discard s.Request(url, "PATCH", url, "application/json", $payload, 0)
+    asyncCheck s.Request(url, "PATCH", url, "application/json", $payload, 0)
 
-method GuildMemberDeafen*(s: Session, guild, userid: string, deafen: bool) {.base, gcsafe.} =
+method GuildMemberDeafen*(s: Session, guild, userid: string, deafen: bool) {.base, gcsafe, async.} =
     ## Deafens a guild member
     var url = EndpointModifyGuildMember(guild, userid)
     let payload = %*{"deaf": deafen}
-    discard s.Request(url, "PATCH", url, "application/json", $payload, 0)
+    asyncCheck s.Request(url, "PATCH", url, "application/json", $payload, 0)
 
-method GuildMemberMove*(s: Session, guild, userid, channel: string) {.base, gcsafe.} =
+method GuildMemberMove*(s: Session, guild, userid, channel: string) {.base, gcsafe, async.} =
     ## Moves a guild member from one channel to another
     ## only works if they are connected to a voice channel
     var url = EndpointModifyGuildMember(guild, userid)
     let payload = %*{"channel_id": channel}
-    discard s.Request(url, "PATCH", url, "application/json", $payload, 0)
+    asyncCheck s.Request(url, "PATCH", url, "application/json", $payload, 0)
 
-method Nick*(s: Session, guild, nick: string) {.base, gcsafe.} =
+method Nick*(s: Session, guild, nick: string) {.base, gcsafe, async.} =
     ## Sets the nick for the current user
     var url = EndpointModifyNick(guild)
     let payload = %*{"nick": nick}
-    discard s.Request(url, "PATCH", url, "application/json", $payload, 0)
+    asyncCheck s.Request(url, "PATCH", url, "application/json", $payload, 0)
 
-method GuildMemberAddRole*(s: Session, guild, userid, roleid: string) {.base, gcsafe.} =
+method GuildMemberAddRole*(s: Session, guild, userid, roleid: string) {.base, gcsafe, async.} =
     ## Adds a role to a guild member
     var url = EndpointAddGuildMemberRole(guild, userid, roleid)
-    discard s.Request(url, "PUT", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "PUT", url, "application/json", "", 0)
 
-method GuildMemberRemoveRole*(s: Session, guild, userid, roleid: string) {.base, gcsafe.} =
+method GuildMemberRemoveRole*(s: Session, guild, userid, roleid: string) {.base, gcsafe, async.} =
     ## Removes a role from a guild member
     var url = EndpointRemoveGuildMemberRole(guild, userid, roleid)
-    discard s.Request(url, "DELETE", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "DELETE", url, "application/json", "", 0)
 
-method GuildRemoveMember*(s: Session, guild, userid: string) {.base, gcsafe.} =
+method GuildRemoveMember*(s: Session, guild, userid: string) {.base, gcsafe, async.} =
     ## Removes a guild membe from the guild
     var url = EndpointRemoveGuildMember(guild, userid)
-    discard s.Request(url, "DELETE", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "DELETE", url, "application/json", "", 0)
 
-method GuildBans*(s: Session, guild: string): seq[User] {.base, gcsafe.} =
+method GuildBans*(s: Session, guild: string): Future[seq[User]] {.base, gcsafe, async.} =
     ## Returns all users who have been banned from the guild
     var url = EndpointGetGuildBans(guild)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[seq[User]](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[seq[User]](body)
    
 
-method GuildBanUser*(s: Session, guild, userid: string) {.base, gcsafe.} =
+method GuildBanUser*(s: Session, guild, userid: string) {.base, gcsafe, async.} =
     ## Bans a user from the guild
     var url = EndpointCreateGuildBan(guild, userid)
-    discard s.Request(url, "PUT", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "PUT", url, "application/json", "", 0)
 
-method GuildRemoveBan*(s: Session, guild, userid: string) {.base, gcsafe.} =
+method GuildRemoveBan*(s: Session, guild, userid: string) {.base, gcsafe, async.} =
     ## Removes a ban from the guild
     var url = EndpointRemoveGuildBan(guild, userid)
-    discard s.Request(url, "DELETE", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "DELETE", url, "application/json", "", 0)
 
-method GuildRoles*(s: Session, guild: string): seq[Role] {.base, gcsafe.} =
+method GuildRoles*(s: Session, guild: string): Future[seq[Role]] {.base, gcsafe, async.} =
     ## Returns all guild roles
     var url = EndpointGetGuildRoles(guild)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[seq[Role]](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[seq[Role]](body)
     
-method GuildRole*(s: Session, guild, roleid: string): Role {.base, gcsafe.} =
+method GuildRole*(s: Session, guild, roleid: string): Future[Role] {.base, gcsafe, async.} =
     ## Returns a role with the given id.
     if s.cache.cacheRoles:
         var (rolea, exists) = s.cache.getRole(guild, roleid)
@@ -589,7 +649,7 @@ method GuildRole*(s: Session, guild, roleid: string): Role {.base, gcsafe.} =
         if exists:
             return rolea
 
-    let roles = s.GuildRoles(guild)
+    let roles = await s.GuildRoles(guild)
 
     for role in roles:
         if role.id == roleid:
@@ -601,139 +661,150 @@ method GuildRole*(s: Session, guild, roleid: string): Role {.base, gcsafe.} =
         s.cache.roles[result.id] = result
 
 
-method GuildCreateRole*(s: Session, guild: string): Role {.base, gcsafe.} =
+method GuildCreateRole*(s: Session, guild: string): Future[Role] {.base, gcsafe, async.} =
     ## Creates a new role in the guild
     var url = EndpointCreateGuildRole(guild)
-    let res = s.Request(url, "POST", url, "application/json", "", 0)
-    result = marshal.to[Role](res.body)
+    let res = await s.Request(url, "POST", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[Role](body)
     
 
-method GuildEditRolePosition*(s: Session, guild: string, roles: seq[Role]): seq[Role] {.base, gcsafe.} =
+method GuildEditRolePosition*(s: Session, guild: string, roles: seq[Role]): Future[seq[Role]] {.base, gcsafe, async.} =
     ## Edits the positions of a guilds roles roles
     ## and returns the new roles order
     var url = EndpointModifyGuildRolePositions(guild)
-    let res = s.Request(url, "PATCH", url, "application/json", $$roles, 0)
-    result = marshal.to[seq[Role]](res.body)
+    let res = await s.Request(url, "PATCH", url, "application/json", $$roles, 0)
+    let body = await res.body()
+    result = marshal.to[seq[Role]](body)
     
 
-method GuildEditRole*(s: Session, guild, roleid, name: string, permissions, color: int, hoist, mentionable: bool): Role {.base, gcsafe.} =
+method GuildEditRole*(s: Session, guild, roleid, name: string, permissions, color: int, hoist, mentionable: bool): Future[Role] {.base, gcsafe, async.} =
     ## Edits a role
     var url = EndpointModifyGuildRole(guild, roleid)
     let payload = %*{"name": name, "permissions": permissions, "color": color, "hoist": hoist, "mentionable": mentionable}
-    let res = s.Request(url, "PATCH", url, "application/json", $payload, 0)
-    result = marshal.to[Role](res.body)
+    let res = await s.Request(url, "PATCH", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[Role](body)
    
 
-method GuildDeleteRole*(s: Session, guild, roleid: string) {.base, gcsafe.} =
+method GuildDeleteRole*(s: Session, guild, roleid: string) {.base, gcsafe, async.} =
     ## Deletes a role
     var url = EndpointDeleteGuildRole(guild, roleid)
-    discard s.Request(url, "DELETE", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "DELETE", url, "application/json", "", 0)
 
-method GuildPruneCount*(s: Session, guild: string, days: int): int {.base, gcsafe.} =
+method GuildPruneCount*(s: Session, guild: string, days: int): Future[int] {.base, gcsafe, async.} =
     ## Returns the number of members who would get kicked
     ## during a prune operation
     var url = EndpointGetGuildPruneCount(guild) & "?days=" & $days
-    let res = s.Request(url, "GET", "", "application/json", "", 0)
-
+    let res = await s.Request(url, "GET", "", "application/json", "", 0)
+    let body = await res.body()
     type Temp = object
         pruned: int
 
-    let t = marshal.to[Temp](res.body)
+    let t = marshal.to[Temp](body)
     return t.pruned
 
-method GuildPruneBegin*(s: Session, guild: string, days: int): int {.base, gcsafe.} =
+method GuildPruneBegin*(s: Session, guild: string, days: int): Future[int] {.base, gcsafe, async.} =
     ## Begins a prune operation and
     ## kicks all members who haven't been active
     ## for N days
     var url = EndpointBeginGuildPruneCount(guild) & "?days=" & $days
-    let res = s.Request(url, "POST", "", "application/json", "", 0)
-
+    let res = await s.Request(url, "POST", "", "application/json", "", 0)
+    let body = await res.body()
     type Temp = object
         pruned: int
 
-    let t = marshal.to[Temp](res.body)
+    let t = marshal.to[Temp](body)
     return t.pruned
 
-method GuildVoiceRegions*(s: Session, guild: string): seq[VoiceRegion] {.base, gcsafe.} =
+method GuildVoiceRegions*(s: Session, guild: string): Future[seq[VoiceRegion]] {.base, gcsafe, async.} =
     ## Lists all voice regions in a guild
     var url = EndpointGetGuildVoiceRegions(guild)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[seq[VoiceRegion]](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[seq[VoiceRegion]](body)
     
 
-method GuildInvites*(s: Session, guild: string): seq[Invite] {.base, gcsafe.} =
+method GuildInvites*(s: Session, guild: string): Future[seq[Invite]] {.base, gcsafe, async.} =
     ## Lists all guild invites
     var url = EndpointGetGuildInvites(guild)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[seq[Invite]](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[seq[Invite]](body)
     
 
-method GuildIntegrations*(s: Session, guild: string): seq[Integration] {.base, gcsafe.} =
+method GuildIntegrations*(s: Session, guild: string): Future[seq[Integration]] {.base, gcsafe, async.} =
     ## Lists all guild integrations
     var url = EndpointGetGuildIntegrations(guild)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[seq[Integration]](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[seq[Integration]](body)
     
 
-method GuildIntegrationCreate*(s: Session, guild, typ, id: string) {.base, gcsafe.} =
+method GuildIntegrationCreate*(s: Session, guild, typ, id: string) {.base, gcsafe, async.} =
     ## Creates a new guild integration
     var url = EndpointGetGuildIntegrations(guild)
     let payload = %*{"type": typ, "id": id}
-    discard s.Request(url, "POST", url, "application/json", $payload, 0)
+    asyncCheck s.Request(url, "POST", url, "application/json", $payload, 0)
 
-method GuildIntegrationEdit*(s: Session, guild, integrationid: string, behaviour, grace: int, emotes: bool) {.base, gcsafe.} =
+method GuildIntegrationEdit*(s: Session, guild, integrationid: string, behaviour, grace: int, emotes: bool) {.base, gcsafe, async.} =
     ## Edits a guild integration
     var url = EndpointModifyGuildIntegration(guild, integrationid)
     let payload = %*{"expire_behavior": behaviour, "expire_grace_period": grace, "enable_emoticons": emotes}
-    discard s.Request(url, "PATCH", url, "application/json", $payload, 0)
+    asyncCheck s.Request(url, "PATCH", url, "application/json", $payload, 0)
 
-method GuildIntegrationDelete*(s: Session, guild, integration: string) {.base, gcsafe.} =
+method GuildIntegrationDelete*(s: Session, guild, integration: string) {.base, gcsafe, async.} =
     ## Deletes a guild Integration
     var url = EndpointDeleteGuildIntegration(guild, integration)
-    discard s.Request(url, "DELETE", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "DELETE", url, "application/json", "", 0)
 
-method GuildIntegrationSync*(s: Session, guild, integration: string) {.base, gcsafe.} =
+method GuildIntegrationSync*(s: Session, guild, integration: string) {.base, gcsafe, async.} =
     ## Syncs an existing guild integration
     var url = EndpointSyncGuildIntegration(guild, integration)
-    discard s.Request(url, "POST", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "POST", url, "application/json", "", 0)
 
-method GetGuildEmbed*(s: Session, guild: string): GuildEmbed {.base, gcsafe.} =
+method GetGuildEmbed*(s: Session, guild: string): Future[GuildEmbed] {.base, gcsafe, async.} =
     ## Gets a GuildEmbed
     var url = EndpointGetGuildEmbed(guild)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[GuildEmbed](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[GuildEmbed](body)
     
 
-method GuildEmbedEdit*(s: Session, guild: string, enabled: bool, channel: string): GuildEmbed {.base, gcsafe.} =
+method GuildEmbedEdit*(s: Session, guild: string, enabled: bool, channel: string): Future[GuildEmbed] {.base, gcsafe, async.} =
     ## Edits a GuildEmbed
     var url = EndpointModifyGuildEmbed(guild)
     let embed = GuildEmbed(enabled: enabled, channel_id: channel)
-    let res = s.Request(url, "PATCH", url, "application/json", $$embed, 0)
-    result = marshal.to[GuildEmbed](res.body)
+    let res = await s.Request(url, "PATCH", url, "application/json", $$embed, 0)
+    let body = await res.body()
+    result = marshal.to[GuildEmbed](body)
    
 
-method GetInvite*(s: Session, code: string): Invite {.base, gcsafe.} =
+method GetInvite*(s: Session, code: string): Future[Invite] {.base, gcsafe, async.} =
     ## Gets an invite with code
     var url = EndpointGetInvite(code)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[Invite](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[Invite](body)
    
 
-method InviteDelete*(s: Session, code: string): Invite {.base, gcsafe.} =
+method InviteDelete*(s: Session, code: string): Future[Invite] {.base, gcsafe, async.} =
     ## Deletes an invite
     var url = EndpointDeleteInvite(code)
-    let res = s.Request(url, "DELETE", url, "application/json", "", 0)
-    result = marshal.to[Invite](res.body)
+    let res = await s.Request(url, "DELETE", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[Invite](body)
     
 
-method Me*(s: Session): User {.base, gcsafe.} =
+method Me*(s: Session): Future[User] {.base, gcsafe, async.} =
     ## Returns the current user
     var url = EndpointGetCurrentUser()
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[User](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[User](body)
    
 
-method GetUser*(s: Session, userid: string): User {.base, gcsafe.} =
+method GetUser*(s: Session, userid: string): Future[User] {.base, gcsafe, async.} =
     ## Gets a user
     if s.cache.cacheUsers:
         var (user, exists) = s.cache.getUser(userid)
@@ -742,125 +813,140 @@ method GetUser*(s: Session, userid: string): User {.base, gcsafe.} =
             return user
 
     var url = EndpointGetUser(userid)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[User](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[User](body)
 
     if s.cache.cacheUsers:
         s.cache.users[result.id] = result
         
-method EditUsername*(s: Session, name: string): User {.base, gcsafe.} =
+method EditUsername*(s: Session, name: string): Future[User] {.base, gcsafe, async.} =
     ## Edits the current users username
     var url = EndpointGetCurrentUser()
     let payload = %*{"username": name}
-    let res = s.Request(url, "PATCH", url, "application/json", $payload, 0)
-    result = marshal.to[User](res.body)
+    let res = await s.Request(url, "PATCH", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[User](body)
     
 
-method EditAvatar*(s: Session, avatar: string): User {.base, gcsafe.} =
+method EditAvatar*(s: Session, avatar: string): Future[User] {.base, gcsafe, async.} =
     ## Changes the current users avatar
     var url = EndpointGetCurrentUser()
     let payload = %*{"avatar": avatar}
-    let res = s.Request(url, "PATCH", url, "application/json", $payload, 0)
-    result = marshal.to[User](res.body)
+    let res = await s.Request(url, "PATCH", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[User](body)
     
 
-method Guilds*(s: Session): seq[UserGuild] {.base, gcsafe.} =
+method CurrentUserGuilds*(s: Session): Future[seq[UserGuild]] {.base, gcsafe, async.} =
     ## Lists the current users guilds
     var url = EndpointGetCurrentUserGuilds()
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[seq[UserGuild]](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[seq[UserGuild]](body)
     
 
-method LeaveGuild*(s: Session, guild: string) {.base, gcsafe.} =
+method LeaveGuild*(s: Session, guild: string) {.base, gcsafe, async.} =
     ## Makes the current user leave the specified guild
     var url = EndpointLeaveGuild(guild)
-    discard s.Request(url, "DELETE", url, "application/json", "", 0)
+    asyncCheck s.Request(url, "DELETE", url, "application/json", "", 0)
 
-method ActivePrivateChannels*(s: Session): seq[DChannel] {.base, gcsafe.} =
+method ActivePrivateChannels*(s: Session): Future[seq[DChannel]] {.base, gcsafe, async.} =
     ## Lists all active DM channels
     var url = EndpointGetUserDMs()
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[seq[DChannel]](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[seq[DChannel]](body)
     
 
-method PrivateChannelCreate*(s: Session, recipient: string): DChannel {.base, gcsafe.} =
+method PrivateChannelCreate*(s: Session, recipient: string): Future[DChannel] {.base, gcsafe, async.} =
     ## Creates a new DM channel
     var url = EndpointCreateDM()
     let payload = %*{"recipient_id": recipient}
-    let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = marshal.to[DChannel](res.body) 
+    let res = await s.Request(url, "POST", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[DChannel](body) 
     
 
-method VoiceRegions*(s: Session): seq[VoiceRegion] {.base, gcsafe.} =
+method VoiceRegions*(s: Session): Future[seq[VoiceRegion]] {.base, gcsafe, async.} =
     ## Lists all voice regions
     var url = EndpointListVoiceRegions()
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[seq[VoiceRegion]](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[seq[VoiceRegion]](body)
     
 
-method WebhookCreate*(s: Session, channel, name, avatar: string): Webhook {.base, gcsafe.} =
+method WebhookCreate*(s: Session, channel, name, avatar: string): Future[Webhook] {.base, gcsafe, async.} =
     ## Creates a webhook
     var url = EndpointCreateWebhook(channel)
     let payload = %*{"name": name, "avatar": avatar}
-    let res = s.Request(url, "POST", url, "application/json", $payload, 0)
-    result = marshal.to[Webhook](res.body)
+    let res = await s.Request(url, "POST", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[Webhook](body)
    
 
-method ChannelWebhooks*(s: Session, channel: string): seq[Webhook] {.base, gcsafe.} =
+method ChannelWebhooks*(s: Session, channel: string): Future[seq[Webhook]] {.base, gcsafe, async.} =
     ## Lists all webhooks in a channel
     var url = EndpointGetChannelWebhooks(channel)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[seq[Webhook]](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[seq[Webhook]](body)
    
 
-method GuildWebhooks*(s: Session, guild: string): seq[Webhook] {.base, gcsafe.} =
+method GuildWebhooks*(s: Session, guild: string): Future[seq[Webhook]] {.base, gcsafe, async.} =
     ## Lists all webhooks in a guild
     var url = EndpointGetGuildWebhook(guild)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[seq[Webhook]](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[seq[Webhook]](body)
     
 
-method GetWebhookWithToken*(s: Session, webhook, token: string): Webhook {.base, gcsafe.} =
+method GetWebhookWithToken*(s: Session, webhook, token: string): Future[Webhook] {.base, gcsafe, async.} =
     ## Gets a webhook with a token
     var url = EndpointGetWebhookWithToken(webhook, token)
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
-    result = marshal.to[Webhook](res.body)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[Webhook](body)
     
 
-method WebhookEdit*(s: Session, webhook, name, avatar: string): Webhook {.base, gcsafe.} =
+method WebhookEdit*(s: Session, webhook, name, avatar: string): Future[Webhook] {.base, gcsafe, async.} =
     ## Edits a webhook
     var url = EndpointModifyWebhook(webhook)
     let payload = %*{"name": name, "avatar": avatar}
-    let res = s.Request(url, "PATCH", url, "application/json", $payload, 0)
-    result = marshal.to[Webhook](res.body)
+    let res = await s.Request(url, "PATCH", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[Webhook](body)
     
 
-method WebhookEditWithToken*(s: Session, webhook, token, name, avatar: string): Webhook {.base, gcsafe.} =
+method WebhookEditWithToken*(s: Session, webhook, token, name, avatar: string): Future[Webhook] {.base, gcsafe, async.} =
     ## Edits a webhook with a token
     var url = EndpointModifyWebhookWithToken(webhook, token)
     let payload = %*{"name": name, "avatar": avatar}
-    let res = s.Request(url, "PATCH", url, "application/json", $payload, 0)
-    result = marshal.to[Webhook](res.body)
+    let res = await s.Request(url, "PATCH", url, "application/json", $payload, 0)
+    let body = await res.body()
+    result = marshal.to[Webhook](body)
     
 
-method WebhookDelete*(s: Session, webhook: string): Webhook {.base, gcsafe.} =
+method WebhookDelete*(s: Session, webhook: string): Future[Webhook] {.base, gcsafe, async.} =
     ## Deletes a webhook
     var url = EndpointDeleteWebhook(webhook)
-    let res = s.Request(url, "DELETE", url, "application/json", "", 0)
-    result = marshal.to[Webhook](res.body)
+    let res = await s.Request(url, "DELETE", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[Webhook](body)
     
 
-method WebhookDeleteWithToken*(s: Session, webhook, token: string): Webhook {.base, gcsafe.} =
+method WebhookDeleteWithToken*(s: Session, webhook, token: string): Future[Webhook] {.base, gcsafe, async.} =
     ## Deltes a webhook with a token
     var url = EndpointDeleteWebhookWithToken(webhook, token)
-    let res = s.Request(url, "DELETE", url, "application/json", "", 0)
-    result = marshal.to[Webhook](res.body)
+    let res = await s.Request(url, "DELETE", url, "application/json", "", 0)
+    let body = await res.body()
+    result = marshal.to[Webhook](body)
     
 
-method ExecuteWebhook*(s: Session, webhook, token: string, wait: bool, payload: WebhookParams) {.base, gcsafe.} =
+method ExecuteWebhook*(s: Session, webhook, token: string, wait: bool, payload: WebhookParams) {.base, gcsafe, async.} =
     ## Executes a webhook
     var url = EndpointExecuteWebhook(webhook, token)
-    discard s.Request(url, "POST", url, "application/json", $$payload, 0) 
+    asyncCheck s.Request(url, "POST", url, "application/json", $$payload, 0) 
 
 
 proc `$`*(u: User): string {.gcsafe, inline.} =
@@ -1015,7 +1101,7 @@ proc messageGuild*(s: Session, m: Message): string =
         var (chan, exists) = s.cache.getChannel(m.channel_id)
         if exists:
             return chan.guild_id
-    var chan = s.GetChannel(m.channel_id)
+    var chan = waitFor s.GetChannel(m.channel_id)
     if chan != DChannel():
         return chan.guild_id
     result = ""

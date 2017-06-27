@@ -1,4 +1,4 @@
-import json, tables, locks, websocket/client, times, httpclient, strutils, os
+import json, tables, locks, websocket/client, times, httpclient, strutils, asyncdispatch
 {.hint[XDeclaredButNotUsed]: off.}
 type
     RateLimiter = object of RootObj 
@@ -36,31 +36,31 @@ method getBucket(r: ref RateLimiter, key: string): ref Bucket {.gcsafe, base.} =
     r.buckets[key] = b
     result = b
 
-method lockBucket(r : ref RateLimiter, bid : string): ref Bucket {.gcsafe, base.} =
+method lockBucket(r : ref RateLimiter, bid : string): Future[ref Bucket] {.gcsafe, base, async.} =
     var b = r.getBucket(bid)
 
     initLock(b.mut)
 
     if b.remaining < 1 and toTime(b.reset) - getTime() > 0:
-        sleep int(toTime(b.reset) - getTime())
+        await sleepAsync(int(toTime(b.reset) - getTime()))
 
     initLock(r.global.mut)
     deinitLock(r.global.mut)
     result = b
 
-proc sleepUntil(pa : int32, b : ref Bucket) =
+proc sleepUntil(pa : int32, b : ref Bucket) {.async.} =
     var sleepTo = getTime() + pa.seconds
     initLock(b.global.mut)
 
     var sleepdur = sleepTo - getTime()
 
     if sleepdur > 0:
-        sleep(int(sleepdur))
+        await sleepAsync(int(sleepdur))
 
     deinitLock(b.global.mut)
     return
 
-method Release(b : ref Bucket, headers : HttpHeaders) {.gcsafe, base.} =
+method Release(b : ref Bucket, headers : HttpHeaders) {.gcsafe, base, async.} =
     defer: deinitLock(b.mut)
 
     if headers == nil:
@@ -84,7 +84,7 @@ method Release(b : ref Bucket, headers : HttpHeaders) {.gcsafe, base.} =
     if global != "" and global != nil:
         var parsedAfter = parseInt(retryAfter)
 
-        sleepUntil(int32(parsedAfter), b)
+        await sleepUntil(int32(parsedAfter), b)
         return
 
     if retryAfter != "" and retryAfter != nil:
@@ -202,10 +202,10 @@ type
         width*: int
     Presence* = object
         user: User
-        status: string
-        game: Game
-        nick: string
         roles: seq[string]
+        game: Game
+        guild_id: string        
+        status: string
     Guild* = object of RootObj
         id*: string
         name*: string
@@ -406,6 +406,7 @@ type
     Resumed* = object
         trace*: seq[string]
     Cache* = ref object
+        lock: Lock
         version*: int
         me*: User
         cacheChannels*: bool

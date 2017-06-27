@@ -29,6 +29,7 @@ const
     MANAGE_CHANNELS*       = 0x00000010
     MANAGE_GUILD*          = 0x00000020
     ADD_REACTIONS*         = 0x00000040
+    VIEW_AUDIT_LOGS*       = 0x00000080
     READ_MESSAGES*         = 0x00000400
     SEND_MESSAGES*         = 0x00000800
     SEND_TTS_MESSAGES*     = 0x00001000
@@ -50,28 +51,30 @@ const
     MANAGE_WEBHOOKS*       = 0x20000000
     MANAGE_EMOJIS*         = 0x40000000
 
-method GetGateway(s: Session): string {.base.} =
+method GetGateway(s: Session): Future[string] {.base, async, gcsafe.} =
     var url = Gateway()
-    let res = s.Request(url, "GET", url, "application/json", "", 0)
+    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    let body = await res.body()
     type Temp = object
         url: string
         shards: int
-    let t = marshal.to[Temp](res.body)
+    let t = marshal.to[Temp](body)
     s.shardCount = t.shards
     result = t.url
 
-method Login(s: Session, email, password : string) {.base.} =
+method Login(s: Session, email, password : string) {.base, async, gcsafe.} =
     var payload = %*{"email": email, "password": password}
     var id = EndpointLogin()
-    let res = s.Request(id, "POST", id, "application/json", $payload, 0)
+    let res = await s.Request(id, "POST", id, "application/json", $payload, 0)
+    let body = await res.body()
     type Temp = object
         Token: string
 
-    var t = marshal.to[Temp](res.body)
+    var t = marshal.to[Temp](body)
     s.token = t.Token
 
 # Temporary until a better solution is found
-method initEvents(s: Session) {.base.} =
+method initEvents(s: Session) {.base, gcsafe.} =
     s.channelCreate =            proc(s: Session, p: ChannelCreate) = return
     s.channelUpdate =            proc(s: Session, p: ChannelUpdate) = return
     s.channelDelete =            proc(s: Session, p: ChannelDelete) = return
@@ -105,7 +108,7 @@ method initEvents(s: Session) {.base.} =
     s.onReady =                  proc(s: Session, p: Ready) = return
 
 
-proc NewSession*(args: varargs[string, `$`]): Session = 
+proc NewSession*(args: varargs[string, `$`]): Session {.gcsafe.} = 
     ## Creates a new Session
     var rl = newRateLimiter()
     var
@@ -138,11 +141,12 @@ proc NewSession*(args: varargs[string, `$`]): Session =
     if pass == "":
         s.token = auth
     else:
-        s.Login(auth, pass)
+        waitFor s.Login(auth, pass)
         if s.token == "":
             echo "Failed to get auth token"
             return nil
-    s.gateway = s.GetGateway().strip&"/"&GATEWAYVERSION
+    let gateway = waitFor s.GetGateway()
+    s.gateway = gateway.strip&"/"&GATEWAYVERSION
 
     return s
 
@@ -151,7 +155,7 @@ proc NewSession*(args: varargs[string, `$`]): Session =
 type
   IdentifyError* = object of Exception
 
-method handleDispatch(s: Session, event: string, data: JsonNode){.gcsafe, base.} =
+method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe, base.} =
     case event:
         of "READY":
             var payload = Ready(
@@ -382,7 +386,7 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
                 await s.reconnect()
             of OP_DISPATCH:
                 let event = data["t"].str
-                s.handleDispatch(event, data["d"])
+                asyncCheck s.handleDispatch(event, data["d"])
             else:
                 echo $data
 
