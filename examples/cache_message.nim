@@ -16,7 +16,7 @@ proc main() =
     proc messageDelete(s: Session, m: MessageDelete) =
         echo "Message was deleted"
         if cachedMessages.hasKey(m.id):
-            discard s.SendMessage(m.channel_id, "Message removed: " & cachedMessages[m.id])
+            asyncCheck s.SendMessage(m.channel_id, "Message removed: " & cachedMessages[m.id])
             cachedMessages.del(m.id)
 
     let s = NewSession("Bot <your bot token>")

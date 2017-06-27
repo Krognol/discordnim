@@ -20,7 +20,7 @@ proc messageCreate(s: Session, m: MessageCreate) =
             description = "Embed description",
             url = "https://github.com/Krognol/discordnim",
             color = 0xFF3245)
-        discard s.SendMessageEmbed(m.channel_id, embed)
+        asyncCheck s.SendMessageEmbed(m.channel_id, embed)
 
 
 let s = NewSession("Bot <your bot token>")
