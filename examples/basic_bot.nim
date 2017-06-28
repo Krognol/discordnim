@@ -14,11 +14,11 @@ proc messageUpdate(s: Session, m: MessageUpdate) =
     if s.cache.me.id == m.author.id: return
     if m.content == "pong":
         asyncCheck s.SendMessage(m.channel_id, "ping")
-
+        
 
 
 let s = NewSession("Bot <your bot token>")
-s.messageCreate = messageCreate 
-s.messageUpdate = messageUpdate
+s.addHandler(EventType.message_create, messageCreate)
+s.addHandler(EventType.message_update, messageUpdate)
 
 waitFor s.SessionStart()

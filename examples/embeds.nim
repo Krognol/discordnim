@@ -24,6 +24,6 @@ proc messageCreate(s: Session, m: MessageCreate) =
 
 
 let s = NewSession("Bot <your bot token>")
-s.messageCreate = messageCreate
+s.addHandler(EventType.message_create, messageCreate)
 
 asyncCheck s.SessionStart()

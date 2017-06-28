@@ -9,6 +9,6 @@ proc messageCreate(s: Session, m: MessageCreate) =
         asyncCheck s.SendFileWithMessage(m.channel_id, "asdasd.png", "asdasd")
 
 let s = NewSession("Bot <token>")
-s.messageCreate = messageCreate
+s.addHandler(EventType.message_create, messageCreate)
 
 waitFor s.SessionStart()

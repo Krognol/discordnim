@@ -22,8 +22,8 @@ let shards = 1
 for i in 0..shards:
     let s = NewSession("Bot <Token>")
     s.shardID = i
-    s.messageCreate = messageCreate
-    s.messageUpdate = messageUpdate
+    s.addHandler(EventType.message_create, messageCreate)
+    s.addHandler(EventType.message_update, messageUpdate)
     sessions.add(s)
 
 for session in sessions:

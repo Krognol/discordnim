@@ -3,7 +3,7 @@
 
 import asyncdispatch, discord
 
-proc messageCreate(s: Session, m: MessageCreate) =
+proc messageCreateProc(s: Session, m: MessageCreate) =
     if s.cache.me.id == m.author.id: return
     if m.content == "my-roles":
         var roles: seq[Role] = @[]
@@ -31,7 +31,7 @@ proc messageCreate(s: Session, m: MessageCreate) =
         # Sends "@[(id: 299604263133380629, name: nano, color: 2067276, hoist: false, position: 1, permissions: 2146958463, managed: false, mentionable: true)]"
 
 let s = NewSession("Bot <Token>")
-s.messageCreate = messageCreate
+s.addHandler(message_create, messageCreateProc)
 
 s.cache.cacheChannels = true
 s.cache.cacheGuilds = true
