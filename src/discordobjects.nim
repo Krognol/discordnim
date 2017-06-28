@@ -462,6 +462,38 @@ type
     MessageReactionRemoveAll* = object
         message_id: string
         channel_id: string
+    EventType* = enum
+        channel_create
+        channel_update
+        channel_delete
+        guild_create
+        guild_update
+        guild_delete
+        guild_ban_add
+        guild_ban_remove
+        guild_emojis_update
+        guild_integrations_update
+        guild_member_add
+        guild_member_update
+        guild_member_remove
+        guild_members_chunk
+        guild_role_create
+        guild_role_update
+        guild_role_delete
+        message_create
+        message_update
+        message_delete
+        message_delete_bulk
+        message_reaction_add
+        message_reaction_remove
+        message_reaction_remove_all
+        presence_update
+        typing_start
+        user_update
+        voice_state_update
+        voice_server_update
+        on_resume
+        on_ready
     Session* = ref SessionImpl
     SessionImpl = object
         mut: Lock
@@ -480,35 +512,17 @@ type
         stop: bool
         sequence: int
         interval: int
-        # Temporary until better solution is found
-        channelCreate*:            proc(s: Session, p: ChannelCreate) {.gcsafe.}
-        channelUpdate*:            proc(s: Session, p: ChannelUpdate) {.gcsafe.}
-        channelDelete*:            proc(s: Session, p: ChannelDelete) {.gcsafe.}
-        guildCreate*:              proc(s: Session, p: GuildCreate) {.gcsafe.}
-        guildUpdate*:              proc(s: Session, p: GuildUpdate) {.gcsafe.}
-        guildDelete*:              proc(s: Session, p: GuildDelete) {.gcsafe.}
-        guildBanAdd*:              proc(s: Session, p: GuildBanAdd) {.gcsafe.}
-        guildBanRemove*:           proc(s: Session, p: GuildBanRemove) {.gcsafe.}
-        guildEmojisUpdate*:        proc(s: Session, p: GuildEmojisUpdate) {.gcsafe.}
-        guildIntegrationsUpdate*:  proc(s: Session, p: GuildIntegrationsUpdate) {.gcsafe.}
-        guildMemberAdd*:           proc(s: Session, p: GuildMemberAdd) {.gcsafe.}
-        guildMemberUpdate*:        proc(s: Session, p: GuildMemberUpdate) {.gcsafe.}
-        guildMemberRemove*:        proc(s: Session, p: GuildMemberRemove) {.gcsafe.}
-        guildMembersChunk*:        proc(s: Session, p: GuildMembersChunk) {.gcsafe.}
-        guildRoleCreate*:          proc(s: Session, p: GuildRoleCreate) {.gcsafe.}
-        guildRoleUpdate*:          proc(s: Session, p: GuildRoleUpdate) {.gcsafe.}
-        guildRoleDelete*:          proc(s: Session, p: GuildRoleDelete) {.gcsafe.}
-        messageCreate*:            proc(s: Session, p: MessageCreate) {.gcsafe.}
-        messageUpdate*:            proc(s: Session, p: MessageUpdate) {.gcsafe.}
-        messageDelete*:            proc(s: Session, p: MessageDelete) {.gcsafe.}
-        messageDeleteBulk*:        proc(s: Session, p: MessageDeleteBulk) {.gcsafe.}
-        messageReactionAdd*:       proc(s: Session, p: MessageReactionAdd) {.gcsafe.}
-        messageReactionRemove*:    proc(s: Session, p: MessageReactionRemove) {.gcsafe.}
-        messageReactionRemoveAll*: proc(s: Session, p: MessageReactionRemoveAll) {.gcsafe.}
-        presenceUpdate*:           proc(s: Session, p: PresenceUpdate) {.gcsafe.}
-        typingStart*:              proc(s: Session, p: TypingStart) {.gcsafe.}
-        userUpdate*:               proc(s: Session, p: UserUpdate) {.gcsafe.}
-        voiceStateUpdate*:         proc(s: Session, p: VoiceStateUpdate) {.gcsafe.}
-        voiceServerUpdate*:        proc(s: Session, p: VoiceServerUpdate) {.gcsafe.}
-        onResume*:                 proc(s: Session, p: Resumed) {.gcsafe.}
-        onReady*:                  proc(s: Session, p: Ready) {.gcsafe.}
+        handlers: Table[EventType, pointer]
+    
+
+proc addHandler*(s: Session, t: EventType, p: pointer) {.gcsafe.} =
+    ## Adds a handler tied to a websocket event
+    initLock(s.mut)
+    s.handlers[t] = p
+    deinitLock(s.mut)
+
+proc removeHandler*(s: Session, t: EventType) {.gcsafe.} =
+    ## Removes a websocket event handler
+    initLock(s.mut)
+    s.handlers.del(t)
+    deinitLock(s.mut)

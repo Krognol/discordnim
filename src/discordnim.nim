@@ -75,37 +75,37 @@ method Login(s: Session, email, password : string) {.base, async, gcsafe.} =
 
 # Temporary until a better solution is found
 method initEvents(s: Session) {.base, gcsafe.} =
-    s.channelCreate =            proc(s: Session, p: ChannelCreate) = return
-    s.channelUpdate =            proc(s: Session, p: ChannelUpdate) = return
-    s.channelDelete =            proc(s: Session, p: ChannelDelete) = return
-    s.guildCreate =              proc(s: Session, p: GuildCreate) = return
-    s.guildUpdate =              proc(s: Session, p: GuildUpdate) = return
-    s.guildDelete =              proc(s: Session, p: GuildDelete) = return
-    s.guildBanAdd =              proc(s: Session, p: GuildBanAdd) = return
-    s.guildBanRemove =           proc(s: Session, p: GuildBanRemove) = return
-    s.guildEmojisUpdate =        proc(s: Session, p: GuildEmojisUpdate) = return
-    s.guildIntegrationsUpdate =  proc(s: Session, p: GuildIntegrationsUpdate) = return
-    s.guildMemberAdd =           proc(s: Session, p: GuildMemberAdd) = return
-    s.guildMemberUpdate =        proc(s: Session, p: GuildMemberUpdate) = return
-    s.guildMemberRemove =        proc(s: Session, p: GuildMemberRemove) = return
-    s.guildMembersChunk =        proc(s: Session, p: GuildMembersChunk) = return
-    s.guildRoleCreate =          proc(s: Session, p: GuildRoleCreate) = return
-    s.guildRoleUpdate =          proc(s: Session, p: GuildRoleUpdate) = return
-    s.guildRoleDelete =          proc(s: Session, p: GuildRoleDelete) = return
-    s.messageCreate =            proc(s: Session, p: MessageCreate) = return
-    s.messageUpdate =            proc(s: Session, p: MessageUpdate) = return
-    s.messageDelete =            proc(s: Session, p: MessageDelete) = return
-    s.messageDeleteBulk =        proc(s: Session, p: MessageDeleteBulk) = return
-    s.messageReactionAdd =       proc(s: Session, p: MessageReactionAdd) = return
-    s.messageReactionRemove =    proc(s: Session, p: MessageReactionRemove) = return
-    s.messageReactionRemoveAll = proc(s: Session, p: MessageReactionRemoveAll) = return
-    s.presenceUpdate =           proc(s: Session, p: PresenceUpdate) = return
-    s.typingStart =              proc(s: Session, p: TypingStart) = return
-    s.userUpdate =               proc(s: Session, p: UserUpdate) = return
-    s.voiceStateUpdate =         proc(s: Session, p: VoiceStateUpdate) = return
-    s.voiceServerUpdate =        proc(s: Session, p: VoiceServerUpdate) = return
-    s.onResume =                 proc(s: Session, p: Resumed) = return
-    s.onReady =                  proc(s: Session, p: Ready) = return
+    s.addHandler(channel_create, proc(s: Session, p: ChannelCreate) = return)
+    s.addHandler(channel_update, proc(s: Session, p: ChannelUpdate) = return)
+    s.addHandler(channel_delete, proc(s: Session, p: ChannelDelete) = return)
+    s.addHandler(guild_create, proc(s: Session, p: GuildCreate) = return)
+    s.addHandler(guild_update, proc(s: Session, p: GuildUpdate) = return)
+    s.addHandler(guild_delete, proc(s: Session, p: GuildDelete) = return)
+    s.addHandler(guild_ban_add, proc(s: Session, p: GuildBanAdd) = return)
+    s.addHandler(guild_ban_remove, proc(s: Session, p: GuildBanRemove) = return)
+    s.addHandler(guild_emojis_update, proc(s: Session, p: GuildEmojisUpdate) = return)
+    s.addHandler(guild_integrations_update, proc(s: Session, p: GuildIntegrationsUpdate) = return)
+    s.addHandler(guild_member_add, proc(s: Session, p: GuildMemberAdd) = return)
+    s.addHandler(guild_member_update, proc(s: Session, p: GuildMemberUpdate) = return)
+    s.addHandler(guild_member_remove, proc(s: Session, p: GuildMemberRemove) = return)
+    s.addHandler(guild_members_chunk, proc(s: Session, p: GuildMembersChunk) = return)
+    s.addHandler(guild_role_create, proc(s: Session, p: GuildRoleCreate) = return)
+    s.addHandler(guild_role_update, proc(s: Session, p: GuildRoleUpdate) = return)
+    s.addHandler(guild_role_delete, proc(s: Session, p: GuildRoleDelete) = return)
+    s.addHandler(message_create, proc(s: Session, p: MessageCreate) = return)
+    s.addHandler(message_update, proc(s: Session, p: MessageUpdate) = return)
+    s.addHandler(message_delete, proc(s: Session, p: MessageDelete) = return)
+    s.addHandler(message_delete_bulk, proc(s: Session, p: MessageDeleteBulk) = return)
+    s.addHandler(message_reaction_add, proc(s: Session, p: MessageReactionAdd) = return)
+    s.addHandler(message_reaction_remove, proc(s: Session, p: MessageReactionRemove) = return)
+    s.addHandler(message_reaction_remove_all, proc(s: Session, p: MessageReactionRemoveAll) = return)
+    s.addHandler(presence_update, proc(s: Session, p: PresenceUpdate) = return)
+    s.addHandler(typing_start, proc(s: Session, p: TypingStart) = return)
+    s.addHandler(user_update, proc(s: Session, p: UserUpdate) = return)
+    s.addHandler(voice_state_update, proc(s: Session, p: VoiceStateUpdate) = return)
+    s.addHandler(voice_server_update, proc(s: Session, p: VoiceServerUpdate) = return)
+    s.addHandler(on_resume, proc(s: Session, p: Resumed) = return)
+    s.addHandler(on_ready, proc(s: Session, p: Ready) = return)
 
 
 proc NewSession*(args: varargs[string, `$`]): Session {.gcsafe.} = 
@@ -115,7 +115,8 @@ proc NewSession*(args: varargs[string, `$`]): Session {.gcsafe.} =
         s = Session(
             mut: Lock(), 
             compress: false, 
-            limiter: rl, 
+            limiter: rl,
+            handlers: initTable[EventType, pointer](),
             sequence: 0,
             cache: Cache(
                 users: initTable[string, User](), 
@@ -179,109 +180,109 @@ method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe,
             for guild in payload.guilds:
                 s.cache.guilds[guild.id] = guild
 
-            s.onReady(s, payload)            
+            cast[proc(s: Session, r: Ready) {.cdecl.}](s.handlers[on_ready])(s, payload)
         of "RESUMED":
             let payload = marshal.to[Resumed]($data)
-            s.onResume(s, payload)
+            cast[proc(s: Session, r: Resumed) {.cdecl.}](s.handlers[on_resume])(s, payload)
         of "CHANNEL_CREATE":
             let payload = marshal.to[ChannelCreate]($data)
             if s.cache.cacheChannels: s.cache.channels[payload.id] = payload
-            s.channelCreate(s, payload)
+            cast[proc(s: Session, r: ChannelCreate) {.cdecl.}](s.handlers[channel_create])(s, payload)
         of "CHANNEL_UPDATE":
             let payload = marshal.to[ChannelUpdate]($data)
             if s.cache.cacheChannels: s.cache.updateChannel(payload)
-            s.channelUpdate(s, payload)
+            cast[proc(s: Session, r: ChannelUpdate) {.cdecl.}](s.handlers[channel_update])(s, payload)
         of "CHANNEL_DELETE":
             let payload = marshal.to[ChannelDelete]($data)
             if s.cache.cacheChannels: s.cache.removeChannel(payload.id)
-            s.channelDelete(s, payload)
+            cast[proc(s: Session, r: ChannelDelete) {.cdecl.}](s.handlers[channel_delete])(s, payload)
         of "GUILD_CREATE":
             let payload = marshal.to[GuildCreate]($data)
             if s.cache.cacheGuilds: s.cache.guilds[payload.id] = payload
-            s.guildCreate(s, payload)
+            cast[proc(s: Session, r: GuildCreate) {.cdecl.}](s.handlers[guild_create])(s, payload)
         of "GUILD_UPDATE":
             let payload = marshal.to[GuildUpdate]($data)
             if s.cache.cacheGuilds: s.cache.updateGuild(payload)
-            s.guildUpdate(s, payload)
+            cast[proc(s: Session, r: GuildUpdate) {.cdecl.}](s.handlers[guild_update])(s, payload)
         of "GUILD_DELETE":
             let payload = marshal.to[GuildDelete]($data)
             if s.cache.cacheGuilds: s.cache.removeGuild(payload.id)
-            s.guildDelete(s, payload)
+            cast[proc(s: Session, r: GuildDelete) {.cdecl.}](s.handlers[guild_delete])(s, payload)
         of "GUILD_BAN_ADD":
             let payload = marshal.to[GuildBanAdd]($data)
-            s.guildBanAdd(s, payload)
+            cast[proc(s: Session, r: GuildBanAdd) {.cdecl.}](s.handlers[guild_ban_add])(s, payload)
         of "GUILD_BAN_REMOVE":
             let payload = marshal.to[GuildBanRemove]($data)
-            s.guildBanRemove(s, payload)
+            cast[proc(s: Session, r: GuildBanRemove) {.cdecl.}](s.handlers[guild_ban_remove])(s, payload)
         of "GUILD_EMOJIS_UPDATE":
             let payload = marshal.to[GuildEmojisUpdate]($data)
-            s.guildEmojisUpdate(s, payload)
+            cast[proc(s: Session, r: GuildEmojisUpdate) {.cdecl.}](s.handlers[guild_emojis_update])(s, payload)
         of "GUILD_INTEGRATIONS_UPDATE":
             let payload = marshal.to[GuildIntegrationsUpdate]($data)
-            s.guildIntegrationsUpdate(s, payload)
+            cast[proc(s: Session, r: GuildIntegrationsUpdate) {.cdecl.}](s.handlers[guild_integrations_update])(s, payload)
         of "GUILD_MEMBER_ADD":
             let payload = marshal.to[GuildMemberAdd]($data)
             if s.cache.cacheGuildMembers: s.cache.addGuildMember(payload)
-            s.guildMemberAdd(s, payload)
+            cast[proc(s: Session, r: GuildMemberAdd) {.cdecl.}](s.handlers[guild_member_add])(s, payload)
         of "GUILD_MEMBER_UPDATE":
             let payload = marshal.to[GuildMemberUpdate]($data)
             if s.cache.cacheGuildMembers: s.cache.updateGuildMember(payload)
-            s.guildMemberUpdate(s, payload)
+            cast[proc(s: Session, r: GuildMemberUpdate) {.cdecl.}](s.handlers[guild_member_update])(s, payload)
         of "GUILD_MEMBER_REMOVE":
             let payload = marshal.to[GuildMemberRemove]($data)
             if s.cache.cacheGuildMembers: s.cache.removeGuildMember(payload)
-            s.guildMemberRemove(s, payload)
+            cast[proc(s: Session, r: GuildMemberRemove) {.cdecl.}](s.handlers[guild_member_remove])(s, payload)
         of "GUILD_MEMBERS_CHUNK":
             let payload = marshal.to[GuildMembersChunk]($data)
-            s.guildMembersChunk(s, payload)
+            cast[proc(s: Session, r: GuildMembersChunk) {.cdecl.}](s.handlers[guild_members_chunk])(s, payload)
         of "GUILD_ROLE_CREATE":
             let payload = marshal.to[GuildRoleCreate]($data)
             if s.cache.cacheRoles: s.cache.roles[payload.role.id] = payload.role
-            s.guildRoleCreate(s, payload)
+            cast[proc(s: Session, r: GuildRoleCreate) {.cdecl.}](s.handlers[guild_role_create])(s, payload)
         of "GUILD_ROLE_UPDATE":
             let payload = marshal.to[GuildRoleUpdate]($data)
             if s.cache.cacheRoles: s.cache.updateRole(payload.role)
-            s.guildRoleUpdate(s, payload)
+            cast[proc(s: Session, r: GuildRoleUpdate) {.cdecl.}](s.handlers[guild_role_update])(s, payload)
         of "GUILD_ROLE_DELETE":
             let payload = marshal.to[GuildRoleDelete]($data)
             if s.cache.cacheRoles: s.cache.removeRole(payload.role_id)
-            s.guildRoleDelete(s, payload)
+            cast[proc(s: Session, r: GuildRoleDelete) {.cdecl.}](s.handlers[guild_role_delete])(s, payload)
         of "MESSAGE_CREATE":
             let payload = marshal.to[MessageCreate]($data)
-            s.messageCreate(s, payload)
+            cast[proc(s: Session, r: MessageCreate) {.cdecl.}](s.handlers[message_create])(s, payload)
         of "MESSAGE_UPDATE":
             let payload = marshal.to[MessageUpdate]($data)
-            s.messageUpdate(s, payload)
+            cast[proc(s: Session, r: MessageUpdate) {.cdecl.}](s.handlers[message_update])(s, payload)
         of "MESSAGE_DELETE":
             let payload = marshal.to[MessageDelete]($data)
-            s.messageDelete(s, payload)
+            cast[proc(s: Session, r: MessageDelete) {.cdecl.}](s.handlers[message_delete])(s, payload)
         of "MESSAGE_DELETE_BULK":
             let payload = marshal.to[MessageDeleteBulk]($data)
-            s.messageDeleteBulk(s, payload)
+            cast[proc(s: Session, r: MessageDeleteBulk) {.cdecl.}](s.handlers[message_delete_bulk])(s, payload)
         of "MESSAGE_REACTION_ADD":
             let payload = marshal.to[MessageReactionAdd]($data)
-            s.messageReactionAdd(s, payload)
+            cast[proc(s: Session, r: MessageReactionAdd) {.cdecl.}](s.handlers[message_reaction_add])(s, payload)
         of "MESSAGE_REACTION_REMOVE":
             let payload = marshal.to[MessageReactionRemove]($data)
-            s.messageReactionRemove(s, payload)
+            cast[proc(s: Session, r: MessageReactionRemove) {.cdecl.}](s.handlers[message_reaction_remove])(s, payload)
         of "MESSAGE_REACTION_REMOVE_ALL":
             let payload = marshal.to[MessageReactionRemoveAll]($data)
-            s.messageReactionRemoveAll(s, payload)
+            cast[proc(s: Session, r: MessageReactionRemoveAll) {.cdecl.}](s.handlers[message_reaction_remove_all])(s, payload)
         of "PRESENCE_UPDATE":
             let payload = marshal.to[PresenceUpdate]($data)
-            s.presenceUpdate(s, payload)
+            cast[proc(s: Session, r: PresenceUpdate) {.cdecl.}](s.handlers[presence_update])(s, payload)
         of "TYPING_START":
             let payload = marshal.to[TypingStart]($data)
-            s.typingStart(s, payload)
+            cast[proc(s: Session, r: TypingStart) {.cdecl.}](s.handlers[typing_start])(s, payload)
         of "USER_UPDATE":
             let payload = marshal.to[UserUpdate]($data)
-            s.userUpdate(s, payload)
+            cast[proc(s: Session, r: UserUpdate) {.cdecl.}](s.handlers[user_update])(s, payload)
         of "VOICE_STATE_UPDATE":
             let payload = marshal.to[VoiceStateUpdate]($data)
-            s.voiceStateUpdate(s, payload)
+            cast[proc(s: Session, r: VoiceStateUpdate) {.cdecl.}](s.handlers[voice_state_update])(s, payload)
         of "VOICE_SERVER_UPDATE":
             let payload = marshal.to[VoiceServerUpdate]($data)
-            s.voiceServerUpdate(s, payload)
+            cast[proc(s: Session, r: VoiceServerUpdate) {.cdecl.}](s.handlers[voice_server_update])(s, payload)
         of "USER_SETTINGS_UPDATE":
             discard
         else:
