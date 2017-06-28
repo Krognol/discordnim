@@ -36,8 +36,7 @@ proc someMessageCreateProc(s: Session, m: MessageCreate) =
 
 let session = NewSession("Bot <your token>")
 ## Add your gateway event methods
-
-session.messageCreate = someMessageCreateProc
+session.addHandler(EventType.message_create, someMessageCreateProc)
 
 ## Lastly you connect 
 waitFor s.StartSession()
