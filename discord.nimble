@@ -1,6 +1,6 @@
 # Package
 
-version       = "1.3.0"
+version       = "1.4.0"
 author        = "Krognol"
 description   = "Discord library for nim"
 license       = "MIT"
