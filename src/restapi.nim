@@ -1010,27 +1010,6 @@ proc stripEveryoneMention*(msg: Message): string {.gcsafe.} =
     if not msg.mention_everyone: return msg.content
     result = msg.content.replace(re"(@everyone)", "").replace(re"(@here)", "")
 
-proc newMessageEmbed*(title, description, url: string = "", 
-                      color: int = 0, footer: Footer = nil,
-                      image: Image = nil, thumb: Thumbnail = nil,
-                      video: Video = nil,
-                      provider: Provider = nil,
-                      author: Author = nil, fields: seq[Field] = nil): Embed {.gcsafe.} =
-    ## Initialises a new Embed object
-    result = Embed(
-        title: title,
-        description: description,
-        url: url,
-        color: color,
-        footer: footer,
-        image: image,
-        thumbnail: thumb,
-        video: video,
-        provider: provider,
-        author: author,
-        fields: fields
-    )
-
 proc newChannelParams*(name, topic: string = "",
                        position: int = 0,
                        bitrate: int = 48,
@@ -1044,7 +1023,7 @@ proc newChannelParams*(name, topic: string = "",
         bitrate: bitrate,
         user_limit: userlimit)
 
-proc newGuildParams*(name, region, afkchan: string = "",
+proc newGuildParams*(name, region, afkchan: string = "", 
                      verlvl: int = 0,
                      defnotif: int = 0,
                      afktim: int = 0,
@@ -1079,12 +1058,12 @@ proc newGuildMemberParams*(nick, channelid: string = "",
         channel_id: channelid
     )
 
-proc newWebhookParams*(content, username, avatarurl: string = "",
-                       tts: bool = false, embeds: Embed = nil): WebhookParams {.gcsafe.} =
+proc newWebhookParams*(content, username, avatarurl: string = "", 
+                       tts: bool = false, embeds: seq[Embed] = nil): WebhookParams {.gcsafe.} =
     ## Initialises a new WebhookParams object
     ## for altering webhooks.
     result = WebhookParams(
-        content: content,
+        content: content, 
         username: username,
         avatar_url: avatarurl,
         tts: tts,
