@@ -430,9 +430,7 @@ type
         presences: seq[Presence]
     MessageCreate* = object of Message
     MessageUpdate* = object of Message
-    MessageDelete* = object
-        id*: string
-        channel_id*: string
+    MessageDelete* = object of Message
     GuildMemberAdd* = object of GuildMember
     GuildMemberUpdate* = object of GuildMember
     GuildMemberRemove* = object of GuildMember
