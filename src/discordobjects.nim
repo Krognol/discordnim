@@ -148,47 +148,47 @@ type
         roles*: seq[Role]
         require_colons*: bool
         managed*: bool
-    Embed* = ref object
+    Embed* = object
         title*: string
         `type`*: string
         description*: string
         url*: string
         timestamp*: string
         color*: int
-        footer*: Footer
-        image*: Image
-        thumbnail*: Thumbnail
-        video*: Video
-        provider*: Provider
-        author*: Author
-        fields*: seq[Field]
-    Thumbnail* = ref object
+        footer*: EmbedFooter
+        image*: EmbedImage
+        thumbnail*: EmbedThumbnail
+        video*: EmbedVideo
+        provider*: EmbedProvider
+        author*: EmbedAuthor
+        fields*: seq[EmbedField]
+    EmbedThumbnail* = object
         url*: string
         proxy_url*: string
         height*: int
         width*: int
-    Video* = ref object
+    EmbedVideo* = object
         url*: string
         height*: int
         width*: int
-    Image* = ref object
+    EmbedImage* = object
         url*: string
         proxy_url*: string
         height*: int
         width*: int
-    Provider* = ref object
+    EmbedProvider* = object
         name*: string
         url*: string
-    Author* = ref object
+    EmbedAuthor* = object
         name*: string
         url*: string
         icon_url*: string
         proxy_icon_url*: string
-    Footer* = ref object
+    EmbedFooter* = object
         text*: string
         icon_url*: string
         proxy_icon_url*: string
-    Field* = ref object
+    EmbedField* = object
         name*: string
         value*: string
         inline*: bool
@@ -364,7 +364,7 @@ type
         username*: string
         avatar_url*: string
         tts*: bool
-        embeds*: Embed
+        embeds*: seq[Embed]
     GuildDelete* = object
         id*: string
         unavailable*: bool
