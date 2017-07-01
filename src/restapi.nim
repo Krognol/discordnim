@@ -220,7 +220,7 @@ proc removeRole*(c: Cache, role: string) {.raises: CacheError.} =
 
     c.roles.del(role)
 
-method GetChannel*(s: Session, channel_id: string): Future[DChannel] {.base, gcsafe, async.} =
+method channel*(s: Session, channel_id: string): Future[DChannel] {.base, gcsafe, async.} =
     ## Returns the channel with the given ID
     if s.cache.cacheChannels:
         var (chan, exists) = s.cache.getChannel(channel_id)
