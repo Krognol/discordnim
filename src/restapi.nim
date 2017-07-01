@@ -426,12 +426,12 @@ method channelDeletePinnedMessage*(s: Session, channel, message: string) {.base,
     asyncCheck s.Request(url, "DELETE", url, "application/json", "", 0)
 
 # This might work?
-type AddGroupDMUser* = object
+type AddGroupDMUserObj* = object
     id: string
     nick: string
 
 # This might work?
-method groupDMCreate*(s: Session, accesstokens: seq[string], nicks: seq[AddGroupDMUser]): Future[DChannel] {.base, gcsafe, async.} =
+method groupDMCreate*(s: Session, accesstokens: seq[string], nicks: seq[AddGroupDMUserObj]): Future[DChannel] {.base, gcsafe, async.} =
     ## Creates a group DM channel
     var url = EndpointCreateGroupDM()
     let payload = %*{"access_tokens": accesstokens, "nicks": nicks}
@@ -1081,6 +1081,6 @@ proc messageGuild*(s: Session, m: Message): string =
         var (chan, exists) = s.cache.getChannel(m.channel_id)
         if exists:
             return chan.guild_id
-    var chan = waitFor s.GetChannel(m.channel_id)
+    var chan = waitFor s.channel(m.channel_id)
     if chan != DChannel():
         result = chan.guild_id
