@@ -22,34 +22,34 @@ const
 
 # Permissions 
 const
-    permCreateInstantInvite = 0x00000001
-    permKickMembers = 0x00000002
-    permBanMembers = 0x00000004
-    permAdministrator = 0x00000008
-    permManageChannels = 0x00000010
-    permManageGuild = 0x00000020
-    permAddReactions = 0x00000040
-    permViewAuditLogs = 0x00000080
-    permReadMessages = 0x00000400
-    permSendMessages = 0x00000800
-    permSendTTSMessage = 0x00001000
-    permManageMessages = 0x00002000
-    permEmbedLinks = 0x00004000
-    permAttachFiles = 0x00008000
-    permReadMessageHistory = 0x00010000
-    permMentionEveryone = 0x00020000
-    permUseExternalEmojis = 0x00040000
-    permVoiceConnect = 0x00100000
-    permVoiceSpeak = 0x00200000
-    permVoiceMuteMembers = 0x00400000
-    permVoiceDeafenMemebrs = 0x00800000
-    permVoiceMoveMembers = 0x01000000
-    permUseVAD = 0x02000000
-    permChangeNickname = 0x04000000
-    permManageNicknames = 0x08000000
-    permManageRoles = 0x10000000
-    permManageWebhooks = 0x20000000
-    permManageEmojis = 0x40000000
+    permCreateInstantInvite* = 0x00000001
+    permKickMembers* = 0x00000002
+    permBanMembers* = 0x00000004
+    permAdministrator* = 0x00000008
+    permManageChannels* = 0x00000010
+    permManageGuild* = 0x00000020
+    permAddReactions* = 0x00000040
+    permViewAuditLogs* = 0x00000080
+    permReadMessages* = 0x00000400
+    permSendMessages* = 0x00000800
+    permSendTTSMessage* = 0x00001000
+    permManageMessages* = 0x00002000
+    permEmbedLinks* = 0x00004000
+    permAttachFiles* = 0x00008000
+    permReadMessageHistory* = 0x00010000
+    permMentionEveryone* = 0x00020000
+    permUseExternalEmojis* = 0x00040000
+    permVoiceConnect* = 0x00100000
+    permVoiceSpeak* = 0x00200000
+    permVoiceMuteMembers* = 0x00400000
+    permVoiceDeafenMemebrs* = 0x00800000
+    permVoiceMoveMembers* = 0x01000000
+    permUseVAD* = 0x02000000
+    permChangeNickname* = 0x04000000
+    permManageNicknames* = 0x08000000
+    permManageRoles* = 0x10000000
+    permManageWebhooks* = 0x20000000
+    permManageEmojis* = 0x40000000
     permAllText* = permReadMessages or 
         permSendMessages or 
         permSendTTSMessage or 
