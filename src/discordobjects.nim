@@ -117,6 +117,7 @@ type
         permission_overwrites*: seq[Overwrite]
         topic*: string
         last_message_id*: string
+        last_pin_timestamp*: string
         bitrate*: int
         user_limit*: int
         recipients*: seq[User]
@@ -233,6 +234,8 @@ type
         channels*: seq[DChannel]
         presences*: seq[Presence]
         application_id*: string
+        widget_channel_id*: string
+        widget_enabled*: bool
     GuildMember* = object of RootObj
         guild_id*: string
         user*: User
@@ -385,12 +388,13 @@ type
     MessageDeleteBulk* = object
         ids*: seq[string]
         channel_id*: string
-    Game* = ref object
+    Game* = object of RootObj
         name*: string
         `type`*: int
         url*: string
     PresenceUpdate* = object
         user*: User
+        nick: string
         roles*: seq[string]
         game*: Game
         guild_id*: string
@@ -447,16 +451,12 @@ type
     ChannelDelete* = object of DChannel
     UserUpdate* = object of User
     VoiceStateUpdate* = object of VoiceState
-    MessageReactionAdd* = object
+    MessageReactionAdd* = object of RootObj
         user_id: string
         message_id: string
         channel_id: string
         emoji: Emoji
-    MessageReactionRemove* = object
-        user_id: string
-        message_id: string
-        channel_id: string
-        emoji: Emoji
+    MessageReactionRemove* = object of MessageReactionAdd
     MessageReactionRemoveAll* = object
         message_id: string
         channel_id: string
