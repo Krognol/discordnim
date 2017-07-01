@@ -235,7 +235,7 @@ method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe,
             let payload = parseJson($data).to(Resumed)
             cast[proc(s: Session, r: Resumed) {.cdecl.}](s.handlers[on_resume])(s, payload)
         of "CHANNEL_CREATE":
-            let payload = parseJson($data).to(node, ChannelCreate)
+            let payload = parseJson($data).to(ChannelCreate)
             if s.cache.cacheChannels: s.cache.channels[payload.id] = payload
             cast[proc(s: Session, r: ChannelCreate) {.cdecl.}](s.handlers[channel_create])(s, payload)
         of "CHANNEL_UPDATE":
@@ -421,7 +421,7 @@ method setupHeartbeats(s: Session) {.async, gcsafe, base.} =
 proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
     await s.identify()
 
-    var res: tuple[opcode: Opcode, data: string]
+    var res: tuple[opcode: Opcode, data: string] 
     while not isClosed(s.connection.sock) and not s.stop:
         res = await s.connection.sock.readData(true)
         
