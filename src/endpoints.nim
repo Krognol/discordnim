@@ -1,9 +1,9 @@
 # Channel endpoints
 {.hint[XDeclaredButNotUsed]: off.}
 const
-    BASE: string = "https://discordapp.com/api"
-    GATEWAYVERSION: string = "?v=6&encoding=json"
-    VERSION: string = "1.4.0"
+    BASE: string = "https://discordapp.com/api/v7"
+    GATEWAYVERSION: string = "?v=7&encoding=json"
+    VERSION*: string = "1.4.1"
 
 proc Gateway(): string =
     return BASE & "/gateway/bot"
