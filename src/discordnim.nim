@@ -22,36 +22,63 @@ const
 
 # Permissions 
 const
-    CREATE_INSTANT_INVITE* = 0x00000001
-    KICK_MEMBERS*          = 0x00000002
-    BAN_MEMBERS*           = 0x00000004
-    ADMINISTRATOR*         = 0x00000008
-    MANAGE_CHANNELS*       = 0x00000010
-    MANAGE_GUILD*          = 0x00000020
-    ADD_REACTIONS*         = 0x00000040
-    VIEW_AUDIT_LOGS*       = 0x00000080
-    READ_MESSAGES*         = 0x00000400
-    SEND_MESSAGES*         = 0x00000800
-    SEND_TTS_MESSAGES*     = 0x00001000
-    MANAGE_MESSAGES*       = 0x00002000
-    EMBED_LINKS*           = 0x00004000
-    ATTACH_FILES*          = 0x00008000
-    READ_MESSAGE_HISTORY*  = 0x00010000
-    MENTION_EVERYONE*      = 0x00020000
-    USE_EXTERNAL_EMOJIS*   = 0x00040000
-    CONNECT*               = 0x00100000
-    SPEAK*                 = 0x00200000
-    MUTE_MEMBERS*          = 0x00400000
-    DEAFEN_MEMBERS*        = 0x00800000
-    MOVE_MEMBERS*          = 0x01000000
-    USE_VAD*               = 0x02000000
-    CHANGE_NICKNAME*       = 0x04000000
-    MANAGE_NICKNAMES*      = 0x08000000
-    MANAGE_ROLES*          = 0x10000000
-    MANAGE_WEBHOOKS*       = 0x20000000
-    MANAGE_EMOJIS*         = 0x40000000
+    permCreateInstantInvite = 0x00000001
+    permKickMembers = 0x00000002
+    permBanMembers = 0x00000004
+    permAdministrator = 0x00000008
+    permManageChannels = 0x00000010
+    permManageGuild = 0x00000020
+    permAddReactions = 0x00000040
+    permViewAuditLogs = 0x00000080
+    permReadMessages = 0x00000400
+    permSendMessages = 0x00000800
+    permSendTTSMessage = 0x00001000
+    permManageMessages = 0x00002000
+    permEmbedLinks = 0x00004000
+    permAttachFiles = 0x00008000
+    permReadMessageHistory = 0x00010000
+    permMentionEveryone = 0x00020000
+    permUseExternalEmojis = 0x00040000
+    permVoiceConnect = 0x00100000
+    permVoiceSpeak = 0x00200000
+    permVoiceMuteMembers = 0x00400000
+    permVoiceDeafenMemebrs = 0x00800000
+    permVoiceMoveMembers = 0x01000000
+    permUseVAD = 0x02000000
+    permChangeNickname = 0x04000000
+    permManageNicknames = 0x08000000
+    permManageRoles = 0x10000000
+    permManageWebhooks = 0x20000000
+    permManageEmojis = 0x40000000
+    permAllText* = permReadMessages or 
+        permSendMessages or 
+        permSendTTSMessage or 
+        permManageMessages or
+        permEmbedLinks or 
+        permAttachFiles or
+        permReadMessageHistory or
+        permMentionEveryone
+    permAllVoice* = permVoiceConnect or
+        permVoiceSpeak or
+        permVoiceMuteMembers or
+        permVoiceMoveMembers or
+        permVoiceDeafenMemebrs or
+        permUseVAD
+    permAllChannel* = permAllText or
+        permAllVoice or
+        permCreateInstantInvite or
+        permManageRoles or
+        permManageChannels or
+        permAddReactions or
+        permViewAuditLogs
+    permAll* = permAllChannel or
+        permKickMembers or
+        permBanMembers or
+        permManageGuild or
+        permAdministrator
 
-method GetGateway(s: Session): Future[string] {.base, async, gcsafe.} =
+
+method getGateway(s: Session): Future[string] {.base, async, gcsafe.} =
     var url = Gateway()
     let res = await s.Request(url, "GET", url, "application/json", "", 0)
     let body = await res.body()
@@ -62,7 +89,7 @@ method GetGateway(s: Session): Future[string] {.base, async, gcsafe.} =
     s.shardCount = t.shards
     result = t.url
 
-method Login(s: Session, email, password : string) {.base, async, gcsafe.} =
+method login(s: Session, email, password : string) {.base, async, gcsafe.} =
     var payload = %*{"email": email, "password": password}
     var id = EndpointLogin()
     let res = await s.Request(id, "POST", id, "application/json", $payload, 0)
@@ -72,6 +99,29 @@ method Login(s: Session, email, password : string) {.base, async, gcsafe.} =
 
     var t = marshal.to[Temp](body)
     s.token = t.Token
+
+
+type 
+    UpdateStatusData = object
+        idle_since: int
+        game: Game
+
+method updateStreamingStatus*(s: Session, idle: int, game: string, url: string) {.base.} =
+    var data = UpdateStatusData()
+    if idle > 0:
+        data.idle_since = idle
+    
+    if game != "":
+        var gt = 0
+        if url != "":
+            gt = 1
+        data.game = Game(name: game, `type`: gt, url: url)
+
+    let payload = %*{
+        "op": 3,
+        "d": data
+    }
+    asyncCheck s.connection.sock.sendText($payload, true)
 
 # Temporary until a better solution is found
 method initEvents(s: Session) {.base, gcsafe.} =
@@ -142,11 +192,11 @@ proc NewSession*(args: varargs[string, `$`]): Session {.gcsafe.} =
     if pass == "":
         s.token = auth
     else:
-        waitFor s.Login(auth, pass)
+        waitFor s.login(auth, pass)
         if s.token == "":
             echo "Failed to get auth token"
             return nil
-    let gateway = waitFor s.GetGateway()
+    let gateway = waitFor s.getGateway()
     s.gateway = gateway.strip&"/"&GATEWAYVERSION
 
     return s
@@ -159,7 +209,7 @@ type
 method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe, base.} =
     case event:
         of "READY":
-            var payload = Ready(
+            let payload = Ready(
                 v: int(data["v"].num),
                 user_settings: data["user_settings"],
                 user: marshal.to[User]($data["user"]),
@@ -182,69 +232,69 @@ method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe,
 
             cast[proc(s: Session, r: Ready) {.cdecl.}](s.handlers[on_ready])(s, payload)
         of "RESUMED":
-            let payload = marshal.to[Resumed]($data)
+            let payload = parseJson($data).to(Resumed)
             cast[proc(s: Session, r: Resumed) {.cdecl.}](s.handlers[on_resume])(s, payload)
         of "CHANNEL_CREATE":
-            let payload = marshal.to[ChannelCreate]($data)
+            let payload = parseJson($data).to(node, ChannelCreate)
             if s.cache.cacheChannels: s.cache.channels[payload.id] = payload
             cast[proc(s: Session, r: ChannelCreate) {.cdecl.}](s.handlers[channel_create])(s, payload)
         of "CHANNEL_UPDATE":
-            let payload = marshal.to[ChannelUpdate]($data)
+            let payload = parseJson($data).to(ChannelUpdate)
             if s.cache.cacheChannels: s.cache.updateChannel(payload)
             cast[proc(s: Session, r: ChannelUpdate) {.cdecl.}](s.handlers[channel_update])(s, payload)
         of "CHANNEL_DELETE":
-            let payload = marshal.to[ChannelDelete]($data)
+            let payload = parseJson($data).to(ChannelDelete)
             if s.cache.cacheChannels: s.cache.removeChannel(payload.id)
             cast[proc(s: Session, r: ChannelDelete) {.cdecl.}](s.handlers[channel_delete])(s, payload)
         of "GUILD_CREATE":
-            let payload = marshal.to[GuildCreate]($data)
+            let payload = parseJson($data).to(GuildCreate)
             if s.cache.cacheGuilds: s.cache.guilds[payload.id] = payload
             cast[proc(s: Session, r: GuildCreate) {.cdecl.}](s.handlers[guild_create])(s, payload)
         of "GUILD_UPDATE":
-            let payload = marshal.to[GuildUpdate]($data)
+            let payload = parseJson($data).to(GuildUpdate)
             if s.cache.cacheGuilds: s.cache.updateGuild(payload)
             cast[proc(s: Session, r: GuildUpdate) {.cdecl.}](s.handlers[guild_update])(s, payload)
         of "GUILD_DELETE":
-            let payload = marshal.to[GuildDelete]($data)
+            let payload = parseJson($data).to(GuildDelete)
             if s.cache.cacheGuilds: s.cache.removeGuild(payload.id)
             cast[proc(s: Session, r: GuildDelete) {.cdecl.}](s.handlers[guild_delete])(s, payload)
         of "GUILD_BAN_ADD":
-            let payload = marshal.to[GuildBanAdd]($data)
+            let payload = parseJson($data).to(GuildBanAdd)
             cast[proc(s: Session, r: GuildBanAdd) {.cdecl.}](s.handlers[guild_ban_add])(s, payload)
         of "GUILD_BAN_REMOVE":
-            let payload = marshal.to[GuildBanRemove]($data)
+            let payload = parseJson($data).to(GuildBanRemove)
             cast[proc(s: Session, r: GuildBanRemove) {.cdecl.}](s.handlers[guild_ban_remove])(s, payload)
         of "GUILD_EMOJIS_UPDATE":
-            let payload = marshal.to[GuildEmojisUpdate]($data)
+            let payload = parseJson($data).to(GuildEmojisUpdate)
             cast[proc(s: Session, r: GuildEmojisUpdate) {.cdecl.}](s.handlers[guild_emojis_update])(s, payload)
         of "GUILD_INTEGRATIONS_UPDATE":
-            let payload = marshal.to[GuildIntegrationsUpdate]($data)
+            let payload = parseJson($data).to(GuildIntegrationsUpdate)
             cast[proc(s: Session, r: GuildIntegrationsUpdate) {.cdecl.}](s.handlers[guild_integrations_update])(s, payload)
         of "GUILD_MEMBER_ADD":
-            let payload = marshal.to[GuildMemberAdd]($data)
+            let payload = marshal.to[GuildMemberAdd]($data) # "nick" field may or may not exist
             if s.cache.cacheGuildMembers: s.cache.addGuildMember(payload)
             cast[proc(s: Session, r: GuildMemberAdd) {.cdecl.}](s.handlers[guild_member_add])(s, payload)
         of "GUILD_MEMBER_UPDATE":
-            let payload = marshal.to[GuildMemberUpdate]($data)
+            let payload = parseJson($data).to(GuildMemberUpdate)
             if s.cache.cacheGuildMembers: s.cache.updateGuildMember(payload)
             cast[proc(s: Session, r: GuildMemberUpdate) {.cdecl.}](s.handlers[guild_member_update])(s, payload)
         of "GUILD_MEMBER_REMOVE":
-            let payload = marshal.to[GuildMemberRemove]($data)
+            let payload = parseJson($data).to(GuildMemberRemove)
             if s.cache.cacheGuildMembers: s.cache.removeGuildMember(payload)
             cast[proc(s: Session, r: GuildMemberRemove) {.cdecl.}](s.handlers[guild_member_remove])(s, payload)
         of "GUILD_MEMBERS_CHUNK":
-            let payload = marshal.to[GuildMembersChunk]($data)
+            let payload = marshal.to[GuildMembersChunk]($data) # Contains seq of GuildMember
             cast[proc(s: Session, r: GuildMembersChunk) {.cdecl.}](s.handlers[guild_members_chunk])(s, payload)
         of "GUILD_ROLE_CREATE":
-            let payload = marshal.to[GuildRoleCreate]($data)
+            let payload = parseJson($data).to(GuildRoleCreate)
             if s.cache.cacheRoles: s.cache.roles[payload.role.id] = payload.role
             cast[proc(s: Session, r: GuildRoleCreate) {.cdecl.}](s.handlers[guild_role_create])(s, payload)
         of "GUILD_ROLE_UPDATE":
-            let payload = marshal.to[GuildRoleUpdate]($data)
+            let payload = parseJson($data).to(GuildRoleUpdate)
             if s.cache.cacheRoles: s.cache.updateRole(payload.role)
             cast[proc(s: Session, r: GuildRoleUpdate) {.cdecl.}](s.handlers[guild_role_update])(s, payload)
         of "GUILD_ROLE_DELETE":
-            let payload = marshal.to[GuildRoleDelete]($data)
+            let payload = parseJson($data).to(GuildRoleDelete)
             if s.cache.cacheRoles: s.cache.removeRole(payload.role_id)
             cast[proc(s: Session, r: GuildRoleDelete) {.cdecl.}](s.handlers[guild_role_delete])(s, payload)
         of "MESSAGE_CREATE":
@@ -257,31 +307,50 @@ method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe,
             let payload = marshal.to[MessageDelete]($data)
             cast[proc(s: Session, r: MessageDelete) {.cdecl.}](s.handlers[message_delete])(s, payload)
         of "MESSAGE_DELETE_BULK":
-            let payload = marshal.to[MessageDeleteBulk]($data)
+            let payload = parseJson($data).to(MessageDeleteBulk)
             cast[proc(s: Session, r: MessageDeleteBulk) {.cdecl.}](s.handlers[message_delete_bulk])(s, payload)
         of "MESSAGE_REACTION_ADD":
-            let payload = marshal.to[MessageReactionAdd]($data)
+            let payload = parseJson($data).to(MessageReactionAdd)
             cast[proc(s: Session, r: MessageReactionAdd) {.cdecl.}](s.handlers[message_reaction_add])(s, payload)
         of "MESSAGE_REACTION_REMOVE":
-            let payload = marshal.to[MessageReactionRemove]($data)
+            let payload = parseJson($data).to(MessageReactionRemove)
             cast[proc(s: Session, r: MessageReactionRemove) {.cdecl.}](s.handlers[message_reaction_remove])(s, payload)
         of "MESSAGE_REACTION_REMOVE_ALL":
-            let payload = marshal.to[MessageReactionRemoveAll]($data)
+            let payload = parseJson($data).to(MessageReactionRemoveAll)
             cast[proc(s: Session, r: MessageReactionRemoveAll) {.cdecl.}](s.handlers[message_reaction_remove_all])(s, payload)
         of "PRESENCE_UPDATE":
-            let payload = marshal.to[PresenceUpdate]($data)
+            # Temporary solution
+            # Does not fill out the entire User object
+            # but the PresenceUpdate events I recieved when checking
+            # only had the ID in the User object
+            let js = parseJson($data)
+            var payload = PresenceUpdate(
+                user: User(
+                    id: js["user"].fields["id"].str
+                ),
+                status: js["status"].str,
+                guild_id: js["guild_id"].str,
+            )
+            if js["nick"].kind == JNull:
+                payload.nick = nil
+            if js["game"].kind == JNull:
+                payload.game = Game()
+            var roles: seq[string] = @[]
+            for elem in js["roles"].elems:
+                roles.add(elem.str)
             cast[proc(s: Session, r: PresenceUpdate) {.cdecl.}](s.handlers[presence_update])(s, payload)
+            return
         of "TYPING_START":
-            let payload = marshal.to[TypingStart]($data)
+            let payload = parseJson($data).to(TypingStart)
             cast[proc(s: Session, r: TypingStart) {.cdecl.}](s.handlers[typing_start])(s, payload)
         of "USER_UPDATE":
-            let payload = marshal.to[UserUpdate]($data)
+            let payload = parseJson($data).to(UserUpdate)
             cast[proc(s: Session, r: UserUpdate) {.cdecl.}](s.handlers[user_update])(s, payload)
         of "VOICE_STATE_UPDATE":
-            let payload = marshal.to[VoiceStateUpdate]($data)
+            let payload = parseJson($data).to(VoiceStateUpdate)
             cast[proc(s: Session, r: VoiceStateUpdate) {.cdecl.}](s.handlers[voice_state_update])(s, payload)
         of "VOICE_SERVER_UPDATE":
-            let payload = marshal.to[VoiceServerUpdate]($data)
+            let payload = parseJson($data).to(VoiceServerUpdate)
             cast[proc(s: Session, r: VoiceServerUpdate) {.cdecl.}](s.handlers[voice_server_update])(s, payload)
         of "USER_SETTINGS_UPDATE":
             discard
@@ -397,6 +466,7 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
     return
 
 # For gracefuler shutdown
+# Should find a w ay to tell the session to drop the connection
 proc d_quit() {.noconv.} =
     quit 0
 
