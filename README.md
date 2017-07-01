@@ -32,7 +32,7 @@ import discord, asyncdispatch
 
 proc someMessageCreateProc(s: Session, m: MessageCreate) =
     if m.content == "ping":
-        asyncCheck s.SendMessage(m.channel_id, "pong!")
+        asyncCheck s.channelMessageSend(m.channel_id, "pong!")
 
 let session = NewSession("Bot <your token>")
 ## Add your gateway event methods
