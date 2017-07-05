@@ -3,263 +3,110 @@
 const
     BASE: string = "https://discordapp.com/api/v7"
     GATEWAYVERSION: string = "?v=7&encoding=json"
-    VERSION*: string = "1.4.1"
+    VERSION*: string = "1.5.0"
 
 proc Gateway(): string =
     return BASE & "/gateway/bot"
 
-proc EndpointGetChannel(cid : string): string =
-    return BASE & "/channels/" & cid
+proc endpointChannels(cid : string): string = BASE & "/channels/" & cid
 
-proc EndpointModifyChannel(cid : string): string =
-    return EndpointGetChannel(cid)
+proc endpointChannelMessages(cid : string): string = endpointChannels(cid) & "/messages"
 
-proc EndpointDeleteChannel(cid : string): string =
-    return EndpointGetChannel(cid)
+proc endpointChannelMessage(cid, mid : string): string = endpointChannelMessages(cid) & "/" & mid
 
-proc EndpointGetChannelMessages(cid : string): string =
-    return EndpointGetChannel(cid) & "/messages"
+proc endpointReactions(cid, mid: string): string = endpointChannelMessage(cid, mid) & "/reactions"
 
-proc EndpointGetChannelMessage(cid, mid : string): string =
-    return EndpointGetChannelMessages(cid) & "/" & mid
+proc endpointOwnReactions(cid, mid, eid: string): string = endpointReactions(cid, mid) & "/@me"
 
-proc EndpointCreateMessage(cid : string): string =
-    return EndpointGetChannelMessages(cid)
+proc endpointMessageReactions(cid, mid, eid: string): string = endpointReactions(cid, mid) & eid
 
-proc EndpointCreateReaction(cid, mid, eid: string): string =
-    return EndpointGetChannelMessage(cid, mid) & "/reactions/" & eid & "@me"
+proc endpointMessageUserReaction(cid, mid, eid, uid: string): string = endpointMessageReactions(cid, mid, eid) & "/" & uid
 
-proc EndpointDeleteOwnReaction(cid, mid, eid: string): string =
-    return EndpointCreateReaction(cid, mid, eid)
+proc endpointBulkDelete(cid : string): string = endpointChannelMessages(cid) & "/bulk-delete"
 
-proc EndpointDeleteUserReaction(cid, mid, eid, uid: string): string =
-    return EndpointGetChannelMessage(cid, mid) & "/reactions/" & eid & "/" & uid
+proc endpointChannelPermissions(cid, owid : string): string = endpointChannels(cid) & "/permissions" & owid
 
-proc EndpointGetMessageReactions(cid, mid, eid: string): string =
-    return EndpointGetChannelMessage(cid, mid) & "/reactions/" & eid
+proc endpointChannelInvites(cid : string): string = endpointChannels(cid) & "/invites"
 
-proc EndpointDeleteAllReactions(cid, mid: string): string =
-    return EndpointGetChannelMessage(cid, mid) & "/reactions"
+proc endpointTriggerTypingIndicator(cid : string): string = endpointChannels(cid) & "/typing"
 
-proc EndpointEditMessage(cid, mid: string): string =
-    return EndpointGetChannelMessage(cid, mid)
+proc endpointChannelPinnedMessages(cid : string): string = endpointChannels(cid) & "/pins"
 
-proc EndpointDeleteMessage(cid, mid : string): string =
-    return EndpointGetChannelMessage(cid, mid)
+proc endpointPinnedChannelMessage(cid, mid : string): string = endpointChannelPinnedMessages(cid) & "/" & mid
 
-proc EndpointBulkDelete(cid : string): string =
-    return EndpointGetChannelMessages(cid) & "/bulk-delete"
-
-proc EndpointEditChannelPermissions(cid, owid : string): string =
-    return EndpointGetChannel(cid) & "/permissions" & owid
-
-proc EndpointGetChannelInvites(cid : string): string =
-    return EndpointGetChannel(cid) & "/invites"
-
-proc EndpointCreateChannelInvite(cid : string): string =
-    return EndpointGetChannelInvites(cid)
-
-proc EndpointDeleteChannelPermission(cid, owid : string): string =
-    return EndpointEditChannelPermissions(cid, owid)
-
-proc EndpointTriggerTypingIndicator(cid : string): string =
-    return EndpointGetChannel(cid) & "/typing"
-
-proc EndpointGetPinnedMessages(cid : string): string =
-    return EndpointGetChannel(cid) & "/pins"
-
-proc EndpointAddPinnedChannelMessage(cid, mid : string): string =
-    return EndpointGetPinnedMessages(cid) & "/" & mid
-
-proc EndpointDeletePinnedChannelMessage(cid, mid : string): string =
-    return EndpointAddPinnedChannelMessage(cid, mid)
-
-proc EndpointGroupDMAddRecipient(cid, uid : string): string =
-    return EndpointGetChannel(cid) & "/recipients/" & uid
-
-proc EndpointGroupDMRemoveRecipient(cid, uid : string): string =
-    return EndpointGroupDMAddRecipient(cid, uid)
+proc endpointGroupDMRecipient(cid, uid : string): string = endpointChannels(cid) & "/recipients/" & uid
 
 # Guild endpoints
 
-proc EndpointCreateGuild(): string =
+proc endpointGuilds(): string =
     return BASE & "/guilds"
 
-proc EndpointGetGuild(gid : string): string =
-    return EndpointCreateGuild() & "/" & gid
+proc endpointGuild(gid : string): string = endpointGuilds() & "/" & gid
 
-proc EndpointModifyGuild(gid : string): string =
-    return EndpointGetGuild(gid)
+proc endpointGuildChannels(gid : string): string = endpointGuild(gid) & "/channels"
 
-proc EndpointDeleteGuild(gid : string): string =
-    return EndpointGetGuild(gid)
+proc endpointGuildMembers(gid : string): string = endpointGuild(gid) & "/members"
 
-proc EndpointGetGuildChannels(gid : string): string =
-    return EndpointGetGuild(gid) & "/channels"
+proc endpointGuildMember(gid, uid : string): string = endpointGuildMembers(gid) & "/" & uid
 
-proc EndpointCreateGuildChannel(gid : string): string =
-    return EndpointGetGuildChannels(gid)
+proc endpointEditNick(gid : string): string = endpointGuildMembers(gid) & "/@me/nick"
 
-proc EndpointModifyGuildChannelPositions(gid : string): string =
-    return EndpointGetGuildChannels(gid)
+proc endpointGuildMemberRoles(gid, uid, rid : string): string = endpointGuildMember(gid, uid) & "/roles/" & rid
 
-proc EndpointListGuildMembers(gid : string): string =
-    return EndpointGetGuild(gid) & "/members"
+proc endpointGuildBans(gid : string): string = endpointGuild(gid) & "/bans"
 
-proc EndpointGetGuildMember(gid, uid : string): string =
-    return EndpointListGuildMembers(gid) & "/" & uid
+proc endpointGuildBan(gid, uid : string): string = endpointGuildBans(gid) & "/" & uid
 
-proc EndpointAddGuildMember(gid, uid : string): string =
-    return EndpointGetGuildMember(gid, uid)
+proc endpointGuildRoles(gid : string): string = endpointGuild(gid) & "/roles"
 
-proc EndpointModifyGuildMember(gid, uid : string): string =
-    return EndpointGetGuildMember(gid, uid)
+proc endpointGuildRole(gid, rid : string): string = endpointGuildRoles(gid) & "/" & rid
 
-proc EndpointModifyNick(gid : string): string =
-    return EndpointListGuildMembers(gid) & "/@me/nick"
+proc endpointGuildPruneCount(gid : string): string = endpointGuild(gid) & "/prune"
 
-proc EndpointAddGuildMemberRole(gid, uid, rid : string): string =
-    return EndpointGetGuildMember(gid, uid) & "/roles/" & rid
+proc endpointGuildVoiceRegions(gid : string): string = endpointGuild(gid) & "/regions"
 
-proc EndpointRemoveGuildMemberRole(gid, uid, rid : string): string =
-    return EndpointAddGuildMemberRole(gid, uid, rid)
+proc endpointGuildInvites(gid : string): string = endpointGuild(gid) & "/invites"
 
-proc EndpointRemoveGuildMember(gid, uid : string): string =
-    return EndpointGetGuildMember(gid, uid)
+proc endpointGuildIntegrations(gid : string): string = endpointGuild(gid) & "/integrations"
 
-proc EndpointGetGuildBans(gid : string): string =
-    return EndpointGetGuild(gid) & "/bans"
+proc endpointGuildIntegration(gid, iid : string): string = endpointGuildIntegrations(gid) & "/" & iid
 
-proc EndpointCreateGuildBan(gid, uid : string): string =
-    return EndpointGetGuildBans(gid) & "/" & uid
+proc endpointSyncGuildIntegration(gid, iid : string): string = endpointGuildIntegration(gid, iid) & "/sync"
 
-proc EndpointRemoveGuildBan(gid, uid : string): string =
-    return EndpointCreateGuildBan(gid, uid)
-
-proc EndpointGetGuildRoles(gid : string): string =
-    return EndpointGetGuild(gid) & "/roles"
-
-proc EndpointCreateGuildRole(gid : string): string =
-    return EndpointGetGuildRoles(gid)
-
-proc EndpointModifyGuildRolePositions(gid : string): string =
-    return EndpointGetGuildRoles(gid)
-
-proc EndpointModifyGuildRole(gid, rid : string): string =
-    return EndpointGetGuildRoles(gid) & "/" & rid
-
-proc EndpointDeleteGuildRole(gid, rid : string): string =
-    return EndpointGetGuildRoles(gid) & "/" & rid
-
-proc EndpointGetGuildPruneCount(gid : string): string =
-    return EndpointGetGuild(gid) & "/prune"
-
-proc EndpointBeginGuildPruneCount(gid : string): string =
-    return EndpointGetGuild(gid) & "/prune"
-
-proc EndpointGetGuildVoiceRegions(gid : string): string =
-    return EndpointGetGuild(gid) & "/regions"
-
-proc EndpointGetGuildInvites(gid : string): string =
-    return EndpointGetGuild(gid) & "/invites"
-
-proc EndpointGetGuildIntegrations(gid : string): string =
-    return EndpointGetGuild(gid) & "/integrations"
-
-proc EndpointModifyGuildIntegration(gid, iid : string): string =
-    return EndpointGetGuild(gid) & "/integrations/" & iid
-
-proc EndpointDeleteGuildIntegration(gid, iid : string): string =
-    return EndpointGetGuild(gid) & "/integrations/" & iid
-
-proc EndpointSyncGuildIntegration(gid, iid : string): string =
-    return EndpointGetGuild(gid) & "/integrations/" & iid & "/sync"
-
-proc EndpointGetGuildEmbed(gid : string): string =
-    return EndpointGetGuild(gid) & "/embed"
-
-proc EndpointModifyGuildEmbed(gid : string): string =
-    return EndpointGetGuild(gid) & "/embed"
+proc endpointGuildEmbed(gid : string): string = endpointGuild(gid) & "/embed"
 
 # Invite endpoints
 
-proc EndpointGetInvite(ic : string): string =
-    return BASE & "/invites/" & ic
-
-proc EndpointDeleteInvite(ic : string): string =
-    return EndpointGetInvite(ic)
-
-proc EndpointAcceptInvite(ic : string): string =
-    return EndpointGetInvite(ic)
+proc endpointInvite(ic : string): string = BASE & "/invites/" & ic
 
 # User endpoints
 
-proc EndpointGetCurrentUser(): string =
-    return BASE & "/users/@me"
+proc endpointCurrentUser(): string = BASE & "/users/@me"
 
-proc EndpointGetUser(uid : string): string =
-    return BASE & "/users/" & uid
+proc endpointUser(uid : string): string = BASE & "/users/" & uid
 
-proc EndpointModifyCurrentUser(): string =
-    return EndpointGetCurrentUser()
+proc endpointCurrentUserGuilds(): string = endpointCurrentUser() & "/guilds"
 
-proc EndpointGetCurrentUserGuilds(): string =
-    return EndpointGetCurrentUser() & "/guilds"
+proc endpointLeaveGuild(gid : string): string = endpointCurrentUserGuilds() & "/" & gid
 
-proc EndpointLeaveGuild(gid : string): string =
-    return EndpointGetCurrentUserGuilds() & "/" & gid
+proc endpointUserDMs(): string = endpointCurrentUser() & "/channels"
 
-proc EndpointGetUserDMs(): string =
-    return EndpointGetCurrentUser() & "/channels"
+proc endpointDM(): string = endpointUserDMs()
 
-proc EndpointCreateDM(): string =
-    return EndpointGetUserDMs()
-
-proc EndpointCreateGroupDM(): string =
-    return EndpointGetUserDMs()
-
-proc EndpointGetUsersConnections(): string =
-    return EndpointGetCurrentUser() & "/connections"
+proc endpointUsersConnections(): string = endpointCurrentUser() & "/connections"
 
 # Voice endpoint
 
-proc EndpointListVoiceRegions(): string =
-    return BASE & "/voice/regions"
+proc endpointListVoiceRegions(): string = BASE & "/voice/regions"
 
 # Webhook endpoints
 
-proc EndpointCreateWebhook(cid : string): string =
-    return EndpointGetChannel(cid) & "/webhooks"
+proc endpointWebhooks(cid : string): string = endpointChannels(cid) & "/webhooks"
 
-proc EndpointGetChannelWebhooks(cid : string): string =
-    return EndpointGetChannel(cid) & "/webhooks"
+proc endpointGuildWebhooks(gid: string): string = endpointGuild(gid) & "/webhooks"
 
-proc EndpointGetGuildWebhook(gid : string): string =
-    return EndpointGetGuild(gid) & "/webhooks"
+proc endpointWebhook(wid : string): string = BASE & "/webhooks/" & wid
 
-proc EndpointGetWebhook(wid : string): string =
-    return BASE & "/webhooks/" & wid
+proc endpointWebhookWithToken(wid, token : string): string = endpointWebhook(wid) & "/" & token
 
-proc EndpointGetWebhookWithToken(wid, token : string): string =
-    EndpointGetWebhook(wid) & "/" & token
-
-proc EndpointModifyWebhook(wid : string): string =
-    return EndpointGetWebhook(wid)
-
-proc EndpointModifyWebhookWithToken(wid, token : string): string =
-    return EndpointGetWebhookWithToken(wid, token)
-
-proc EndpointDeleteWebhook(wid : string): string =
-    return EndpointGetWebhook(wid)
-
-proc EndpointDeleteWebhookWithToken(wid, token : string): string =
-    return EndpointGetWebhookWithToken(wid, token)
-
-proc EndpointExecuteWebhook(wid, token : string): string =
-    return EndpointGetWebhookWithToken(wid, token)
-
-proc EndpointAuth(): string =
-    return BASE & "/auth"
-
-proc EndpointLogin(): string =
-    return EndpointAuth() & "/login"
+proc endpointAuth(): string = BASE & "/auth"
