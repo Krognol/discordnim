@@ -162,7 +162,7 @@ type
         video*: EmbedVideo
         provider*: EmbedProvider
         author*: EmbedAuthor
-        fields*: seq[EmbedField]
+        fields*: seq[EmbedField] not nil
     EmbedThumbnail* = object
         url*: string
         proxy_url*: string
@@ -422,6 +422,7 @@ type
         guilds: Table[string, Guild]
         users: Table[string, User]
         roles: Table[string, Role]
+        ready: Ready
     Ready* = object
         v*: int
         user*: User
@@ -432,6 +433,9 @@ type
         user_settings: JsonNode
         relationships: JsonNode
         presences: seq[Presence]
+    Pin* = object of RootObj
+        last_pin_timestamp*: string
+        channel_id*: string
     MessageCreate* = object of Message
     MessageUpdate* = object of Message
     MessageDelete* = object of Message
@@ -449,6 +453,7 @@ type
     ChannelCreate* = object of DChannel
     ChannelUpdate* = object of DChannel
     ChannelDelete* = object of DChannel
+    ChannelPinsUpdate* = object of Pin
     UserUpdate* = object of User
     VoiceStateUpdate* = object of VoiceState
     MessageReactionAdd* = object of RootObj
@@ -464,6 +469,7 @@ type
         channel_create
         channel_update
         channel_delete
+        channel_pins_update
         guild_create
         guild_update
         guild_delete
