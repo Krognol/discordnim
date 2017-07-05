@@ -89,18 +89,6 @@ method getGateway(s: Session): Future[string] {.base, async, gcsafe.} =
     s.shardCount = t.shards
     result = t.url
 
-method login(s: Session, email, password : string) {.base, async, gcsafe.} =
-    var payload = %*{"email": email, "password": password}
-    var id = EndpointLogin()
-    let res = await s.Request(id, "POST", id, "application/json", $payload, 0)
-    let body = await res.body()
-    type Temp = object
-        Token: string
-
-    var t = marshal.to[Temp](body)
-    s.token = t.Token
-
-
 type 
     UpdateStatusData = object
         idle_since: int
@@ -128,6 +116,7 @@ method initEvents(s: Session) {.base, gcsafe.} =
     s.addHandler(channel_create, proc(s: Session, p: ChannelCreate) = return)
     s.addHandler(channel_update, proc(s: Session, p: ChannelUpdate) = return)
     s.addHandler(channel_delete, proc(s: Session, p: ChannelDelete) = return)
+    s.addHandler(channel_pins_update, proc(s: Session, p: ChannelPinsUpdate) = return)
     s.addHandler(guild_create, proc(s: Session, p: GuildCreate) = return)
     s.addHandler(guild_update, proc(s: Session, p: GuildUpdate) = return)
     s.addHandler(guild_delete, proc(s: Session, p: GuildDelete) = return)
@@ -158,8 +147,11 @@ method initEvents(s: Session) {.base, gcsafe.} =
     s.addHandler(on_ready, proc(s: Session, p: Ready) = return)
 
 
-proc NewSession*(args: varargs[string, `$`]): Session {.gcsafe.} = 
+proc newSession*(token: string): Session {.gcsafe.} = 
     ## Creates a new Session
+    if token == "":
+        raise newException(Exception, "No token")
+
     var rl = newRateLimiter()
     var
         s = Session(
@@ -168,38 +160,22 @@ proc NewSession*(args: varargs[string, `$`]): Session {.gcsafe.} =
             limiter: rl,
             handlers: initTable[EventType, pointer](),
             sequence: 0,
+            token: token,
             cache: Cache(
                 users: initTable[string, User](), 
                 guilds: initTable[string, Guild](), 
                 channels: initTable[string, DChannel](),
                 roles: initTable[string, Role]()
-                    )
+                )
             )
 
         auth = ""
         pass = ""
     
     s.initEvents()
-    for arg in args:
-        if auth == "":
-            auth = arg
-        elif pass == "":
-            pass = arg
-        elif s.token == "":
-            s.token = arg
-    
-
-    if pass == "":
-        s.token = auth
-    else:
-        waitFor s.login(auth, pass)
-        if s.token == "":
-            echo "Failed to get auth token"
-            return nil
     let gateway = waitFor s.getGateway()
     s.gateway = gateway.strip&"/"&GATEWAYVERSION
-
-    return s
+    result = s
 
 
 
@@ -224,12 +200,10 @@ method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe,
             s.cache.version = payload.v
             s.cache.me = payload.user
             s.cache.users[payload.user.id] = payload.user
-            for channel in payload.private_channels:
+            for channel in payload.private_channels: 
                 s.cache.channels[channel.id] = channel
-            
-            for guild in payload.guilds:
-                s.cache.guilds[guild.id] = guild
-
+                
+            s.cache.ready = payload
             cast[proc(s: Session, r: Ready) {.cdecl.}](s.handlers[on_ready])(s, payload)
         of "RESUMED":
             let payload = parseJson($data).to(Resumed)
@@ -250,6 +224,9 @@ method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe,
             let payload = parseJson($data).to(GuildCreate)
             if s.cache.cacheGuilds: s.cache.guilds[payload.id] = payload
             cast[proc(s: Session, r: GuildCreate) {.cdecl.}](s.handlers[guild_create])(s, payload)
+        of "CHANNEL_PINS_UPDATE":
+            let payload = parseJson($data).to(ChannelPinsUpdate)
+            cast[proc(s: Session, r: ChannelPinsUpdate) {.cdecl.}](s.handlers[channel_pins_update])(s, payload)
         of "GUILD_UPDATE":
             let payload = parseJson($data).to(GuildUpdate)
             if s.cache.cacheGuilds: s.cache.updateGuild(payload)
@@ -310,7 +287,7 @@ method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe,
             let payload = parseJson($data).to(MessageDeleteBulk)
             cast[proc(s: Session, r: MessageDeleteBulk) {.cdecl.}](s.handlers[message_delete_bulk])(s, payload)
         of "MESSAGE_REACTION_ADD":
-            let payload = parseJson($data).to(MessageReactionAdd)
+            let payload = marshal.to[MessageReactionAdd]($data)
             cast[proc(s: Session, r: MessageReactionAdd) {.cdecl.}](s.handlers[message_reaction_add])(s, payload)
         of "MESSAGE_REACTION_REMOVE":
             let payload = parseJson($data).to(MessageReactionRemove)
@@ -403,14 +380,8 @@ proc shouldResumeSession(s: Session): bool {.gcsafe.} =
     return (not s.invalidated) and (not s.suspended)
 
 method setupHeartbeats(s: Session) {.async, gcsafe, base.} =
-    var hb: JsonNode
-    
     while not s.stop:
-        if s.sequence == 0:
-            hb = %*{"op": OP_HEARTBEAT, "d": nil}
-        else:
-            hb = %*{"op": OP_HEARTBEAT, "d": s.sequence}
-
+        var hb = %*{"op": OP_HEARTBEAT, "d": s.sequence}
         try:
             await s.connection.sock.sendText($hb, true)
             await sleepAsync(s.interval)        
@@ -444,6 +415,7 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
                 let hb = %*{"op": OP_HEARTBEAT, "d": s.sequence}
                 await s.connection.sock.sendText($hb, true)
             of OP_HEARTBEAT_ACK:
+                # TODO :: Should probably check for HEARTBEAT_ACKs and close the connection if we don't get one
                 continue
             of OP_INVALID_SESSION:
                 s.sequence = 0
@@ -463,27 +435,32 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
     echo "connection closed\c\L" 
     s.suspended = true
     s.connection.sock.close()
-    return
 
 # For gracefuler shutdown
 # Should find a w ay to tell the session to drop the connection
 proc d_quit() {.noconv.} =
     quit 0
 
-proc SessionStart*(s: Session){.async, gcsafe.} =
+proc startSession*(s: Session){.async, gcsafe.} =
     ## Starts a Session
     if s.connection != nil:
         echo "Session is already connected"
         return
     s.suspended = true
     try:
-        let socket = await newAsyncWebsocket("gateway.discord.gg", Port(443), path = "/"&GATEWAYVERSION, ssl = true, useragent = "DiscordNim(https://github.com/Krognol/discordnim v"&VERSION)
+        let socket = await newAsyncWebsocket(
+                "gateway.discord.gg", 
+                Port(443), 
+                path = "/"&GATEWAYVERSION, 
+                ssl = true, 
+                useragent = "DiscordNim(https://github.com/Krognol/discordnim v"&VERSION
+            )
         s.connection = socket
-        asyncCheck sessionHandleSocketMessage(s)
     except:
         echo getCurrentException().msg
         return
-
+    
+    asyncCheck sessionHandleSocketMessage(s)
     setControlCHook(d_quit)
     while not s.stop:
         poll()
