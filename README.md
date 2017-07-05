@@ -34,12 +34,12 @@ proc someMessageCreateProc(s: Session, m: MessageCreate) =
     if m.content == "ping":
         asyncCheck s.channelMessageSend(m.channel_id, "pong!")
 
-let session = NewSession("Bot <your token>")
+let session = newSession("Bot <your token>")
 ## Add your gateway event methods
 session.addHandler(EventType.message_create, someMessageCreateProc)
 
 ## Lastly you connect 
-waitFor s.StartSession()
+waitFor s.startSession()
 ```
 
 All programs have to be compiled with the `-d:ssl` flag.
