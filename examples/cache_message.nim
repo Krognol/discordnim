@@ -14,12 +14,12 @@ let messageCreateProc = proc(s: Session, m: MessageCreate) =
 let messageDeleteProc = proc(s: Session, m: MessageDelete) =
     echo "Message was deleted"
     if cachedMessages.hasKey(m.id):
-        asyncCheck s.SendMessage(m.channel_id, "Message removed: " & cachedMessages[m.id])
+        asyncCheck s.channelMessageSend(m.channel_id, "Message removed: " & cachedMessages[m.id])
         cachedMessages.del(m.id)
 
 
-let s = NewSession("Bot <your bot token>")
+let s = newSession("Bot <your bot token>")
 s.addHandler(EventType.message_create, messageCreateProc)
 s.addHandler(EventType.message_delete, messageDeleteProc)
 
-waitFor s.SessionStart()
+waitFor s.startSession()

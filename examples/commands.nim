@@ -11,12 +11,12 @@ proc messageCreate(s: Session, m: MessageCreate) =
 
         case command:
             of PREFIX & "help":
-                asyncCheck s.SendMessage(m.channel_id, "This is supposed to be some help command!")
+                asyncCheck s.channelMessageSend(m.channel_id, "This is supposed to be some help command!")
             of PREFIX & "date":
-                asyncCheck s.SendMessage(m.channel_id, $getLocalTime(getTime()))
+                asyncCheck s.channelMessageSend(m.channel_id, $getLocalTime(getTime()))
             else: discard
 
-let s = NewSession("Bot <token>")
+let s = newSession("Bot <token>")
 s.addHandler(EventType.message_create, messageCreate)
 
-asyncCheck s.SessionStart()
+asyncCheck s.startSession()

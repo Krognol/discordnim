@@ -15,15 +15,17 @@ proc messageCreate(s: Session, m: MessageCreate) =
         # e.g Author, Footer, etc.
         # they should always be set to nil
         # Your bot will crash if they're not set to nil
-        var embed = newMessageEmbed(
-            title = "Embed title", 
-            description = "Embed description",
-            url = "https://github.com/Krognol/discordnim",
-            color = 0xFF3245)
-        asyncCheck s.SendMessageEmbed(m.channel_id, embed)
+        let embed = Embed(
+            title: "Embed title", 
+            description: "Embed description",
+            url: "https://github.com/Krognol/discordnim",
+            color: 0xFF3245,
+            fields: @[] # Has to be initialized, even if it's empty
+        )
+        asyncCheck s.channelmessageSendEmbed(m.channel_id, embed)
 
 
-let s = NewSession("Bot <your bot token>")
+let s = newSession("Bot <your bot token>")
 s.addHandler(EventType.message_create, messageCreate)
 
-asyncCheck s.SessionStart()
+asyncCheck s.startSession()
