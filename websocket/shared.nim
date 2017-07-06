@@ -146,6 +146,8 @@ proc recvFrame*(ws: AsyncSocket): Future[Frame] {.async.} =
 # Internal hashtable that tracks pings sent out, per socket.
 # key is the socket fd
  # tuple[data: string, fut: Future[void]]
+type PingRequest = Future[void]
+var reqPing*: Table[int, PingRequest]
 
 proc readData*(ws: AsyncSocket, isClientSocket: bool):
     Future[tuple[opcode: Opcode, data: string]] {.async.} =
@@ -177,9 +179,9 @@ proc readData*(ws: AsyncSocket, isClientSocket: bool):
         # handle case: ping never arrives and client closes the connection
         let ex = newException(IOError, "socket closed by remote peer")
 
-        if ws.reqPing.hasKey(ws.getFD().AsyncFD.int):
-          ws.reqPing[ws.getFD().AsyncFD.int].fail(ex)
-          ws.reqPing.del(ws.getFD().AsyncFD.int)
+        if reqPing.hasKey(ws.getFD().AsyncFD.int):
+          reqPing[ws.getFD().AsyncFD.int].fail(ex)
+          reqPing.del(ws.getFD().AsyncFD.int)
 
         raise ex
 
@@ -187,8 +189,8 @@ proc readData*(ws: AsyncSocket, isClientSocket: bool):
         await ws.send(makeFrame(Opcode.Pong, f.data, isClientSocket))
 
       of Opcode.Pong:
-        if ws.reqPing.hasKey(ws.getFD().AsyncFD.int):
-          ws.reqPing[ws.getFD().AsyncFD.int].complete()
+        if reqPing.hasKey(ws.getFD().AsyncFD.int):
+          reqPing[ws.getFD().AsyncFD.int].complete()
 
         else: discard  # thanks, i guess?
 
