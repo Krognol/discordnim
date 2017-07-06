@@ -147,7 +147,7 @@ proc recvFrame*(ws: AsyncSocket): Future[Frame] {.async.} =
 # key is the socket fd
  # tuple[data: string, fut: Future[void]]
 type PingRequest = Future[void]
-var reqPing*: Table[int, PingRequest]
+var reqPing = initTable[int, PingRequest]()
 
 proc readData*(ws: AsyncSocket, isClientSocket: bool):
     Future[tuple[opcode: Opcode, data: string]] {.async.} =
