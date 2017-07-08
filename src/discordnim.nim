@@ -316,7 +316,6 @@ method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe,
             for elem in js["roles"].elems:
                 roles.add(elem.str)
             cast[proc(s: Session, r: PresenceUpdate) {.cdecl.}](s.handlers[presence_update])(s, payload)
-            return
         of "TYPING_START":
             let payload = parseJson($data).to(TypingStart)
             cast[proc(s: Session, r: TypingStart) {.cdecl.}](s.handlers[typing_start])(s, payload)
@@ -329,8 +328,7 @@ method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe,
         of "VOICE_SERVER_UPDATE":
             let payload = parseJson($data).to(VoiceServerUpdate)
             cast[proc(s: Session, r: VoiceServerUpdate) {.cdecl.}](s.handlers[voice_server_update])(s, payload)
-        of "USER_SETTINGS_UPDATE":
-            discard
+        of "USER_SETTINGS_UPDATE": discard
         else:
             echo "Unknown websocket event :: " & event & "\c\L" & $data
 
@@ -376,16 +374,16 @@ proc reconnect(s: Session) {.async, gcsafe.} =
     s.session_ID = ""
     await s.identify()
 
-proc shouldResumeSession(s: Session): bool {.gcsafe.} =
-    return (not s.invalidated) and (not s.suspended)
+proc shouldResumeSession(s: Session): bool {.gcsafe.} = (not s.invalidated) and (not s.suspended)
 
 method setupHeartbeats(s: Session) {.async, gcsafe, base.} =
     while not s.stop:
         var hb = %*{"op": OP_HEARTBEAT, "d": s.sequence}
         try:
-            await s.connection.sock.sendText($hb, true)
+            asyncCheck s.connection.sock.sendText($hb, true)
             await sleepAsync(s.interval)        
         except:
+            echo "Something happened when sending heartbeat through the websocket connection"
             echo getCurrentExceptionMsg()
             return
 
@@ -394,7 +392,12 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
 
     var res: tuple[opcode: Opcode, data: string] 
     while not isClosed(s.connection.sock) and not s.stop:
-        res = await s.connection.sock.readData(true)
+        try:
+            res = await s.connection.sock.readData(true)
+        except:
+            echo "Something happened when reading data from the websocket connection"
+            echo getCurrentExceptionMsg()
+            break
         
         let data = parseJson(res.data)
          
@@ -435,9 +438,10 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
     echo "connection closed\c\L" 
     s.suspended = true
     s.connection.sock.close()
+    s.stop = true
 
 # For gracefuler shutdown
-# Should find a w ay to tell the session to drop the connection
+# Should find a way to tell the session to drop the connection
 proc d_quit() {.noconv.} =
     quit 0
 
@@ -453,7 +457,7 @@ proc startSession*(s: Session){.async, gcsafe.} =
                 Port(443), 
                 path = "/"&GATEWAYVERSION, 
                 ssl = true, 
-                useragent = "DiscordNim(https://github.com/Krognol/discordnim v"&VERSION
+                useragent = "Discordnim (https://github.com/Krognol/discordnim v"&VERSION&")"
             )
         s.connection = socket
     except:
