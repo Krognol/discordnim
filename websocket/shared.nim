@@ -52,9 +52,9 @@ proc makeFrame*(f: Frame): string =
   ret.write(byte b1)
 
   if f.data.len > 125 and f.data.len <= 0x7fff:
-    ret.write(int16 f.data.len.int16.htons)
+    ret.write(uint16 f.data.len.uint16.htons)
   elif f.data.len > 0x7fff:
-    ret.write(int64 f.data.len.int32.htonl)
+    ret.write(uint64 f.data.len.uint32.htonl)
 
   var data = f.data
 
@@ -110,21 +110,21 @@ proc recvFrame*(ws: AsyncSocket): Future[Frame] {.async.} =
     raise newException(ProtocolError,
       "websocket tried to use non-negotiated extension")
 
-  var finalLen: int = 0
+  var finalLen: uint = 0
 
   let hdrLen = b1 and 0x7f
   if hdrLen == 0x7e:
     var lenstr = await(ws.recv(2, {}))
     if lenstr.len != 2: raise newException(IOError, "socket closed")
 
-    finalLen = cast[ptr int16](lenstr[0].addr)[].htons
+    finalLen = cast[ptr uint16](lenstr[0].addr)[].htons
 
   elif hdrLen == 0x7f:
     var lenstr = await(ws.recv(8, {}))
     if lenstr.len != 8: raise newException(IOError, "socket closed")
     # we just assume it's a 32bit int, since no websocket will EVER
     # send more than 2GB of data in a single packet. Right? Right?
-    finalLen = cast[ptr int32](lenstr[4].addr)[].htonl
+    finalLen = cast[ptr uint32](lenstr[4].addr)[].htonl
 
   else:
     finalLen = hdrLen
@@ -135,8 +135,8 @@ proc recvFrame*(ws: AsyncSocket): Future[Frame] {.async.} =
     maskingKey = await(ws.recv(4, {}))
     # maskingKey = cast[ptr uint32](lenstr[0].addr)[]
 
-  f.data = await(ws.recv(finalLen, {}))
-  if f.data.len != finalLen: raise newException(IOError, "socket closed")
+  f.data = await(ws.recv(finalLen.int, {}))
+  if f.data.len != finalLen.int: raise newException(IOError, "socket closed")
 
   if f.masked:
     for i in 0..<f.data.len: f.data[i] = (f.data[i].uint8 xor maskingKey[i mod 4].uint8).char
