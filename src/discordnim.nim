@@ -1,23 +1,23 @@
 # Wish i could split this up a bit, but errors because cyclical includes
 include restapi
 import marshal, json, cgi, discordobjects, endpoints,
-       websocket/shared, asyncdispatch, asyncnet, uri
+       websocket/shared, asyncdispatch, asyncnet, uri, zip/zlib
 
 # Gateway op codes
 {.hint[XDeclaredButNotUsed]: off.}
 const 
-    OP_DISPATCH              = 0
-    OP_HEARTBEAT             = 1
-    OP_IDENTIFY              = 2
-    OP_STATUS_UPDATE         = 3
-    OP_VOICE_STATE_UPDATE    = 4
-    OP_VOICE_SERVER_PING     = 5
-    OP_RESUME                = 6
-    OP_RECONNECT             = 7
-    OP_REQUEST_GUILD_MEMBERS = 8
-    OP_INVALID_SESSION       = 9
-    OP_HELLO                 = 10
-    OP_HEARTBEAT_ACK         = 11
+    opDispatch              = 0
+    opHeartbeat             = 1
+    opIdentify              = 2
+    opStatusUpdate          = 3
+    opVoiceStateUpdate      = 4
+    opVoiceServerPing       = 5
+    opResume                = 6
+    opReconnect             = 7
+    opRequestGuildMembers   = 8
+    opInvalidSession        = 9
+    opHello                 = 10
+    opHeartbeatAck          = 11
 
 
 # Permissions 
@@ -79,11 +79,11 @@ const
 
 
 method getGateway(s: Session): Future[string] {.base, async, gcsafe.} =
-    var url = Gateway()
-    let res = await s.Request(url, "GET", url, "application/json", "", 0)
+    var url = gateway()
+    let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body()
     type Temp = object
-        url: string
+        url: string 
         shards: int
     let t = marshal.to[Temp](body)
     s.shardCount = t.shards
@@ -94,7 +94,8 @@ type
         idle_since: int
         game: Game
 
-method updateStreamingStatus*(s: Session, idle: int, game: string, url: string) {.base.} =
+method updateStreamingStatus*(s: Session, idle: int = 0, game: string, url: string) {.base.} =
+    ## Updates the `Playing ...` message of the current user.
     var data = UpdateStatusData()
     if idle > 0:
         data.idle_since = idle
@@ -103,7 +104,7 @@ method updateStreamingStatus*(s: Session, idle: int, game: string, url: string) 
         var gt = 0
         if url != "":
             gt = 1
-        data.game = Game(name: game, `type`: gt, url: url)
+        data.game = Game(name: game, `type`: gt, url: url) 
 
     let payload = %*{
         "op": 3,
@@ -297,7 +298,7 @@ method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe,
             cast[proc(s: Session, r: MessageReactionRemoveAll) {.cdecl.}](s.handlers[message_reaction_remove_all])(s, payload)
         of "PRESENCE_UPDATE":
             # Temporary solution
-            # Does not fill out the entire User object
+            # Does not fill out the entire User object (somtimes does?)
             # but the PresenceUpdate events I recieved when checking
             # only had the ID in the User object
             let js = parseJson($data)
@@ -342,10 +343,11 @@ proc identify(s: Session) {.async.} =
     }
     
     var payload = %*{
-        "op": OP_IDENTIFY,
+        "op": opIDENTIFY,
         "d": %*{
             "token": s.token,
             "properties": properties,
+            "compress": s.compress
         }
     }
     if s.shardCount > 1: 
@@ -377,8 +379,8 @@ proc reconnect(s: Session) {.async, gcsafe.} =
 proc shouldResumeSession(s: Session): bool {.gcsafe.} = (not s.invalidated) and (not s.suspended)
 
 method setupHeartbeats(s: Session) {.async, gcsafe, base.} =
-    while not s.stop:
-        var hb = %*{"op": OP_HEARTBEAT, "d": s.sequence}
+    while not s.stop and not s.connection.sock.isClosed:
+        var hb = %*{"op": opHeartbeat, "d": s.sequence}
         try:
             asyncCheck s.connection.sock.sendText($hb, true)
             await sleepAsync(s.interval)        
@@ -395,9 +397,17 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
         try:
             res = await s.connection.sock.readData(true)
         except:
-            echo "Something happened when reading data from the websocket connection"
+            echo "something happened when reading from websocket"
             echo getCurrentExceptionMsg()
             break
+        
+        if s.compress:
+            # Just check the first character
+            # to see if it's compressed or not
+            if res.data[0] != '{':
+                let t = zlib.uncompress(res.data)
+                if t != nil:
+                    res.data = t
         
         let data = parseJson(res.data)
          
@@ -406,7 +416,7 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
             s.sequence = i
 
         case data["op"].num:
-            of OP_HELLO:
+            of opHello:
                 if s.shouldResumeSession():
                     await s.resume()
                 else:
@@ -414,34 +424,33 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
                     let interval = data["d"].fields["heartbeat_interval"].num.int
                     s.interval = interval
                     asyncCheck s.setupHeartbeats()
-            of OP_HEARTBEAT:
-                let hb = %*{"op": OP_HEARTBEAT, "d": s.sequence}
+            of opHeartbeat:
+                let hb = %*{"op": opHeartbeat, "d": s.sequence}
                 await s.connection.sock.sendText($hb, true)
-            of OP_HEARTBEAT_ACK:
+            of opHeartbeatAck:
                 # TODO :: Should probably check for HEARTBEAT_ACKs and close the connection if we don't get one
                 continue
-            of OP_INVALID_SESSION:
+            of opInvalidSession:
                 s.sequence = 0
                 s.session_ID = ""
                 s.invalidated = true
-                if data["d"].bval == false:
+                if data["d"].kind == JBool and data["d"].bval == false:
                     await s.identify()
-            of OP_RECONNECT:
+            of opReconnect:
                 s.suspended = true
                 await s.reconnect()
-            of OP_DISPATCH:
+            of opDispatch:
                 let event = data["t"].str
                 asyncCheck s.handleDispatch(event, data["d"])
             else:
                 echo $data
 
-    echo "connection closed\c\L" 
+    echo "connection closed" 
     s.suspended = true
-    s.connection.sock.close()
+    if not s.connection.sock.isClosed:
+        s.connection.sock.close()
     s.stop = true
 
-# For gracefuler shutdown
-# Should find a way to tell the session to drop the connection
 proc d_quit() {.noconv.} =
     quit 0
 
