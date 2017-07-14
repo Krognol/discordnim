@@ -101,6 +101,34 @@ method Release(b : ref Bucket, headers : HttpHeaders) {.gcsafe, base, async.} =
         var pr = remaining.parseInt
         b.remaining = pr
 
+const
+    auditGuildUpdate = 1
+    auditChannelCreate = 10
+    auditChannelUpdate = 11
+    auditChannelDelete = 12
+    auditChannelOverwriteCreate = 13
+    auditChannelOverwriteUpdate = 14
+    auditChannelOverwriteDelete = 15
+    auditMemberKick = 20
+    auditMemberPrune = 21
+    auditMemberBanAdd = 22
+    auditMemberBanRemove = 23
+    auditMemberUpdate = 24
+    auditMemberRoleUpdate = 25
+    auditRoleCreate = 30
+    auditRoleUpdate = 31
+    auditRoleDelete = 32
+    auditInviteCreate = 40
+    auditInviteUpdate = 41
+    auditInviteDelete = 42
+    auditWebhookCreate = 50
+    auditWebhookUpdate = 51
+    auditWebhookDelete = 52
+    auditEmojiCreate = 60
+    auditEmojiUpdate = 61
+    auditEmojiDelete = 62
+    auditMessageDelete = 72
+
 type 
     Overwrite* = object
         id*: string
@@ -385,6 +413,29 @@ type
     GuildRoleDelete* = object
         guild_id*: string
         role_id*: string
+    AuditLogOptions* = object
+        delete_member_days*: string
+        members_removed*: string
+        channel_id*: string
+        count*: string
+        id*: string
+        `type`*: string
+        role_name*: string
+    AuditLogChange* = object
+        new_value*: JsonNode
+        old_value*: JsonNode # new/old_value can be string, int, bool, and array of objects
+        key*: string
+    AuditLogEntry* = object
+        target_id*: string
+        changes*: seq[AuditLogChange]
+        user_id*: string
+        id*: string
+        action_type*: int
+        options*: AuditLogOptions
+    AuditLog* = object
+        webhooks*: seq[Webhook]
+        users: seq[User]
+        audit_log_entries: seq[AuditLogEntry]
     MessageDeleteBulk* = object
         ids*: seq[string]
         channel_id*: string
