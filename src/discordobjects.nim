@@ -102,32 +102,32 @@ method Release(b : ref Bucket, headers : HttpHeaders) {.gcsafe, base, async.} =
         b.remaining = pr
 
 const
-    auditGuildUpdate = 1
-    auditChannelCreate = 10
-    auditChannelUpdate = 11
-    auditChannelDelete = 12
-    auditChannelOverwriteCreate = 13
-    auditChannelOverwriteUpdate = 14
-    auditChannelOverwriteDelete = 15
-    auditMemberKick = 20
-    auditMemberPrune = 21
-    auditMemberBanAdd = 22
-    auditMemberBanRemove = 23
-    auditMemberUpdate = 24
-    auditMemberRoleUpdate = 25
-    auditRoleCreate = 30
-    auditRoleUpdate = 31
-    auditRoleDelete = 32
-    auditInviteCreate = 40
-    auditInviteUpdate = 41
-    auditInviteDelete = 42
-    auditWebhookCreate = 50
-    auditWebhookUpdate = 51
-    auditWebhookDelete = 52
-    auditEmojiCreate = 60
-    auditEmojiUpdate = 61
-    auditEmojiDelete = 62
-    auditMessageDelete = 72
+    auditGuildUpdate* = 1
+    auditChannelCreate* = 10
+    auditChannelUpdate* = 11
+    auditChannelDelete* = 12
+    auditChannelOverwriteCreate* = 13
+    auditChannelOverwriteUpdate* = 14
+    auditChannelOverwriteDelete* = 15
+    auditMemberKick* = 20
+    auditMemberPrune* = 21
+    auditMemberBanAdd* = 22
+    auditMemberBanRemove* = 23
+    auditMemberUpdate* = 24
+    auditMemberRoleUpdate* = 25
+    auditRoleCreate* = 30
+    auditRoleUpdate* = 31
+    auditRoleDelete* = 32
+    auditInviteCreate* = 40
+    auditInviteUpdate* = 41
+    auditInviteDelete* = 42
+    auditWebhookCreate* = 50
+    auditWebhookUpdate* = 51
+    auditWebhookDelete* = 52
+    auditEmojiCreate* = 60
+    auditEmojiUpdate* = 61
+    auditEmojiDelete* = 62
+    auditMessageDelete* = 72
 
 type 
     Overwrite* = object
@@ -307,7 +307,7 @@ type
     InviteChannel* = object
         id*: string
         name*: string
-        `type`*: string
+        `type`*: int
     User* = object of RootObj
         id*: string
         username*: string
@@ -458,6 +458,11 @@ type
         token: string
         guild_id: string
         endpoint: string
+    VoiceConnection* = object
+        sampleRate: uint
+        frameSize: uint16
+        channels: uint8
+        volume: float
     Resumed* = object
         trace*: seq[string]
     Cache* = ref object
@@ -560,6 +565,7 @@ type
         session_ID: string
         limiter: ref RateLimiter
         connection*: AsyncWebSocket
+        voiceConnections: seq[VoiceConnection]
         cache*: Cache
         shouldResume: bool
         suspended: bool
