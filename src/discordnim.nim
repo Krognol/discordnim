@@ -2,7 +2,7 @@
 include restapi
 import marshal, json, cgi, discordobjects, endpoints,
        websocket/shared, asyncdispatch, asyncnet, uri, zip/zlib
-
+       
 # Gateway op codes
 {.hint[XDeclaredButNotUsed]: off.}
 const 
@@ -94,7 +94,7 @@ type
         idle_since: int
         game: Game
 
-method updateStreamingStatus*(s: Session, idle: int = 0, game: string, url: string) {.base.} =
+method updateStreamingStatus*(s: Session, idle: int = 0, game: string, url: string) {.base, async.} =
     ## Updates the `Playing ...` message of the current user.
     var data = UpdateStatusData()
     if idle > 0:
@@ -404,10 +404,11 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
         if s.compress:
             # Just check the first character
             # to see if it's compressed or not
-            if res.data[0] != '{':
+            if res.opcode == Opcode.Binary:
                 let t = zlib.uncompress(res.data)
-                if t != nil:
-                    res.data = t
+                if t == nil:
+                    echo "Failed to uncompress data and I can't tell you why. Sorry."
+                else: res.data = t
         
         let data = parseJson(res.data)
          
