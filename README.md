@@ -38,17 +38,20 @@ let session = newSession("Bot <your token>")
 ## Add your gateway event methods
 session.addHandler(EventType.message_create, someMessageCreateProc)
 
-## Lastly you connect 
+## Lastly you connect
+s.compress = true
 waitFor s.startSession()
 ```
 
 All programs have to be compiled with the `-d:ssl` flag.
 
+When compression is enabled you need a `zlib1.dll` present. Somewhere. I don't know where it should be placed.
+
 [Documentation](https://krognol.github.io/discordnim/)
 
 # Disclaimer
 
-This package hasn't been tested on any Linux or Mac systems and are thus not guaranteed to work on them. Although, I have a hard time believeing they wouldn't work.
+This package hasn't been tested on any Mac systems and are thus not guaranteed to work on them. Although, I have a hard time believeing they wouldn't work.
 
 # Contributing
 
