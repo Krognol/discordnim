@@ -149,6 +149,7 @@ type
         bitrate*: int
         user_limit*: int
         recipients*: seq[User]
+        nsfw: bool
     Message* = object of RootObj
         `type`: int
         tts*: bool
