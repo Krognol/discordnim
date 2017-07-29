@@ -1,106 +1,79 @@
 import json, tables, locks, websocket/client, times, httpclient, strutils, asyncdispatch
 {.hint[XDeclaredButNotUsed]: off.}
-type
-    RateLimiter = object of RootObj 
-        mut: locks.Lock
-        global: ref Bucket
-        buckets: Table[string, ref Bucket]
-        globalRateLimit: TimeInterval
-    Bucket = object
-        mut: locks.Lock 
-        key: string
-        remaining: int
-        limit: int
-        reset: TimeInfo
-        global: ref Bucket
 
-proc newRateLimiter(): ref RateLimiter = 
-    var b = new(ref Bucket)
-    b[] = Bucket(mut: locks.Lock(), key: "global", reset: getLocalTime(fromSeconds(epochTime())))
-    var rl = new RateLimiter
-    rl[]= RateLimiter(mut: locks.Lock(), buckets: initTable[string, ref Bucket](), global: b)
-    return rl
+type 
+    RateLimit = ref object
+        lock: Lock
+        reset: int64
+        limit: int64
+        remaining: int64
+    RateLimits = ref object of RootObj
+        lock: Lock
+        global: RateLimit
+        endpoints: Table[string, RateLimit]
 
-method getBucket(r: ref RateLimiter, key: string): ref Bucket {.gcsafe, base.} =
-    initLock(r.mut)
-    defer: deinitLock(r.mut)
+method preCheck(r: RateLimit) {.async, gcsafe, base.} =
+    if r.limit == 0: return
 
-    if hasKey(r.buckets, key):
-        return r.buckets[key]
-
-    var b = new(ref Bucket)
-
-    b.remaining = 1
-    b.key = key
-    b.global = r.global
-    r.buckets[key] = b
-    result = b
-
-method lockBucket(r : ref RateLimiter, bid : string): Future[ref Bucket] {.gcsafe, base, async.} =
-    var b = r.getBucket(bid)
-
-    initLock(b.mut)
-
-    if b.remaining < 1 and toTime(b.reset) - getTime() > 0:
-        await sleepAsync(int(toTime(b.reset) - getTime()))
-
-    initLock(r.global.mut)
-    deinitLock(r.global.mut)
-    result = b
-
-proc sleepUntil(pa : int32, b : ref Bucket) {.async.} =
-    var sleepTo = getTime() + pa.seconds
-    initLock(b.global.mut)
-
-    var sleepdur = sleepTo - getTime()
-
-    if sleepdur > 0:
-        await sleepAsync(int(sleepdur))
-
-    deinitLock(b.global.mut)
-    return
-
-method Release(b : ref Bucket, headers : HttpHeaders) {.gcsafe, base, async.} =
-    defer: deinitLock(b.mut)
-
-    if headers == nil:
+    let diff = r.reset - getTime().toSeconds.int64
+    if diff < 0:
+        r.reset += 3
+        r.remaining = r.limit
         return
-
-    var
-        remaining: string
-        reset: string
-        global: string
-        retryAfter: string
-
-    if hasKey(headers, "X-RateLimit-Remaining"):
-        remaining = $headers["X-RateLimit-Remaining"]
-    if hasKey(headers, "X-RateLimit-Reset"):
-        reset = $headers["X-RateLimit-Reset"]
-    if hasKey(headers, "X-RateLimit-Global"):
-        global = $headers["X-RateLimit-Global"]
-    if hasKey(headers, "Retry-After"):
-        retryAfter = $headers["Retry-After"]
-
-    if global != "" and global != nil:
-        var parsedAfter = parseInt(retryAfter)
-
-        await sleepUntil(int32(parsedAfter), b)
+    
+    if r.remaining <= 0:
+        let delay = diff * 1000+900
+        await sleepAsync diff.int
         return
+    
+    r.remaining.dec
 
-    if retryAfter != "" and retryAfter != nil:
-        var pa = parseInt(retryAfter)
-        b.reset = (getTime() + pa.milliseconds).getLocalTime
-    elif reset != "" and reset != nil:
-        var dt = parse($headers["Date"], "ddd, dd MMM yyyy HH:mm:ss")
-        var delta = parseInt(reset)
-        var retry_after = int64(dt.toTime().toSeconds())-delta
-        let t = retry_after.fromSeconds()
-        b.reset = t.getGMTime
+method postUpdate(r: RateLimit, url: string, response: AsyncResponse): Future[bool] {.async, gcsafe, base.} =
+    if response.headers.hasKey("X-RateLimit-Reset"): r.reset = response.headers["X-RateLimit-Reset"].parseInt
+    if response.headers.hasKey("X-RateLimit-Limit"): r.limit = response.headers["X-RateLimit-Limit"].parseInt
+    if response.headers.hasKey("X-RateLimit-Remaining"): r.remaining = response.headers["X-RateLimit-Remaining"].parseInt
 
-    if remaining != "" and remaining != nil:
-        var pr = remaining.parseInt
-        b.remaining = pr
+    if response.code == Http429:
+        let delay = if response.headers.hasKey("Retry-After"): response.headers["Retry-After"].parseInt else: -1
+        if delay == -1: return false
 
+        await sleepAsync delay+100
+        result = true
+
+method postUpdate(r: RateLimits, url: string, response: AsyncResponse): Future[bool] {.async, gcsafe, base.} =
+    if response.headers.hasKey("X-RateLimit-Global"):
+        initLock(r.global.lock)
+        result = await r.global.postUpdate(url, response)
+        deinitLock(r.global.lock)
+    else:
+        let rl = if r.endpoints.hasKey(url): r.endpoints[url] else: RateLimit(lock: Lock(), reset: 0, limit: 0, remaining: 0)
+        initLock(rl.lock)
+        result = await rl.postUpdate(url, response)
+        deinitLock(rl.lock)
+
+method preCheck(r: RateLimits, url: string) {.async, gcsafe, base.} =
+    initLock(r.global.lock)
+    await r.global.preCheck()
+    deinitLock(r.global.lock)
+
+    if r.endpoints.hasKey(url):
+        let rl = r.endpoints[url]
+        initLock(rl.lock)
+        await rl.preCheck()
+        deinitLock(rl.lock)
+
+proc newRateLimiter(): RateLimits {.inline.} =
+    result = RateLimits(
+        lock: Lock(),
+        global: RateLimit(
+            lock: Lock(),
+            reset: 0,
+            limit: 0,
+            remaining: 0
+        ),
+        endpoints: initTable[string, RateLimit]()
+    )
+    
 const
     auditGuildUpdate* = 1
     auditChannelCreate* = 10
@@ -149,7 +122,8 @@ type
         bitrate*: int
         user_limit*: int
         recipients*: seq[User]
-        nsfw: bool
+        nsfw*: bool
+        parent_id*: string
     Message* = object of RootObj
         `type`: int
         tts*: bool
@@ -234,7 +208,7 @@ type
         user: User
         roles: seq[string]
         game: Game
-        guild_id: string        
+        guild_id: string
         status: string
     Guild* = object of RootObj
         id*: string
@@ -478,6 +452,7 @@ type
         channels: Table[string, DChannel]
         guilds: Table[string, Guild]
         users: Table[string, User]
+        members: Table[string, GuildMember]
         roles: Table[string, Role]
         ready: Ready
     Ready* = object
@@ -487,8 +462,6 @@ type
         session_id*: string
         guilds*: seq[Guild]
         trace*: seq[string] 
-        user_settings: JsonNode
-        relationships: JsonNode
         presences: seq[Presence]
     Pin* = object of RootObj
         last_pin_timestamp*: string
@@ -563,8 +536,8 @@ type
         shardID*: int 
         shardCount*: int
         gateway*: string
-        session_ID: string
-        limiter: ref RateLimiter
+        session_id: string
+        limiter: RateLimits
         connection*: AsyncWebSocket
         voiceConnections: seq[VoiceConnection]
         cache*: Cache
@@ -577,13 +550,13 @@ type
         handlers: Table[EventType, pointer]
     
 
-proc addHandler*(s: Session, t: EventType, p: pointer) {.gcsafe.} =
+method addHandler*(s: Session, t: EventType, p: pointer) {.gcsafe, base, inline.} =
     ## Adds a handler tied to a websocket event
     initLock(s.mut)
     s.handlers[t] = p
     deinitLock(s.mut)
 
-proc removeHandler*(s: Session, t: EventType) {.gcsafe.} =
+method removeHandler*(s: Session, t: EventType) {.gcsafe, base, inline.} =
     ## Removes a websocket event handler
     initLock(s.mut)
     s.handlers.del(t)
