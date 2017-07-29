@@ -1,5 +1,5 @@
 include discordobjects, endpoints
-import httpclient, asyncnet, strutils, json, marshal, net, re, ospaths, mimetypes, cgi
+import httpclient, asyncnet, strutils, json, marshal, net, re, ospaths, mimetypes, cgi, sequtils
 
 method request(s: Session, 
                 bucketid, meth, url, contenttype, b : string, 
@@ -7,16 +7,13 @@ method request(s: Session,
                 mp: MultipartData = nil,
                 xheaders: HttpHeaders = nil): Future[AsyncResponse] {.base, gcsafe, async.} =
 
-    var client = newAsyncHttpClient()
-    if xheaders != nil: client.headers = xheaders
-    client.headers["User-Agent"] = "DiscordBot (https://github.com/Krognol/discordnim, v" & VERSION & ")"
+    let client = newAsyncHttpClient("DiscordBot (https://github.com/Krognol/discordnim, v" & VERSION & ")")
     var id: string
     if bucketid == "":
         id = split(url, "?", 2)[0]
+    await s.limiter.preCheck(bucketid)
 
-    var bucket = await s.limiter.lockBucket(id)
-    
-    if s.token != "":
+    if s.token != "": 
         client.headers["Authorization"] = s.token
 
     client.headers["Content-Type"] = contenttype
@@ -24,20 +21,10 @@ method request(s: Session,
         result = await client.request(url, meth, b)
     elif mp != nil and meth == "POST":
         result = await client.post(url, b, mp)
-    await bucket.Release(result.headers)
-
-    if result.code.is5xx:
-        if sequence < 5:
-            result = await s.request(id, meth, url, contenttype, b, sequence+1)
-    elif result.code.is4xx:
-        let resbody = await result.body()
-        var rl = parseJson(resbody)
-        await sleepAsync(int(rl["retry_after"].num))
-        result = await s.request(id, meth, url, contenttype, b, sequence)
-    elif result.code.is2xx: discard
-    else:
-        echo "Unknown Http code" & result.status
     client.close()
+    
+    if await s.limiter.postUpdate(url, result):
+        result = await s.request(id, meth, url, contenttype, b, sequence+1)
     if result == nil: raise newException(Exception, "Rest API returned nil")
 
 
@@ -58,7 +45,7 @@ proc join(g1: var Guild, g2: Guild): Guild =
     result = g1
 
 # Caching stuff
-proc getGuild*(c: Cache, id: string): tuple[guild: Guild, exists: bool]  =
+method getGuild*(c: Cache, id: string): tuple[guild: Guild, exists: bool] {.base, gcsafe.} =
     if c == nil: raise newException(CacheError, "The cache is nil")
     initLock(c.lock)
     defer: deinitLock(c.lock)
@@ -66,32 +53,26 @@ proc getGuild*(c: Cache, id: string): tuple[guild: Guild, exists: bool]  =
     
     if c.guilds.hasKey(id):
         var guild = c.guilds[id]
-        for i, g in c.ready.guilds:
-            guild = guild.join(g)
-            c.guilds[id] = guild
-            c.ready.guilds.del(i)
-            break
-        result = (guild, true)
+        let t = c.ready.guilds.filter(proc(x: Guild): bool = x.id == guild.id)
+        if t.len == 1: result = (guild.join(t[0]), true)
 
-
-proc removeGuild*(c: Cache, guildid: string) {.raises: CacheError.}  =
+method removeGuild*(c: Cache, guildid: string) {.raises: CacheError, base, gcsafe.}  =
     if c == nil: raise newException(CacheError, "The cache is nil")
 
-    if not c.guilds.hasKey(guildid):
-        raise newException(CacheError, "Guild not in cache")
+    if not c.guilds.hasKey(guildid): return
     
     initLock(c.lock)
     c.guilds.del(guildid)
     deinitLock(c.lock)
 
-proc updateGuild*(c: Cache, guild: Guild) {.raises: CacheError.}  =
+method updateGuild*(c: Cache, guild: Guild) {.raises: CacheError, inline, base, gcsafe.} =
     if c == nil: raise newException(CacheError, "The cache is nil")
     
     initLock(c.lock)
     c.guilds[guild.id] = guild
     deinitLock(c.lock)
 
-proc getUser*(c: Cache, id: string): tuple[user: User, exists: bool]  =
+method getUser*(c: Cache, id: string): tuple[user: User, exists: bool] {.base, gcsafe.}  =
     if c == nil: raise newException(CacheError, "The cache is nil")
     initLock(c.lock)
     defer: deinitLock(c.lock)
@@ -100,23 +81,22 @@ proc getUser*(c: Cache, id: string): tuple[user: User, exists: bool]  =
     if c.users.hasKey(id):
        result = (c.users[id], true)
 
-proc removeUser*(c: Cache, id: string) {.raises: CacheError.}  =
+method removeUser*(c: Cache, id: string) {.raises: CacheError, inline, base, gcsafe.}  =
     if c == nil: raise newException(CacheError, "The cache is nil")
     initLock(c.lock)
     defer: deinitLock(c.lock)
-    if not c.users.hasKey(id):
-        raise newException(CacheError, "User not in cache")
+    if not c.users.hasKey(id): return
 
     c.users.del(id)
 
-proc updateUser*(c: Cache, user: User) {.raises: CacheError.}  =
+method updateUser*(c: Cache, user: User) {.inline, base, gcsafe.}  =
     if c == nil: raise newException(CacheError, "The cache is nil")
 
     initLock(c.lock)
     c.users[user.id] = user
     deinitLock(c.lock)
 
-proc getChannel*(c: Cache, id: string): tuple[channel: DChannel, exists: bool]  =
+method getChannel*(c: Cache, id: string): tuple[channel: DChannel, exists: bool] {.base, gcsafe.} =
     if c == nil: raise newException(CacheError, "The cache is nil")
     initLock(c.lock)
     defer: deinitLock(c.lock)
@@ -126,26 +106,21 @@ proc getChannel*(c: Cache, id: string): tuple[channel: DChannel, exists: bool]  
         result = (c.channels[id], true)
 
 
-proc updateChannel*(c: Cache, chan: DChannel) {.raises: CacheError.}  =
+method updateChannel*(c: Cache, chan: DChannel) {.inline, base, gcsafe.}  =
     if c == nil: raise newException(CacheError, "The cache is nil")
     initLock(c.lock)
-    defer: deinitLock(c.lock)
-
-    if not c.channels.hasKey(chan.id):
-        raise newException(CacheError, "Channel not in cache")
-
     c.channels[chan.id] = chan
+    deinitLock(c.lock)
 
-proc removeChannel*(c: Cache, chan: string) {.raises: CacheError.}  =
+method removeChannel*(c: Cache, chan: string) {.raises: CacheError, inline, base, gcsafe.}  =
     if c == nil: raise newException(CacheError, "The cache is nil")
     initLock(c.lock)
     defer: deinitLock(c.lock)
-    if not c.channels.hasKey(chan):
-        raise newException(CacheError, "Channel not in cache")
+    if not c.channels.hasKey(chan): return
 
     c.channels.del(chan)
 
-proc getGuildMember*(c: Cache, guild, memberid: string): tuple[member: GuildMember, exists: bool]  =
+method getGuildMember*(c: Cache, guild, memberid: string): tuple[member: GuildMember, exists: bool] {. base, gcsafe.} =
     if c == nil: raise newException(CacheError, "The cache is nil")
     
     result = (GuildMember(), false)
@@ -159,50 +134,29 @@ proc getGuildMember*(c: Cache, guild, memberid: string): tuple[member: GuildMemb
     for member in guild.members:
         if member.user.id == memberid:
             result = (member, true)
+            break
 
-proc addGuildMember*(c: Cache, member: GuildMember)  =
+method addGuildMember*(c: Cache, member: GuildMember) {.inline, base, gcsafe.} =
     if c == nil: raise newException(CacheError, "The cache is nil")
-    
-    var (guild, exists) = c.getGuild(member.guild_id)
-
-    if not exists:
-        raise newException(CacheError, "Guild not in cache")
 
     initLock(c.lock)
-    guild.members.add(member)
+    c.members.add(member.user.id, member)
     deinitLock(c.lock)
 
-proc updateGuildMember*(c: Cache, m: GuildMember)  =
+method updateGuildMember*(c: Cache, m: GuildMember) {.inline, base, gcsafe.} =
     if c == nil: raise newException(CacheError, "The cache is nil")
 
-    var (guild, exists) = c.getGuild(m.guild_id)
-
-    if not exists:
-        raise newException(CacheError, "Guild not in cache")
-
     initLock(c.lock)
-    defer: deinitLock(c.lock)
-    for i, member in guild.members:
-        if member.user.id == m.user.id:
-            guild.members[i] = m
-            return
+    c.members[m.user.id] = m
+    deinitLock(c.lock)
 
-proc removeGuildMember*(c: Cache, gmember: GuildMember)  =
+method removeGuildMember*(c: Cache, gmember: GuildMember) {.inline, base, gcsafe.} =
     if c == nil: raise newException(CacheError, "The cache is nil")
-
-    var (guild, exists) = c.getGuild(gmember.guild_id)
-
-    if not exists:
-        raise newException(CacheError, "Guild not in cache")
-    
     initLock(c.lock)
-    defer: deinitLock(c.lock)
-    for i, member in guild.members:
-        if member.user.id == gmember.user.id:
-            guild.members.del(i)
-            return 
+    c.members.del(gmember.user.id)
+    deinitLock(c.lock)
 
-proc getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bool]  =
+method getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bool] {.base, gcsafe.} =
     if c == nil: raise newException(CacheError, "The cache is nil")
     
     result = (Role(), false)
@@ -218,39 +172,42 @@ proc getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bool
             result = (role, true)
             return
 
-proc updateRole*(c: Cache, role: Role) {.raises: CacheError.} =
+method updateRole*(c: Cache, role: Role) {.raises: CacheError, base, gcsafe.} =
     if c == nil: raise newException(CacheError, "The cache is nil")
     initLock(c.lock)
     defer: deinitLock(c.lock)
-
-    if not c.roles.hasKey(role.id):
-        raise newException(CacheError, "Role not in cache")
 
     c.roles[role.id] = role
 
-proc removeRole*(c: Cache, role: string) {.raises: CacheError.} =
+method removeRole*(c: Cache, role: string) {.raises: CacheError, base, gcsafe.} =
     if c == nil: raise newException(CacheError, "The cache is nil")
     initLock(c.lock)
     defer: deinitLock(c.lock)
 
-    if not c.roles.hasKey(role):
-        raise newException(CacheError, "Role not in cache")
+    if not c.roles.hasKey(role): return
 
     c.roles.del(role)
+
+method clear*(c: Cache) {.base, gcsafe.} =
+    c.channels.clear()
+    c.guilds.clear()
+    c.members.clear()
+    c.roles.clear()
+    c.users.clear()
 
 method channel*(s: Session, channel_id: string): Future[DChannel] {.base, gcsafe, async.} =
     ## Returns the channel with the given ID
     if s.cache.cacheChannels:
         var (chan, exists) = s.cache.getChannel(channel_id)
 
-        if exists:
+        if exists and chan.guild_id != "":
             return chan
 
     var url = endpointChannels(channel_id)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
     result = marshal.to[DChannel](body)
- 
+
     if s.cache.cacheChannels:
         s.cache.channels[result.id] = result
 
@@ -289,7 +246,7 @@ method channelMessages*(s: Session, channelid: string, before, after, around: st
     if limit > 0 and limit <= 100:
         url = url & "limit=" & $limit
 
-    let res = await s.request(url, "GET", url, "application/json", "", 0)
+    let res = await s.request("", "GET", url, "application/json", "", 0)
     let body = await res.body
     result = marshal.to[seq[Message]](body)
 
@@ -409,9 +366,7 @@ method channelMessageDelete*(s: Session, channelid, messageid: string, reason: s
     var url = endpointChannelMessage(channelid, messageid)
     var h = if reason != "": newHttpHeaders() else: nil
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
-    let res = await s.request(url, "DELETE", url, "application/json", "", 0, xheaders = h)
-    echo res.status
-    echo res.headers.table
+    asyncCheck s.request(url, "DELETE", url, "application/json", "", 0, xheaders = h)
 
 method channelMessagesDeleteBulk*(s: Session, channelid: string, messages: seq[string]) {.base, gcsafe, async.} =
     ## Deletes messages in bulk.
@@ -600,7 +555,7 @@ method guildMembers*(s: Session, guild: string, limit, after: int): Future[seq[G
     if after > 0:
         url &= "after=" & $after & "&"
 
-    let res = await s.request(url, "GET", url, "application/json", "", 0)
+    let res = await s.request("", "GET", url, "application/json", "", 0)
     let body = await res.body
     result = marshal.to[seq[GuildMember]](body)
     
@@ -1093,7 +1048,7 @@ method webhookDeleteWithToken*(s: Session, webhook, token: string, reason: strin
     result = marshal.to[Webhook](body)
     
 
-method executeWebhook*(s: Session, webhook, token: string, wait: bool, payload: WebhookParams) {.base, gcsafe, async.} =
+method executeWebhook*(s: Session, webhook, token: string, wait: bool, payload: WebhookParams) {.base, gcsafe, async, inline.} =
     ## Executes a webhook
     var url = endpointWebhookWithToken(webhook, token)
     asyncCheck s.request(url, "POST", url, "application/json", $$payload, 0) 
