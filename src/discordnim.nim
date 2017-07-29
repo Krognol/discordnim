@@ -153,30 +153,27 @@ proc newSession*(token: string): Session {.gcsafe.} =
     if token == "":
         raise newException(Exception, "No token")
 
-    var rl = newRateLimiter()
-    var
-        s = Session(
+    result = Session(
             mut: Lock(), 
             compress: false, 
-            limiter: rl,
+            limiter: newRateLimiter(),
             handlers: initTable[EventType, pointer](),
             sequence: 0,
             token: token,
             cache: Cache(
-                users: initTable[string, User](), 
+                users: initTable[string, User](),
+                members: initTable[string, GuildMember](),
                 guilds: initTable[string, Guild](), 
                 channels: initTable[string, DChannel](),
                 roles: initTable[string, Role]()
-                )
             )
+        )
 
-        auth = ""
-        pass = ""
+    var auth = ""
     
-    s.initEvents()
-    let gateway = waitFor s.getGateway()
-    s.gateway = gateway.strip&"/"&GATEWAYVERSION
-    result = s
+    result.initEvents()
+    let gateway = waitFor result.getGateway()
+    result.gateway = gateway.strip&"/"&GATEWAYVERSION
 
 
 
@@ -188,16 +185,14 @@ method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe,
         of "READY":
             let payload = Ready(
                 v: int(data["v"].num),
-                user_settings: data["user_settings"],
                 user: marshal.to[User]($data["user"]),
                 session_id: data["session_id"].str,
-                relationships: data["relationships"],
                 private_channels: marshal.to[seq[DChannel]]($data["private_channels"]),
                 presences: marshal.to[seq[Presence]]($data["presences"]),
                 guilds: marshal.to[seq[Guild]]($data["guilds"]),
                 trace: data["_trace"].to(seq[string])
             )
-            s.session_ID = payload.session_id
+            s.session_id = payload.session_id
             s.cache.version = payload.v
             s.cache.me = payload.user
             s.cache.users[payload.user.id] = payload.user
@@ -207,7 +202,7 @@ method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe,
             s.cache.ready = payload
             cast[proc(s: Session, r: Ready) {.cdecl.}](s.handlers[on_ready])(s, payload)
         of "RESUMED":
-            let payload = parseJson($data).to(Resumed)
+            let payload = parseJson($data).to(Resumed) 
             cast[proc(s: Session, r: Resumed) {.cdecl.}](s.handlers[on_resume])(s, payload)
         of "CHANNEL_CREATE":
             let payload = parseJson($data).to(ChannelCreate)
@@ -297,10 +292,6 @@ method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe,
             let payload = parseJson($data).to(MessageReactionRemoveAll)
             cast[proc(s: Session, r: MessageReactionRemoveAll) {.cdecl.}](s.handlers[message_reaction_remove_all])(s, payload)
         of "PRESENCE_UPDATE":
-            # Temporary solution
-            # Does not fill out the entire User object (somtimes does?)
-            # but the PresenceUpdate events I recieved when checking
-            # only had the ID in the User object
             let js = parseJson($data)
             var payload = PresenceUpdate(
                 user: User(
@@ -308,14 +299,10 @@ method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe,
                 ),
                 status: js["status"].str,
                 guild_id: js["guild_id"].str,
+                nick: if js.hasKey("nick") and js["nick"].kind == JString: js["nick"].str else: "",
+                game: if js.hasKey("game") and js["game"].kind != JNull: marshal.to[Game]($js["game"]) else: Game(),
+                roles: if js.hasKey("roles"): marshal.to[seq[string]]($js["roles"]) else: @[],
             )
-            if js["nick"].kind == JNull:
-                payload.nick = nil
-            if js["game"].kind == JNull:
-                payload.game = Game()
-            var roles: seq[string] = @[]
-            for elem in js["roles"].elems:
-                roles.add(elem.str)
             cast[proc(s: Session, r: PresenceUpdate) {.cdecl.}](s.handlers[presence_update])(s, payload)
         of "TYPING_START":
             let payload = parseJson($data).to(TypingStart)
@@ -333,7 +320,7 @@ method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe,
         else:
             echo "Unknown websocket event :: " & event & "\c\L" & $data
 
-proc identify(s: Session) {.async.} =
+method identify(s: Session) {.async, gcsafe, base.} =
     var properties = %*{
         "$os": system.hostOS,
         "$browser": "Discordnim v"&VERSION,
@@ -360,31 +347,31 @@ proc identify(s: Session) {.async.} =
     except:
         echo "Error sending identify packet\c\L" & getCurrentExceptionMsg()
 
-proc resume(s: Session) {.async, gcsafe.} =
+method resume(s: Session) {.async, gcsafe, base.} =
     let payload = %*{
         "token": s.token,
-        "session_id": s.session_ID,
+        "session_id": s.session_id,
         "seq": s.sequence
     }
-    await s.connection.sock.sendText($payload, true)
+    asyncCheck s.connection.sock.sendText($payload, true)
 
-proc reconnect(s: Session) {.async, gcsafe.} =
+method reconnect(s: Session) {.async, gcsafe, base.} =
     await s.connection.close()
-    s.connection = nil
     s.connection = await newAsyncWebsocket("gateway.discord.gg", Port 443, "/"&GATEWAYVERSION, ssl = true)
     s.sequence = 0
     s.session_ID = ""
     await s.identify()
 
-proc shouldResumeSession(s: Session): bool {.gcsafe.} = (not s.invalidated) and (not s.suspended)
+method shouldResumeSession(s: Session): bool {.gcsafe, inline, base.} = (not s.invalidated) and (not s.suspended)
 
 method setupHeartbeats(s: Session) {.async, gcsafe, base.} =
     while not s.stop and not s.connection.sock.isClosed:
         var hb = %*{"op": opHeartbeat, "d": s.sequence}
         try:
             asyncCheck s.connection.sock.sendText($hb, true)
-            await sleepAsync(s.interval)        
+            await sleepAsync(s.interval-5) # -5 to accomodate for delay, seems to have stabilized the connection quite a bit
         except:
+            if s.stop: return
             echo "Something happened when sending heartbeat through the websocket connection"
             echo getCurrentExceptionMsg()
             return
@@ -392,22 +379,20 @@ method setupHeartbeats(s: Session) {.async, gcsafe, base.} =
 proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
     await s.identify()
 
-    var res: tuple[opcode: Opcode, data: string] 
     while not isClosed(s.connection.sock) and not s.stop:
+        var res: tuple[opcode: Opcode, data: string]
         try:
+            await sleepAsync 2 # This seems to fix(?) the -1 read error??
             res = await s.connection.sock.readData(true)
         except:
-            echo "something happened when reading from websocket"
             echo getCurrentExceptionMsg()
             break
         
         if s.compress:
-            # Just check the first character
-            # to see if it's compressed or not
             if res.opcode == Opcode.Binary:
                 let t = zlib.uncompress(res.data)
                 if t == nil:
-                    echo "Failed to uncompress data and I can't tell you why. Sorry."
+                    echo "Failed to uncompress data and I'm not sure why. Sorry."
                 else: res.data = t
         
         let data = parseJson(res.data)
@@ -417,43 +402,46 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
             s.sequence = i
 
         case data["op"].num:
-            of opHello:
-                if s.shouldResumeSession():
-                    await s.resume()
-                else:
-                    s.suspended = false
-                    let interval = data["d"].fields["heartbeat_interval"].num.int
-                    s.interval = interval
-                    asyncCheck s.setupHeartbeats()
-            of opHeartbeat:
-                let hb = %*{"op": opHeartbeat, "d": s.sequence}
-                await s.connection.sock.sendText($hb, true)
-            of opHeartbeatAck:
-                # TODO :: Should probably check for HEARTBEAT_ACKs and close the connection if we don't get one
-                continue
-            of opInvalidSession:
-                s.sequence = 0
-                s.session_ID = ""
-                s.invalidated = true
-                if data["d"].kind == JBool and data["d"].bval == false:
-                    await s.identify()
-            of opReconnect:
-                s.suspended = true
-                await s.reconnect()
-            of opDispatch:
-                let event = data["t"].str
-                asyncCheck s.handleDispatch(event, data["d"])
+        of opDispatch:
+            let event = data["t"].str
+            asyncCheck s.handleDispatch(event, data["d"])
+        of opHello:
+            if s.shouldResumeSession():
+                asyncCheck s.resume()
             else:
-                echo $data
+                s.suspended = false
+                let interval = data["d"].fields["heartbeat_interval"].num.int
+                s.interval = interval
+                asyncCheck s.setupHeartbeats()
+        of opHeartbeat:
+            let hb = %*{"op": opHeartbeat, "d": s.sequence}
+            asyncCheck s.connection.sock.sendText($hb, true)
+        of opHeartbeatAck:
+            # TODO :: Should probably check for HEARTBEAT_ACKs and close the connection if we don't get one
+            discard
+        of opInvalidSession:
+            s.sequence = 0
+            s.session_ID = ""
+            s.invalidated = true
+            if data["d"].kind == JBool and data["d"].bval == false:
+                asyncCheck s.identify()
+        of opReconnect:
+            s.suspended = true
+            asyncCheck s.reconnect()
+        else:
+            echo $data
 
     echo "connection closed" 
     s.suspended = true
+    s.stop = true
     if not s.connection.sock.isClosed:
         s.connection.sock.close()
-    s.stop = true
 
-proc d_quit() {.noconv.} =
-    quit 0
+method disconnect*(s: Session) {.gcsafe, base, async.} =
+    s.stop = true
+    s.cache.clear()
+    s.handlers.clear()
+    await s.connection.close()
 
 proc startSession*(s: Session){.async, gcsafe.} =
     ## Starts a Session
@@ -471,10 +459,9 @@ proc startSession*(s: Session){.async, gcsafe.} =
             )
         s.connection = socket
     except:
-        echo getCurrentException().msg
+        echo getCurrentExceptionMsg()
         return
     
     asyncCheck sessionHandleSocketMessage(s)
-    setControlCHook(d_quit)
     while not s.stop:
         poll()
