@@ -28,3 +28,9 @@ for i in 0..shards:
 
 for session in sessions:
     asyncCheck session.startSession()
+
+proc endSession() {.noconv.} =
+    for session in sessions:
+        asyncCheck session.disconnect()
+
+setControlCHook(endSession)

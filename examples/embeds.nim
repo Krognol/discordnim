@@ -26,6 +26,12 @@ proc messageCreate(s: Session, m: MessageCreate) =
 
 
 let s = newSession("Bot <your bot token>")
+
+proc endSession() {.noconv.} =
+    waitFor s.disconnect()
+
+setControlCHook(endSession)
+
 s.addHandler(EventType.message_create, messageCreate)
 
 asyncCheck s.startSession()

@@ -33,6 +33,11 @@ proc messageCreateProc(s: Session, m: MessageCreate) =
 let s = newSession("Bot <Token>")
 s.addHandler(message_create, messageCreateProc)
 
+proc endSession() {.noconv.} =
+    waitFor s.disconnect()
+
+setControlCHook(endSession)
+
 s.cache.cacheChannels = true
 s.cache.cacheGuilds = true
 s.cache.cacheRoles = true

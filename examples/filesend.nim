@@ -13,6 +13,12 @@ proc messageCreate(s: Session, m: MessageCreate) =
         asyncCheck s.channelFileSendWithMessage(m.channel_id, "somefile.png", f, "here's a file but with a message")
 
 let s = newSession("Bot <token>")
+
+proc endSession() {.noconv.} =
+    waitFor s.disconnect()
+
+setControlCHook(endSession)
+
 s.addHandler(EventType.message_create, messageCreate)
 
 waitFor s.startSession()

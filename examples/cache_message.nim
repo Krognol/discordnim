@@ -19,6 +19,12 @@ let messageDeleteProc = proc(s: Session, m: MessageDelete) =
 
 
 let s = newSession("Bot <your bot token>")
+
+proc endSession() {.noconv.} =
+    waitFor s.disconnect()
+
+setControlCHook(endSession)
+
 s.addHandler(EventType.message_create, messageCreateProc)
 s.addHandler(EventType.message_delete, messageDeleteProc)
 
