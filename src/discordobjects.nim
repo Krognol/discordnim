@@ -130,7 +130,7 @@ type
         timestamp*: string
         pinned*: bool
         nonce*: string
-        mention_roles*: seq[Role]
+        mention_roles*: seq[string]
         mentions*: seq[User]
         mention_everyone*: bool
         id*: string
