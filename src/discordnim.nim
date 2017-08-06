@@ -1,10 +1,7 @@
 # Wish i could split this up a bit, but errors because cyclical includes
 include restapi
 import marshal, json, cgi, discordobjects, endpoints,
-       websocket/shared, asyncdispatch, asyncnet, uri
-
-when defined(compress):
-    import zip/zlib
+       websocket/shared, asyncdispatch, asyncnet, uri, zip/zlib
        
 # Gateway op codes
 {.hint[XDeclaredButNotUsed]: off.}
@@ -399,14 +396,13 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
             echo getCurrentExceptionMsg()
             break
         
-        when defined(compress):
-            if s.compress:
-                if res.opcode == Opcode.Binary:
-                    let t = zlib.uncompress(res.data)
-                    if t == nil:
-                        echo "Failed to uncompress data and I'm not sure why. Sorry."
-                    else: res.data = t
-        
+        if s.compress:
+            if res.opcode == Opcode.Binary:
+                let t = zlib.uncompress(res.data)
+                if t == nil:
+                    echo "Failed to uncompress data and I'm not sure why. Sorry."
+                else: res.data = t
+    
         let data = parseJson(res.data)
          
         if data["s"].kind != JNull:
