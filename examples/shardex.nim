@@ -17,14 +17,16 @@ proc messageUpdate(s: Session, m: MessageUpdate) =
         asyncCheck s.channelMessageSend(m.channel_id, "ping")
 
 var sessions: seq[Session] = @[]
-let shards = 1
+var s = newSession("Bot <Token>")
 
-for i in 0..shards:
-    let s = newSession("Bot <Token>")
-    s.shardID = i
-    s.addHandler(EventType.message_create, messageCreate)
-    s.addHandler(EventType.message_update, messageUpdate)
-    sessions.add(s)
+if s.shardCount > 2:
+    for i in 1..s.shardCount:
+        s.shardID = i
+        s.addHandler(EventType.message_create, messageCreate)
+        s.addHandler(EventType.message_update, messageUpdate)
+        sessions.add(s)
+        s = newSession("Bot <token>")
+
 
 for session in sessions:
     asyncCheck session.startSession()
