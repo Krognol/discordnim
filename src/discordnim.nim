@@ -1,7 +1,10 @@
 # Wish i could split this up a bit, but errors because cyclical includes
 include restapi
 import marshal, json, cgi, discordobjects, endpoints,
-       websocket/shared, asyncdispatch, asyncnet, uri, zip/zlib
+       websocket/shared, asyncdispatch, asyncnet, uri
+
+when defined(compress):
+    import zip/zlib
        
 # Gateway op codes
 {.hint[XDeclaredButNotUsed]: off.}
@@ -110,7 +113,7 @@ method updateStreamingStatus*(s: Session, idle: int = 0, game: string, url: stri
         "op": 3,
         "d": data
     }
-    asyncCheck s.connection.sock.sendText($payload, true)
+    await s.connection.sock.sendText($payload, true)
 
 # Temporary until a better solution is found
 method initEvents(s: Session) {.base, gcsafe.} =
@@ -180,7 +183,7 @@ proc newSession*(token: string): Session {.gcsafe.} =
 type
   IdentifyError* = object of Exception
 
-method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe, base.} =
+method handleDispatch(s: Session, event: string, data: JsonNode) {.async, gcsafe, base.} =
     case event:
         of "READY":
             let payload = Ready(
@@ -271,8 +274,13 @@ method handleDispatch(s: Session, event: string, data: JsonNode){.async, gcsafe,
             if s.cache.cacheRoles: s.cache.removeRole(payload.role_id)
             cast[proc(s: Session, r: GuildRoleDelete) {.cdecl.}](s.handlers[guild_role_delete])(s, payload)
         of "MESSAGE_CREATE":
-            let payload = marshal.to[MessageCreate]($data)
-            cast[proc(s: Session, r: MessageCreate) {.cdecl.}](s.handlers[message_create])(s, payload)
+            # Sometimes it would fail to decode the message
+            # not sure why
+            try:
+                let payload = marshal.to[MessageCreate]($data)
+                cast[proc(s: Session, r: MessageCreate) {.cdecl.}](s.handlers[message_create])(s, payload)
+            except:
+                echo getCurrentExceptionMsg()
         of "MESSAGE_UPDATE":
             let payload = marshal.to[MessageUpdate]($data)
             cast[proc(s: Session, r: MessageUpdate) {.cdecl.}](s.handlers[message_update])(s, payload)
@@ -353,11 +361,14 @@ method resume(s: Session) {.async, gcsafe, base.} =
         "session_id": s.session_id,
         "seq": s.sequence
     }
-    asyncCheck s.connection.sock.sendText($payload, true)
+    await s.connection.sock.sendText($payload, true)
 
 method reconnect(s: Session) {.async, gcsafe, base.} =
     await s.connection.close()
-    s.connection = await newAsyncWebsocket("gateway.discord.gg", Port 443, "/"&GATEWAYVERSION, ssl = true)
+    try:
+        s.connection = await newAsyncWebsocket("gateway.discord.gg", Port 443, "/"&GATEWAYVERSION, ssl = true)
+    except:
+        raise getCurrentException()
     s.sequence = 0
     s.session_ID = ""
     await s.identify()
@@ -368,7 +379,7 @@ method setupHeartbeats(s: Session) {.async, gcsafe, base.} =
     while not s.stop and not s.connection.sock.isClosed:
         var hb = %*{"op": opHeartbeat, "d": s.sequence}
         try:
-            asyncCheck s.connection.sock.sendText($hb, true)
+            await s.connection.sock.sendText($hb, true)
             await sleepAsync(s.interval-5) # -5 to accomodate for delay, seems to have stabilized the connection quite a bit
         except:
             if s.stop: return
@@ -388,12 +399,13 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
             echo getCurrentExceptionMsg()
             break
         
-        if s.compress:
-            if res.opcode == Opcode.Binary:
-                let t = zlib.uncompress(res.data)
-                if t == nil:
-                    echo "Failed to uncompress data and I'm not sure why. Sorry."
-                else: res.data = t
+        when defined(compress):
+            if s.compress:
+                if res.opcode == Opcode.Binary:
+                    let t = zlib.uncompress(res.data)
+                    if t == nil:
+                        echo "Failed to uncompress data and I'm not sure why. Sorry."
+                    else: res.data = t
         
         let data = parseJson(res.data)
          
@@ -407,7 +419,7 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
             asyncCheck s.handleDispatch(event, data["d"])
         of opHello:
             if s.shouldResumeSession():
-                asyncCheck s.resume()
+                await s.resume()
             else:
                 s.suspended = false
                 let interval = data["d"].fields["heartbeat_interval"].num.int
@@ -415,7 +427,7 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
                 asyncCheck s.setupHeartbeats()
         of opHeartbeat:
             let hb = %*{"op": opHeartbeat, "d": s.sequence}
-            asyncCheck s.connection.sock.sendText($hb, true)
+            await s.connection.sock.sendText($hb, true)
         of opHeartbeatAck:
             # TODO :: Should probably check for HEARTBEAT_ACKs and close the connection if we don't get one
             discard
@@ -424,12 +436,13 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
             s.session_ID = ""
             s.invalidated = true
             if data["d"].kind == JBool and data["d"].bval == false:
-                asyncCheck s.identify()
+                await s.identify()
         of opReconnect:
             s.suspended = true
-            asyncCheck s.reconnect()
+            await s.reconnect()
         else:
             echo $data
+    poll()
 
     echo "connection closed" 
     s.suspended = true
@@ -450,10 +463,11 @@ proc startSession*(s: Session){.async, gcsafe.} =
         return
     s.suspended = true
     try:
+        let wsurl = parseUri(s.gateway)
         let socket = await newAsyncWebsocket(
-                "gateway.discord.gg", 
-                Port(443), 
-                path = "/"&GATEWAYVERSION, 
+                wsurl.hostname, 
+                if wsurl.scheme == "wss": Port(443) else: Port(80), 
+                wsurl.path&GATEWAYVERSION, 
                 ssl = true, 
                 useragent = "Discordnim (https://github.com/Krognol/discordnim v"&VERSION&")"
             )
@@ -462,6 +476,4 @@ proc startSession*(s: Session){.async, gcsafe.} =
         echo getCurrentExceptionMsg()
         return
     
-    asyncCheck sessionHandleSocketMessage(s)
-    while not s.stop:
-        poll()
+    await sessionHandleSocketMessage(s)
