@@ -14,7 +14,7 @@ type
 
 method preCheck(r: RateLimit) {.async, gcsafe, base.} =
     if r.limit == 0: return
-
+    
     let diff = r.reset - getTime().toSeconds.int64
     if diff < 0:
         r.reset += 3
@@ -23,7 +23,7 @@ method preCheck(r: RateLimit) {.async, gcsafe, base.} =
     
     if r.remaining <= 0:
         let delay = diff * 1000+900
-        await sleepAsync diff.int
+        await sleepAsync delay.int
         return
     
     r.remaining.dec
@@ -67,7 +67,7 @@ proc newRateLimiter(): RateLimits {.inline.} =
         lock: Lock(),
         global: RateLimit(
             lock: Lock(),
-            reset: 0,
+            reset: 0, 
             limit: 0,
             remaining: 0
         ),
@@ -396,9 +396,31 @@ type
         id*: string
         `type`*: string
         role_name*: string
+    AuditLogChangeKind* = enum
+        ALCString,
+        ALCInt,
+        ALCBool,
+        ALCRoles,
+        ALCOverwrites,
+        ALCNil
+    AuditLogChangeValue* = ref AuditLogChangeValueObj
+    AuditLogChangeValueObj* = object
+        case kind*: AuditLogChangeKind
+        of ALCString:
+            str*: string
+        of ALCInt:
+            ival*: int64
+        of ALCBool:
+            bval*: bool
+        of ALCRoles:
+            roles*: seq[Role]
+        of ALCOverwrites:
+            overwrites*: seq[Overwrite]
+        of ALCNil:
+            nil
     AuditLogChange* = object
-        new_value*: JsonNode
-        old_value*: JsonNode # new/old_value can be string, int, bool, and array of objects
+        new_value*: AuditLogChangeValue
+        old_value*: AuditLogChangeValue 
         key*: string
     AuditLogEntry* = object
         target_id*: string

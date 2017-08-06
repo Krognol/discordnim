@@ -2,7 +2,7 @@ include discordobjects, endpoints
 import httpclient, asyncnet, strutils, json, marshal, net, re, ospaths, mimetypes, cgi, sequtils
 
 method request(s: Session, 
-                bucketid, meth, url, contenttype, b : string, 
+                bucketid, meth, url, contenttype, b: string = "", 
                 sequence : int, 
                 mp: MultipartData = nil,
                 xheaders: HttpHeaders = nil): Future[AsyncResponse] {.base, gcsafe, async.} =
@@ -11,19 +11,22 @@ method request(s: Session,
     var id: string
     if bucketid == "":
         id = split(url, "?", 2)[0]
-    await s.limiter.preCheck(bucketid)
+    else:
+        id = bucketid
+    await s.limiter.preCheck(id)
 
     if s.token != "": 
         client.headers["Authorization"] = s.token
 
-    client.headers["Content-Type"] = contenttype
+    client.headers["Content-Type"] = contenttype 
+    client.headers["Content-Length"] = $b.len
     if mp == nil:
         result = await client.request(url, meth, b)
     elif mp != nil and meth == "POST":
         result = await client.post(url, b, mp)
     client.close()
     
-    if await s.limiter.postUpdate(url, result):
+    if (await s.limiter.postUpdate(url, result)) and sequence < 5:
         result = await s.request(id, meth, url, contenttype, b, sequence+1)
     if result == nil: raise newException(Exception, "Rest API returned nil")
 
@@ -855,7 +858,32 @@ method guildEmbedEdit*(s: Session, guild: string, enabled: bool, channel: string
     let res = await s.request(url, "PATCH", url, "application/json", $$embed, 0)
     let body = await res.body
     result = marshal.to[GuildEmbed](body)
-   
+
+proc newAuditLogChangeValue(s: string): AuditLogChangeValue =
+    new(result)
+    result.kind = ALCString
+    result.str = s
+
+proc newAuditLogChangeValue(i: int64): AuditLogChangeValue =
+    new(result)
+    result.kind = ALCInt
+    result.ival = i
+
+proc newAuditLogChangeValue(b: bool): AuditLogChangeValue =
+    new(result)
+    result.kind = ALCBool
+    result.bval = b
+
+proc newAuditLogChangeValue(r: seq[Role]): AuditLogChangeValue =
+    new(result)
+    result.kind = ALCRoles
+    result.roles = r
+
+proc newAuditLogChangeValue(o: seq[Overwrite]): AuditLogChangeValue =
+    new(result)
+    result.kind = ALCOverwrites
+    result.overwrites = o
+
 method guildAuditLog*(s: Session, guild: string, 
                         user_id: string = "", action_type: int = -1, 
                         before: string = "", limit: int = 50): Future[AuditLog]
@@ -883,10 +911,58 @@ method guildAuditLog*(s: Session, guild: string,
             action_type: entry["action_type"].num.int
         )
         if entry.hasKey("changes"):
+            # This is kinda ugly
             for change in entry["changes"].elems:
                 var c = AuditLogChange()
-                if change.hasKey("new_value"): c.new_value = change["new_value"]
-                if change.hasKey("old_value"): c.old_value = change["old_value"]
+                case change["key"].str:
+                of "name", "icon_hash", "splash_hash",
+                    "owner_id", "region", "afk_channel_id",
+                    "vanity_url_code", "topic", "application_id",
+                    "code", "nick", "avatar_hash", "id":
+                        if change.hasKey("new_value"): 
+                            c.new_value = newAuditLogChangeValue(change["new_value"].str)
+                        if change.hasKey("old_value"):
+                            c.old_value = newAuditLogChangeValue(change["old_value"].str)
+                of "afk_timeout", "mfa_level", "verification_level",
+                    "explicit_content_filter", "default_message_notifications",
+                    "prune_delete_days", "position", "bitrate", "permissions",
+                    "color", "allow", "deny", "max_uses", "uses", "max_age":
+                        if change.hasKey("new_value"):
+                            c.new_value = newAuditLogChangeValue(change["new_value"].num)
+                        if change.hasKey("old_value"):
+                            c.old_value = newAuditLogChangeValue(change["old_value"].num)
+                of "widget_enabled", "nsfw", "hoist", "mentionable",
+                    "temporary", "deaf", "mute":
+                        if change.hasKey("new_value"):
+                            c.new_value = newAuditLogChangeValue(change["new_value"].bval)
+                        if change.hasKey("old_value"):
+                            c.old_value = newAuditLogChangeValue(change["old_value"].bval)
+                of "$add", "$remove":
+                    if change.hasKey("new_value"):
+                        c.new_value = newAuditLogChangeValue(marshal.to[seq[Role]]($change["new_value"]))
+                    if change.hasKey("old_value"):
+                        c.old_value = newAuditLogChangeValue(marshal.to[seq[Role]]($change["old_value"]))
+                of "permission_overwrites":
+                    if change.hasKey("new_value"):
+                        c.new_value = newAuditLogChangeValue(marshal.to[seq[Overwrite]]($change["new_value"]))
+                    if change.hasKey("old_value"):
+                        c.old_value = newAuditLogChangeValue(marshal.to[seq[Overwrite]]($change["old_value"]))
+                of "type":
+                    if change.hasKey("new_value"):
+                        case change["new_value"].kind:
+                        of JString:
+                            c.new_value = newAuditLogChangeValue(change["new_value"].str)
+                        of JInt:
+                            c.new_value = newAuditLogChangeValue(change["new_value"].num)
+                        else: discard
+                    if change.hasKey("old_value"):
+                        case change["old_value"].kind:
+                        of JString:
+                            c.old_value = newAuditLogChangeValue(change["old_value"].str) 
+                        of JInt:
+                            c.old_value = newAuditLogChangeValue(change["old_value"].num)
+                        else: discard
+                e.changes.add(c)
             result.audit_log_entries.add(e)
         if entry.hasKey("options"):
             e.options = marshal.to[AuditLogOptions]($entry["options"])
@@ -1113,19 +1189,27 @@ proc `@`*(e: Emoji): string {.gcsafe, inline.} =
     ## e.g: <:emojiName:1920381>
     result = "<" & $e & ">"
 
+proc avatar*(u: User): string =
+    ## Returns the avatar url of the user.
+    ##
+    ## If the user doesn't have an avatar it returns the users default avatar.
+    if u.avatar.isNilOrEmpty():
+        result = "https://cdn.discordapp.com/embed/avatars/$1.png" % [$(u.discriminator.parseInt mod 4)] 
+    else: 
+        result = endpointAvatar(u.id, u.avatar)
+
 proc stripMentions*(msg: Message): string {.gcsafe.} =  
     ## Strips all user mentions from a message
     ## and replaces them with plaintext
     ##
     ## e.g: <@1901092738173> -> @Username#1234
-    if msg.mentions == nil: return msg.content
+    if msg.mentions == nil or msg.mentions.len == 0: return msg.content
 
-    var content = msg.content
+    result = msg.content
 
     for user in msg.mentions:
-        let regex = re("<@!?(" & user.id & ")>")
-        content = content.replace(regex, "@" & $user)
-    result = content
+        let regex = re("(<@!?" & user.id & ">)")
+        result = result.replace(regex, "@" & $user)
 
 proc stripEveryoneMention*(msg: Message): string {.gcsafe, inline.} =
     ## Strips a message of any @everyone and @here mention
