@@ -358,7 +358,7 @@ method setupHeartbeats(s: Session) {.async, gcsafe, base.} =
         var hb = %*{"op": opHeartbeat, "d": s.sequence}
         try:
             await s.connection.sock.sendText($hb, true)
-            await sleepAsync s.interval # -10 to accomodate for delay, seems to have stabilized the connection quite a bit
+            await sleepAsync s.interval
         except:
             if s.stop: return
             echo "Something happened when sending heartbeat through the websocket connection"
@@ -371,19 +371,17 @@ proc sessionHandleSocketMessage(s: Session) {.gcsafe, async, thread.} =
     var res: tuple[opcode: Opcode, data: string]
     while not isClosed(s.connection.sock) and not s.stop:
         try:
-            #await sleepAsync 2 # This seems to fix(?) the -1 read error??
             res = await s.connection.sock.readData(true)
         except:
             echo getCurrentExceptionMsg()
             break
         
-        when defined(compress):
-            if s.compress:
-                if res.opcode == Opcode.Binary:
-                    let t = zlib.uncompress(res.data)
-                    if t == nil:
-                        echo "Failed to uncompress data and I'm not sure why. Sorry."
-                    else: res.data = t
+        if s.compress:
+            if res.opcode == Opcode.Binary:
+                let t = zlib.uncompress(res.data)
+                if t == nil:
+                    echo "Failed to uncompress data and I'm not sure why. Sorry."
+                else: res.data = t
         
         let data = parseJson(res.data)
          
