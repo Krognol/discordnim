@@ -238,7 +238,7 @@ method channelEdit*(s: Session, channelid: string, params: ChannelParams, reason
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
     let res = await s.request(url, "PATCH", url, "application/json", $$params, 0, xheaders = h)
     let body = await res.body
-    result = marshal.to[Guild](body)
+    result = newGuild(parseJson(body))
 
 method deleteChannel*(s: Session, channelid: string, reason: string = ""): Future[DChannel] {.base, gcsafe, async.} =
     ## Deletes a channel
@@ -247,7 +247,7 @@ method deleteChannel*(s: Session, channelid: string, reason: string = ""): Futur
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
     let res = await s.request(url, "DELETE", url, "application/json", "", 0, xheaders = h)
     let body = await res.body
-    result = marshal.to[DChannel](body)
+    result = newChannel(parseJson(body))
 
 method channelMessages*(s: Session, channelid: string, before, after, around: string, limit: int): Future[seq[Message]] {.base, gcsafe, async.} =
     ## Returns a channels messages
@@ -268,14 +268,17 @@ method channelMessages*(s: Session, channelid: string, before, after, around: st
 
     let res = await s.request("", "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[seq[Message]](body)
+    let js = parseJson(body)
+    result = @[]
+    for msg in js.elems:
+        result.add(newMessage(msg))
 
 method channelMessage*(s: Session, channelid, messageid: string): Future[Message] {.base, gcsafe, async.} =
     ## Returns a message from a channel
     var url = endpointChannelMessage(channelid, messageid)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[Message](body)
+    result = newMessage(parseJson(body))
 
 
 method channelMessageSend*(s: Session, channelid, message: string): Future[Message] {.base, gcsafe, async.} =
@@ -284,7 +287,7 @@ method channelMessageSend*(s: Session, channelid, message: string): Future[Messa
     let payload = %*{"content": message}
     let res = await s.request(url, "POST", url, "application/json", $payload, 0)
     let body = await res.body
-    result = marshal.to[Message](body)
+    result = newMessage(parseJson(body))
     
 
 method channelMessageSendEmbed*(s: Session, channelid: string, embed: Embed): Future[Message] {.base, gcsafe, async.} =
@@ -298,7 +301,7 @@ method channelMessageSendEmbed*(s: Session, channelid: string, embed: Embed): Fu
 
     let res = await s.request(url, "POST", url, "application/json", $payload, 0)
     let body = await res.body
-    result = marshal.to[Message](body)
+    result = newMessage(parseJson(body))
 
 method channelMessageSendTTS*(s: Session, channelid, message: string): Future[Message] {.base, gcsafe, async.} =
     ## Sends a TTS message to a channel
@@ -306,7 +309,7 @@ method channelMessageSendTTS*(s: Session, channelid, message: string): Future[Me
     let payload = %*{"content": message, "tts": true}
     let res = await s.request(url, "POST", url, "application/json", $payload, 0)
     let body = await res.body
-    result = marshal.to[Message](body)
+    result = newMessage(parseJson(body))
 
 method channelFileSendWithMessage*(s: Session, channelid, name, message: string): Future[Message] {.base, gcsafe, async.} =
     ## Sends a file to a channel along with a message
@@ -318,7 +321,7 @@ method channelFileSendWithMessage*(s: Session, channelid, name, message: string)
     data.add("payload_json", $payload, contentType = "application/json")
     let res = await s.request(url, "POST", url, "multipart/form-data", "", 0, data)
     let body = await res.body
-    result = marshal.to[Message](body)
+    result = newMessage(parseJson(body))
 
 method channelFileSendWithMessage*(s: Session, channelid, name, fbody, message: string): Future[Message] {.base, gcsafe, async.} =
     ## Sends the contents of a file as a file to a channel.
@@ -335,7 +338,7 @@ method channelFileSendWithMessage*(s: Session, channelid, name, fbody, message: 
     data.add("payload_json", $payload, contentType = "application/json")
     let res = await s.request(url, "POST", url, "multipart/form-data", "", 0, data)
     let body = await res.body
-    result = marshal.to[Message](body)
+    result = newMessage(parseJson(body))
 
 method channelFileSend*(s: Session, channelid, fname: string): Future[Message] {.base, gcsafe, async, inline.} =
     ## Sends a file to a channel
@@ -365,8 +368,10 @@ method messageGetReactions*(s: Session, channelid, messageid, emojiid: string): 
     var url = endpointMessageReactions(channelid, messageid, emojiid)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[seq[User]](body)
-   
+    let js = parseJson(body)
+    result = @[]
+    for user in js.elems:
+        result.add(newUser(user))
 
 method messageDeleteAllReactions*(s: Session, channelid, messageid: string) {.base, gcsafe, async, inline.} =
     ## Deletes all reactions on a message
@@ -379,7 +384,7 @@ method channelMessageEdit*(s: Session, channelid, messageid, content: string): F
     let payload = %*{"content": content}
     let res = await s.request(url, "PATCH", url, "application/json", $payload, 0)
     let body = await res.body
-    result = marshal.to[Message](body)
+    result = newMessage(parseJson(body))
     
 method channelMessageDelete*(s: Session, channelid, messageid: string, reason: string = "") {.base, gcsafe, async.} =
     ## Deletes a message
@@ -412,8 +417,10 @@ method channelInvites*(s: Session, channel: string): Future[seq[Invite]] {.base,
     var url = endpointChannelInvites(channel)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[seq[Invite]](body)
-   
+    let js = parseJson(body)
+    result = @[]
+    for invite in js.elems:
+        result.add(newInvite(invite))
 
 method channelCreateInvite*(
                 s: Session, 
@@ -429,7 +436,7 @@ method channelCreateInvite*(
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
     let res = await s.request(url, "POST", url, "application/json", $payload, 0, xheaders = h)
     let body = await res.body
-    result = marshal.to[Invite](body)
+    result = newInvite(parseJson(body))
     
 
 method channelDeletePermission*(s: Session, channel, target: string, reason: string = "") {.base, gcsafe, async, inline.} =
@@ -449,8 +456,10 @@ method channelPinnedMessages*(s: Session, channel: string): Future[seq[Message]]
     var url = endpointChannelPinnedMessages(channel)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[seq[Message]](body)
-    
+    let js = parseJson(body)
+    result = @[]
+    for msg in js.elems:
+        result.add(newMessage(msg))
 
 method channelPinMessage*(s: Session, channel, message: string) {.base, gcsafe, async, inline.} =
     ## Pins a message in a channel
@@ -473,7 +482,7 @@ method groupDMCreate*(s: Session, accesstokens: seq[string], nicks: seq[AddGroup
     let payload = %*{"access_tokens": accesstokens, "nicks": nicks}
     let res = await s.request(url, "POST", url, "application/json", $payload, 0)
     let body = await res.body
-    result = marshal.to[DChannel](body)
+    result = newChannel(parseJson(body))
 
 method groupDMAddUser*(s: Session, channelid, userid, access_token, nick: string) {.base, gcsafe, async, inline.} =
     ## Adds a user to a group dm.
@@ -482,7 +491,6 @@ method groupDMAddUser*(s: Session, channelid, userid, access_token, nick: string
     let payload = %*{"access_token": access_token, "nick": nick}
     asyncCheck s.request(url, "PUT", url, "application/json", $payload, 0)
     
-
 method groupdDMRemoveUser*(s: Session, channelid, userid: string) {.base, gcsafe, async, inline.} =
     ## Removes a user from a group dm.
     var url = endpointGroupDMRecipient(channelid, userid)
@@ -495,9 +503,8 @@ method createGuild*(s: Session, name: string): Future[Guild] {.base, gcsafe, asy
     let payload = %*{"name": name}
     let res = await s.request(url, "POST", url, "application/json", $payload, 0)
     let body = await res.body
-    result = marshal.to[Guild](body)
+    result = newGuild(parseJson(body))
     
-
 method guild*(s: Session, id: string): Future[Guild] {.base, gcsafe, async.} =
     ## Gets a guild
     if s.cache.cacheGuilds:
@@ -509,7 +516,7 @@ method guild*(s: Session, id: string): Future[Guild] {.base, gcsafe, async.} =
     var url = endpointGuild(id)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[Guild](body)
+    result = newGuild(parseJson(body))
    
     if s.cache.cacheGuilds:
         s.cache.guilds[result.id] = result
@@ -525,24 +532,24 @@ method guildEdit*(s: Session, guild: string, settings: GuildParams, reason: stri
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
     let res = await s.request(url, "PATCH", url, "application/json", $$settings, 0, xheaders = h)
     let body = await res.body
-    result = marshal.to[Guild](body)
+    result = newGuild(parseJson(body))
     
-
 method deleteGuild*(s: Session, guild: string): Future[Guild] {.base, gcsafe, async.} =
     ## Deletes a guild
     var url = endpointGuild(guild)
     let res = await s.request(url, "DELETE", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[Guild](body)
+    result = newGuild(parseJson(body))
     
-
 method guildChannels*(s: Session, guild: string): Future[seq[DChannel]] {.base, gcsafe, async.} =
     ## Returns all guild channels
     var url = endpointGuildChannels(guild)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[seq[DChannel]](body)
-   
+    let js = parseJson(body)
+    result = @[]
+    for chan in js.elems:
+        result.add(newChannel(chan))
 
 method guildChannelCreate*(s: Session, guild, channelname: string, voice: bool, reason: string = ""): Future[DChannel] {.base, gcsafe, async.} =
     ## Creates a new channel in a guild
@@ -552,8 +559,7 @@ method guildChannelCreate*(s: Session, guild, channelname: string, voice: bool, 
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
     let res = await s.request(url, "POST", url, "application/json", $payload, 0, xheaders = h)
     let body = await res.body
-    result = marshal.to[DChannel](body)
-    
+    result = newChannel(parseJson(body))
 
 method guildChannelPositionEdit*(s: Session, guild, channel: string, position: int, reason: string = ""): Future[seq[DChannel]] {.base, gcsafe, async.} =
     ## Reorders the position of a channel and returns the new order
@@ -563,8 +569,10 @@ method guildChannelPositionEdit*(s: Session, guild, channel: string, position: i
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
     let res = await s.request(url, "PATCH", url, "application/json", $payload, 0, xheaders = h)
     let body = await res.body
-    result = marshal.to[seq[DChannel]](body)
-   
+    let js = parseJson(body)
+    result = @[]
+    for chan in js.elems:
+        result.add(newChannel(chan))
 
 method guildMembers*(s: Session, guild: string, limit, after: int): Future[seq[GuildMember]] {.base, gcsafe, async.} =
     ## Returns up to 1000 guild members
@@ -577,8 +585,10 @@ method guildMembers*(s: Session, guild: string, limit, after: int): Future[seq[G
 
     let res = await s.request("", "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[seq[GuildMember]](body)
-    
+    let js = parseJson(body)
+    result = @[]
+    for member in js.elems:
+        result.add(newGuildMember(member))
 
 method guildMember*(s: Session, guild, userid: string): Future[GuildMember] {.base, gcsafe, async.} =
     ## Returns a guild member with the userid
@@ -590,7 +600,7 @@ method guildMember*(s: Session, guild, userid: string): Future[GuildMember] {.ba
     var url = endpointGuildMember(guild, userid)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[GuildMember](body)
+    result = newGuildMember(parseJson(body))
     
     if s.cache.cacheGuildMembers:
         s.cache.addGuildMember(result)
@@ -601,7 +611,7 @@ method guildAddMember*(s: Session, guild, userid, accesstoken: string): Future[G
     let payload = %*{"access_token": accesstoken}
     let res = await s.request(url, "PUT", url, "application/json", $payload, 0)
     let body = await res.body
-    result = marshal.to[GuildMember](body)
+    result = newGuildMember(parseJson(body))
     
 
 method guildMemberRoles*(s: Session, guild, userid: string, roles: seq[string]) {.base, gcsafe, async, inline.} =
@@ -681,8 +691,10 @@ method guildBans*(s: Session, guild: string): Future[seq[User]] {.base, gcsafe, 
     var url = endpointGuildBans(guild)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[seq[User]](body)
-   
+    let js = parseJson(body)
+    result = @[]
+    for user in js.elems:
+        result.add(newUser(user))
 
 method guildUserBan*(s: Session, guild, userid: string, reason: string = "") {.base, gcsafe, async, inline.} =
     ## Bans a user from the guild
@@ -703,7 +715,10 @@ method guildRoles*(s: Session, guild: string): Future[seq[Role]] {.base, gcsafe,
     var url = endpointGuildRoles(guild)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[seq[Role]](body)
+    let js = parseJson(body)
+    result = @[]
+    for role in js.elems:
+        result.add(newRole(role))
     
 method guildRole*(s: Session, guild, roleid: string): Future[Role] {.base, gcsafe, async.} =
     ## Returns a role with the given id.
@@ -724,7 +739,6 @@ method guildRole*(s: Session, guild, roleid: string): Future[Role] {.base, gcsaf
     if s.cache.cacheRoles:
         s.cache.roles[result.id] = result
 
-
 method guildCreateRole*(s: Session, guild: string, reason: string = ""): Future[Role] {.base, gcsafe, async.} =
     ## Creates a new role in the guild
     var url = endpointGuildRoles(guild)
@@ -732,9 +746,8 @@ method guildCreateRole*(s: Session, guild: string, reason: string = ""): Future[
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
     let res = await s.request(url, "POST", url, "application/json", "", 0, xheaders = h)
     let body = await res.body
-    result = marshal.to[Role](body)
+    result = newRole(parseJson(body))
     
-
 method guildEditRolePosition*(s: Session, guild: string, roles: seq[Role], reason: string = ""): Future[seq[Role]] {.base, gcsafe, async.} =
     ## Edits the positions of a guilds roles roles
     ## and returns the new roles order
@@ -743,8 +756,10 @@ method guildEditRolePosition*(s: Session, guild: string, roles: seq[Role], reaso
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
     let res = await s.request(url, "PATCH", url, "application/json", $$roles, 0, xheaders = h)
     let body = await res.body
-    result = marshal.to[seq[Role]](body)
-    
+    let js = parseJson(body)
+    result = @[]
+    for role in js.elems:
+        result.add(newRole(role))    
 
 method guildEditRole*(
             s: Session, 
@@ -760,9 +775,8 @@ method guildEditRole*(
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
     let res = await s.request(url, "PATCH", url, "application/json", $payload, 0, xheaders = h)
     let body = await res.body
-    result = marshal.to[Role](body)
+    result = newRole(parseJson(body))
    
-
 method guildDeleteRole*(s: Session, guild, roleid: string, reason: string = "") {.base, gcsafe, async, inline.} =
     ## Deletes a role
     var url = endpointGuildRole(guild, roleid)
@@ -776,11 +790,8 @@ method guildPruneCount*(s: Session, guild: string, days: int): Future[int] {.bas
     var url = endpointGuildPruneCount(guild) & "?days=" & $days
     let res = await s.request(url, "GET", "", "application/json", "", 0)
     let body = await res.body
-    type Temp = object
-        pruned: int
-
-    let t = marshal.to[Temp](body)
-    return t.pruned
+    let js = parseJson(body)
+    result = js["pruned"].num.int
 
 method guildPruneBegin*(s: Session, guild: string, days: int, reason: string = ""): Future[int] {.base, gcsafe, async.} =
     ## Begins a prune operation and
@@ -791,35 +802,38 @@ method guildPruneBegin*(s: Session, guild: string, days: int, reason: string = "
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
     let res = await s.request(url, "POST", "", "application/json", "", 0, xheaders = h)
     let body = await res.body
-    type Temp = object
-        pruned: int
-
-    let t = marshal.to[Temp](body)
-    return t.pruned
+    let js = parseJson(body)
+    result = js["pruned"].num.int
 
 method guildVoiceRegions*(s: Session, guild: string): Future[seq[VoiceRegion]] {.base, gcsafe, async.} =
     ## Lists all voice regions in a guild
     var url = endpointGuildVoiceRegions(guild)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[seq[VoiceRegion]](body)
+    let js = parseJson(body)
+    result = @[]
+    for vr in js.elems:
+        result.add(newVoiceRegion(vr))
     
-
 method guildInvites*(s: Session, guild: string): Future[seq[Invite]] {.base, gcsafe, async.} =
     ## Lists all guild invites
     var url = endpointGuildInvites(guild)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[seq[Invite]](body)
-    
+    let js = parseJson(body)
+    result = @[]
+    for invite in js.elems:
+        result.add(newInvite(invite))    
 
 method guildIntegrations*(s: Session, guild: string): Future[seq[Integration]] {.base, gcsafe, async.} =
     ## Lists all guild integrations
     var url = endpointGuildIntegrations(guild)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[seq[Integration]](body)
-    
+    let js = parseJson(body)
+    result = @[]
+    for integ in js.elems:
+        result.add(newIntegration(integ))
 
 method guildIntegrationCreate*(s: Session, guild, typ, id: string) {.base, gcsafe, async.} =
     ## Creates a new guild integration
@@ -848,41 +862,15 @@ method guildEmbed*(s: Session, guild: string): Future[GuildEmbed] {.base, gcsafe
     var url = endpointGuildEmbed(guild)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[GuildEmbed](body)
+    result = newGuildEmbed(parseJson(body))
     
-
 method guildEmbedEdit*(s: Session, guild: string, enabled: bool, channel: string): Future[GuildEmbed] {.base, gcsafe, async.} =
     ## Edits a GuildEmbed
     var url = endpointGuildEmbed(guild)
     let embed = GuildEmbed(enabled: enabled, channel_id: channel)
     let res = await s.request(url, "PATCH", url, "application/json", $$embed, 0)
     let body = await res.body
-    result = marshal.to[GuildEmbed](body)
-
-proc newAuditLogChangeValue(s: string): AuditLogChangeValue =
-    new(result)
-    result.kind = ALCString
-    result.str = s
-
-proc newAuditLogChangeValue(i: int64): AuditLogChangeValue =
-    new(result)
-    result.kind = ALCInt
-    result.ival = i
-
-proc newAuditLogChangeValue(b: bool): AuditLogChangeValue =
-    new(result)
-    result.kind = ALCBool
-    result.bval = b
-
-proc newAuditLogChangeValue(r: seq[Role]): AuditLogChangeValue =
-    new(result)
-    result.kind = ALCRoles
-    result.roles = r
-
-proc newAuditLogChangeValue(o: seq[Overwrite]): AuditLogChangeValue =
-    new(result)
-    result.kind = ALCOverwrites
-    result.overwrites = o
+    result = newGuildEmbed(parseJson(body))
 
 method guildAuditLog*(s: Session, guild: string, 
                         user_id: string = "", action_type: int = -1, 
@@ -897,84 +885,15 @@ method guildAuditLog*(s: Session, guild: string,
     let res = await s.request("", "GET", url, "application/json", "", 0)
     let body = await res.body
     let temp = parseJson(body)
-    result = AuditLog(
-        webhooks: temp["webhooks"].to(seq[Webhook]),
-        users: marshal.to[seq[User]]($temp["users"]),
-        audit_log_entries: @[]
-    )
-    for entry in temp["audit_log_entries"].elems:
-        var e = AuditLogEntry(
-            target_id: entry["target_id"].str,
-            changes: @[],
-            user_id: entry["user_id"].str,
-            id: entry["id"].str,
-            action_type: entry["action_type"].num.int
-        )
-        if entry.hasKey("changes"):
-            # This is kinda ugly
-            for change in entry["changes"].elems:
-                var c = AuditLogChange()
-                case change["key"].str:
-                of "name", "icon_hash", "splash_hash",
-                    "owner_id", "region", "afk_channel_id",
-                    "vanity_url_code", "topic", "application_id",
-                    "code", "nick", "avatar_hash", "id":
-                        if change.hasKey("new_value"): 
-                            c.new_value = newAuditLogChangeValue(change["new_value"].str)
-                        if change.hasKey("old_value"):
-                            c.old_value = newAuditLogChangeValue(change["old_value"].str)
-                of "afk_timeout", "mfa_level", "verification_level",
-                    "explicit_content_filter", "default_message_notifications",
-                    "prune_delete_days", "position", "bitrate", "permissions",
-                    "color", "allow", "deny", "max_uses", "uses", "max_age":
-                        if change.hasKey("new_value"):
-                            c.new_value = newAuditLogChangeValue(change["new_value"].num)
-                        if change.hasKey("old_value"):
-                            c.old_value = newAuditLogChangeValue(change["old_value"].num)
-                of "widget_enabled", "nsfw", "hoist", "mentionable",
-                    "temporary", "deaf", "mute":
-                        if change.hasKey("new_value"):
-                            c.new_value = newAuditLogChangeValue(change["new_value"].bval)
-                        if change.hasKey("old_value"):
-                            c.old_value = newAuditLogChangeValue(change["old_value"].bval)
-                of "$add", "$remove":
-                    if change.hasKey("new_value"):
-                        c.new_value = newAuditLogChangeValue(marshal.to[seq[Role]]($change["new_value"]))
-                    if change.hasKey("old_value"):
-                        c.old_value = newAuditLogChangeValue(marshal.to[seq[Role]]($change["old_value"]))
-                of "permission_overwrites":
-                    if change.hasKey("new_value"):
-                        c.new_value = newAuditLogChangeValue(marshal.to[seq[Overwrite]]($change["new_value"]))
-                    if change.hasKey("old_value"):
-                        c.old_value = newAuditLogChangeValue(marshal.to[seq[Overwrite]]($change["old_value"]))
-                of "type":
-                    if change.hasKey("new_value"):
-                        case change["new_value"].kind:
-                        of JString:
-                            c.new_value = newAuditLogChangeValue(change["new_value"].str)
-                        of JInt:
-                            c.new_value = newAuditLogChangeValue(change["new_value"].num)
-                        else: discard
-                    if change.hasKey("old_value"):
-                        case change["old_value"].kind:
-                        of JString:
-                            c.old_value = newAuditLogChangeValue(change["old_value"].str) 
-                        of JInt:
-                            c.old_value = newAuditLogChangeValue(change["old_value"].num)
-                        else: discard
-                e.changes.add(c)
-            result.audit_log_entries.add(e)
-        if entry.hasKey("options"):
-            e.options = marshal.to[AuditLogOptions]($entry["options"])
+    result = newAuditLog(temp)
 
 method invite*(s: Session, code: string): Future[Invite] {.base, gcsafe, async.} =
     ## Gets an invite with code
     var url = endpointInvite(code)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[Invite](body)
+    result = newInvite(parseJson(body))
    
-
 method inviteDelete*(s: Session, code: string, reason: string = ""): Future[Invite] {.base, gcsafe, async.} =
     ## Deletes an invite
     var url = endpointInvite(code)
@@ -982,16 +901,14 @@ method inviteDelete*(s: Session, code: string, reason: string = ""): Future[Invi
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
     let res = await s.request(url, "DELETE", url, "application/json", "", 0, xheaders = h)
     let body = await res.body
-    result = marshal.to[Invite](body)
+    result = newInvite(parseJson(body))
     
-
 method me*(s: Session): Future[User] {.base, gcsafe, async.} =
     ## Returns the current user
     var url = endpointCurrentUser()
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[User](body)
-   
+    result = newUser(parseJson(body))
 
 method user*(s: Session, userid: string): Future[User] {.base, gcsafe, async.} =
     ## Gets a user
@@ -1004,7 +921,7 @@ method user*(s: Session, userid: string): Future[User] {.base, gcsafe, async.} =
     var url = endpointUser(userid)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[User](body)
+    result = newUser(parseJson(body))
 
     if s.cache.cacheUsers:
         s.cache.users[result.id] = result
@@ -1015,24 +932,25 @@ method usernameEdit*(s: Session, name: string): Future[User] {.base, gcsafe, asy
     let payload = %*{"username": name}
     let res = await s.request(url, "PATCH", url, "application/json", $payload, 0)
     let body = await res.body
-    result = marshal.to[User](body)
+    result = newUser(parseJson(body))
     
-
 method avatarEdit*(s: Session, avatar: string): Future[User] {.base, gcsafe, async.} =
     ## Changes the current users avatar
     var url = endpointCurrentUser()
     let payload = %*{"avatar": avatar}
     let res = await s.request(url, "PATCH", url, "application/json", $payload, 0)
     let body = await res.body
-    result = marshal.to[User](body)    
+    result = newUser(parseJson(body))
 
 method currentUserGuilds*(s: Session): Future[seq[UserGuild]] {.base, gcsafe, async.} =
     ## Lists the current users guilds
     var url = endpointCurrentUserGuilds()
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[seq[UserGuild]](body)
-    
+    let js = parseJson(body)
+    result = @[]
+    for uguild in js.elems:
+        result.add(newUserGuild(uguild))
 
 method leaveGuild*(s: Session, guild: string) {.base, gcsafe, async.} =
     ## Makes the current user leave the specified guild
@@ -1044,8 +962,10 @@ method activePrivateChannels*(s: Session): Future[seq[DChannel]] {.base, gcsafe,
     var url = endpointUserDMs()
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[seq[DChannel]](body)
-    
+    let js = parseJson(body)
+    result = @[]
+    for chan in js.elems:
+        result.add(newChannel(chan))
 
 method privateChannelCreate*(s: Session, recipient: string): Future[DChannel] {.base, gcsafe, async.} =
     ## Creates a new DM channel
@@ -1053,16 +973,17 @@ method privateChannelCreate*(s: Session, recipient: string): Future[DChannel] {.
     let payload = %*{"recipient_id": recipient}
     let res = await s.request(url, "POST", url, "application/json", $payload, 0)
     let body = await res.body
-    result = marshal.to[DChannel](body) 
+    result = newChannel(parseJson(body))
     
-
 method voiceRegions*(s: Session): Future[seq[VoiceRegion]] {.base, gcsafe, async.} =
     ## Lists all voice regions
     var url = endpointListVoiceRegions()
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[seq[VoiceRegion]](body)
-    
+    let js = parseJson(body)
+    result = @[]
+    for vreg in js.elems:
+        result.add(newVoiceRegion(vreg))
 
 method webhookCreate*(s: Session, channel, name, avatar: string, reason: string = ""): Future[Webhook] {.base, gcsafe, async.} =
     ## Creates a webhook
@@ -1072,32 +993,34 @@ method webhookCreate*(s: Session, channel, name, avatar: string, reason: string 
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
     let res = await s.request(url, "POST", url, "application/json", $payload, 0, xheaders = h)
     let body = await res.body
-    result = marshal.to[Webhook](body)
-   
+    result = newWebhook(parseJson(body))
 
 method channelWebhooks*(s: Session, channel: string): Future[seq[Webhook]] {.base, gcsafe, async.} =
     ## Lists all webhooks in a channel
     var url = endpointWebhooks(channel)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[seq[Webhook]](body)
-   
+    let js = parseJson(body)
+    result = @[]
+    for webhook in js.elems:
+        result.add(newWebhook(webhook))
 
 method guildWebhooks*(s: Session, guild: string): Future[seq[Webhook]] {.base, gcsafe, async.} =
     ## Lists all webhooks in a guild
     var url = endpointGuildWebhooks(guild)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[seq[Webhook]](body)
-    
+    let js = parseJson(body)
+    result = @[]
+    for webhook in js.elems:
+        result.add(newWebhook(webhook))
 
 method getWebhookWithToken*(s: Session, webhook, token: string): Future[Webhook] {.base, gcsafe, async.} =
     ## Gets a webhook with a token
     var url = endpointWebhookWithToken(webhook, token)
     let res = await s.request(url, "GET", url, "application/json", "", 0)
     let body = await res.body
-    result = marshal.to[Webhook](body)
-    
+    result = newWebhook(parseJson(body))
 
 method webhookEdit*(s: Session, webhook, name, avatar: string, reason: string = ""): Future[Webhook] {.base, gcsafe, async.} =
     ## Edits a webhook
@@ -1107,9 +1030,8 @@ method webhookEdit*(s: Session, webhook, name, avatar: string, reason: string = 
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
     let res = await s.request(url, "PATCH", url, "application/json", $payload, 0, xheaders = h)
     let body = await res.body
-    result = marshal.to[Webhook](body)
+    result = newWebhook(parseJson(body))
     
-
 method webhookEditWithToken*(s: Session, webhook, token, name, avatar: string, reason: string = ""): Future[Webhook] {.base, gcsafe, async.} =
     ## Edits a webhook with a token
     var url = endpointWebhookWithToken(webhook, token)
@@ -1118,8 +1040,7 @@ method webhookEditWithToken*(s: Session, webhook, token, name, avatar: string, r
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
     let res = await s.request(url, "PATCH", url, "application/json", $payload, 0, xheaders = h)
     let body = await res.body
-    result = marshal.to[Webhook](body)
-    
+    result = newWebhook(parseJson(body))
 
 method webhookDelete*(s: Session, webhook: string, reason: string = ""): Future[Webhook] {.base, gcsafe, async.} =
     ## Deletes a webhook
@@ -1128,9 +1049,8 @@ method webhookDelete*(s: Session, webhook: string, reason: string = ""): Future[
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
     let res = await s.request(url, "DELETE", url, "application/json", "", 0, xheaders = h)
     let body = await res.body
-    result = marshal.to[Webhook](body)
+    result = newWebhook(parseJson(body))
     
-
 method webhookDeleteWithToken*(s: Session, webhook, token: string, reason: string = ""): Future[Webhook] {.base, gcsafe, async.} =
     ## Deltes a webhook with a token
     var url = endpointWebhookWithToken(webhook, token)
@@ -1138,14 +1058,12 @@ method webhookDeleteWithToken*(s: Session, webhook, token: string, reason: strin
     if h != nil: h["X-Audit-Log-Reason"] = reason.encodeUrl
     let res = await s.request(url, "DELETE", url, "application/json", "", 0, xheaders = h)
     let body = await res.body
-    result = marshal.to[Webhook](body)
-    
+    result = newWebhook(parseJson(body))
 
 method executeWebhook*(s: Session, webhook, token: string, wait: bool, payload: WebhookParams) {.base, gcsafe, async, inline.} =
     ## Executes a webhook
     var url = endpointWebhookWithToken(webhook, token)
     asyncCheck s.request(url, "POST", url, "application/json", $$payload, 0) 
-
 
 proc `$`*(u: User): string {.gcsafe, inline.} =
     ## Stringifies a user.
@@ -1189,14 +1107,23 @@ proc `@`*(e: Emoji): string {.gcsafe, inline.} =
     ## e.g: <:emojiName:1920381>
     result = "<" & $e & ">"
 
-proc avatar*(u: User): string =
+proc defaultAvatar*(u: User): string =
     ## Returns the avatar url of the user.
     ##
     ## If the user doesn't have an avatar it returns the users default avatar.
     if u.avatar.isNilOrEmpty():
-        result = "https://cdn.discordapp.com/embed/avatars/$1.png" % [$(u.discriminator.parseInt mod 4)] 
+        result = "https://cdn.discordapp.com/embed/avatars/$1.png" % [$(u.discriminator.parseInt mod 5)]
     else: 
         result = endpointAvatar(u.id, u.avatar)
+
+proc defaultIcon*(g: Guild): string =
+    ## Returns the icon url for the guild.
+    ##
+    ## If the guild doesn't have an icon it returns the default icon.
+    if g.icon.isNilOrEmpty():
+        result = "https://cdn.discordapp.com/embed/avatars/$1.png" % [$(g.id.parseInt mod 5)]
+    else:
+        result = endpointGuildIcon(g.id, g.icon)
 
 proc stripMentions*(msg: Message): string {.gcsafe.} =  
     ## Strips all user mentions from a message
