@@ -1,10 +1,7 @@
 # Wish i could split this up a bit, but errors because cyclical includes
 include restapi
 import marshal, json, cgi, discordobjects, endpoints,
-       websocket/shared, asyncdispatch, asyncnet, uri
-
-when defined(compress):
-    import zip/zlib
+       websocket/shared, asyncdispatch, asyncnet, uri, zip/zlib
        
 # Gateway op codes
 {.hint[XDeclaredButNotUsed]: off.}
@@ -121,7 +118,7 @@ method updateStreamingStatus*(s: Shard, idle: int = 0, game: string, url: string
 method updateStatus*(s: Shard, idle: int = 0, game: string = "") {.base, gcsafe, async, inline.} =
     asyncCheck s.updateStreamingStatus(idle, game, "")
 
-# Temporary until a better solution is found
+# I'd like to make this prettier if at all possible
 method initEvents(s: Shard) {.base, gcsafe.} = 
     s.addHandler(channel_create, proc(s: Shard, p: ChannelCreate) = return)
     s.addHandler(channel_update, proc(s: Shard, p: ChannelUpdate) = return)
@@ -392,13 +389,12 @@ proc sessionHandleSocketMessage(s: Shard) {.gcsafe, async, thread.} =
             echo getCurrentExceptionMsg()
             break
         
-        when defined(compress):
-            if s.compress:
-                if res.opcode == Opcode.Binary:
-                    let t = zlib.uncompress(res.data)
-                    if t == nil:
-                        echo "Failed to uncompress data and I'm not sure why. Sorry."
-                    else: res.data = t
+        if s.compress:
+            if res.opcode == Opcode.Binary:
+                let t = zlib.uncompress(res.data)
+                if t == nil:
+                    echo "Failed to uncompress data and I'm not sure why. Sorry."
+                else: res.data = t
         
         let data = parseJson(res.data)
          
