@@ -1,9 +1,9 @@
 ## Has to be compiled with 
 ## '-d:ssl' flag
 
-import asyncdispatch, discord
+import asyncdispatch, discordnim
 
-proc messageCreate(s: Session, m: MessageCreate) =
+proc messageCreate(s: Shard, m: MessageCreate) =
     echo "Message was created!"
     if s.cache.me.id == m.author.id: return
     if m.content == "ping":
@@ -11,28 +11,24 @@ proc messageCreate(s: Session, m: MessageCreate) =
     elif m.content == "you're stupid!":
         asyncCheck s.channelMessageDelete(m.channel_id, m.id)
 
-proc messageUpdate(s: Session, m: MessageUpdate) =
+proc messageUpdate(s: Shard, m: MessageUpdate) =
     echo "Message was updated"
     if m.content == "pong":
         asyncCheck s.channelMessageSend(m.channel_id, "ping")
 
-var sessions: seq[Session] = @[]
-var s = newSession("Bot <Token>")
 
-if s.shardCount > 2:
-    for i in 1..s.shardCount:
+var client = newDiscordClient("Bot <Token>")
+
+if client.shardCount > 2:
+    for i in 1..client.shardCount:
+        let s = client.addShard()
         s.shardID = i
         s.addHandler(EventType.message_create, messageCreate)
         s.addHandler(EventType.message_update, messageUpdate)
-        sessions.add(s)
-        s = newSession("Bot <token>")
-
-
-for session in sessions:
-    asyncCheck session.startSession()
 
 proc endSession() {.noconv.} =
-    for session in sessions:
-        asyncCheck session.disconnect()
+    waitFor client.disconnect()
 
 setControlCHook(endSession)
+
+waitFor client.startSession()

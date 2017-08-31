@@ -1,11 +1,11 @@
 ## Has to be compiled with 
 ## '-d:ssl' flag
 
-import asyncdispatch, discord, times
+import asyncdispatch, discordnim, times
 
 const PREFIX = "!"
 
-proc messageCreate(s: Session, m: MessageCreate) =
+proc messageCreate(s: Shard, m: MessageCreate) =
     if m.author.id != s.cache.me.id:
         let command = m.content
 
@@ -16,13 +16,14 @@ proc messageCreate(s: Session, m: MessageCreate) =
                 asyncCheck s.channelMessageSend(m.channel_id, $getLocalTime(getTime()))
             else: discard
 
-let s = newSession("Bot <token>")
+let client = newDiscordClient("Bot <token>")
+let s = client.addShard()
 
 proc endSession() {.noconv.} =
-    waitFor s.disconnect()
+    waitFor client.disconnect()
 
 setControlCHook(endSession)
 
 s.addHandler(EventType.message_create, messageCreate)
 
-asyncCheck s.startSession()
+waitFor s.startSession()

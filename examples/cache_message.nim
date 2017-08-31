@@ -1,27 +1,27 @@
 ## Has to be compiled with 
 ## '-d:ssl' flag
 
-import asyncdispatch, discord, tables 
+import asyncdispatch, discordnim, tables 
 
 var cachedMessages: Table[string, string]
 cachedMessages = initTable[string, string]()
 
-let messageCreateProc = proc(s: Session, m: MessageCreate) =
+let messageCreateProc = proc(s: Shard, m: MessageCreate) =
     echo "Message was created!"
     if m.author.id != s.cache.me.id:
         cachedMessages[m.id] = m.content
  
-let messageDeleteProc = proc(s: Session, m: MessageDelete) =
+let messageDeleteProc = proc(s: Shard, m: MessageDelete) =
     echo "Message was deleted"
     if cachedMessages.hasKey(m.id):
         asyncCheck s.channelMessageSend(m.channel_id, "Message removed: " & cachedMessages[m.id])
         cachedMessages.del(m.id)
 
 
-let s = newSession("Bot <your bot token>")
-
+let client = newDiscordClient("Bot <your bot token>")
+let s = client.addShard()
 proc endSession() {.noconv.} =
-    waitFor s.disconnect()
+    waitFor client.disconnect()
 
 setControlCHook(endSession)
 

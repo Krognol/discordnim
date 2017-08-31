@@ -1,10 +1,10 @@
 ## Has to be compiled with 
 ## '-d:ssl' flag
 
-import asyncdispatch, discord
+import asyncdispatch, discordnim
 
 
-proc messageCreate(s: Session, m: MessageCreate) =
+proc messageCreate(s: Shard, m: MessageCreate) =
     if s.cache.me.id == m.author.id: return
     if m.content == "embed":
         
@@ -25,10 +25,11 @@ proc messageCreate(s: Session, m: MessageCreate) =
         asyncCheck s.channelmessageSendEmbed(m.channel_id, embed)
 
 
-let s = newSession("Bot <your bot token>")
+let client = newDiscordClient("Bot <your bot token>")
+let s = client.addShard()
 
 proc endSession() {.noconv.} =
-    waitFor s.disconnect()
+    waitFor client.disconnect()
 
 setControlCHook(endSession)
 

@@ -1,9 +1,9 @@
 ## Has to be compiled with 
 ## '-d:ssl' flag
 
-import asyncdispatch, discord
+import asyncdispatch, discordnim
 
-proc messageCreateProc(s: Session, m: MessageCreate) =
+proc messageCreateProc(s: Shard, m: MessageCreate) =
     if s.cache.me.id == m.author.id: return
     if m.content == "my-roles":
         var roles: seq[Role] = @[]
@@ -30,11 +30,12 @@ proc messageCreateProc(s: Session, m: MessageCreate) =
         asyncCheck s.channelmessageSend(m.channel_id, $roles)
         # Sends "@[(id: 299604263133380629, name: nano, color: 2067276, hoist: false, position: 1, permissions: 2146958463, managed: false, mentionable: true)]"
 
-let s = newSession("Bot <Token>")
+let client = newDiscordClient("Bot <Token>")
+let s = client.addShard()
 s.addHandler(message_create, messageCreateProc)
 
 proc endSession() {.noconv.} =
-    waitFor s.disconnect()
+    waitFor client.disconnect()
 
 setControlCHook(endSession)
 
