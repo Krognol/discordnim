@@ -491,9 +491,9 @@ type
     MessageCreate* = Message
     MessageUpdate* = Message
     MessageDelete* = Message
-    GuildMemberAdd* = object of GuildMember
-    GuildMemberUpdate* = object of GuildMember
-    GuildMemberRemove* = object of GuildMember
+    GuildMemberAdd* = GuildMember
+    GuildMemberUpdate* = GuildMember
+    GuildMemberRemove* = GuildMember
     GuildMembersChunk* = object
         guild_id*: string
         members*: seq[GuildMember]
@@ -554,13 +554,13 @@ type
         voice_server_update
         on_resume
         on_ready
-    Session* = ref SessionImpl
-    SessionImpl = object
+    Shard* = ref ShardImpl
+    ShardImpl = object
         mut: Lock
+        client: DiscordClient
         token*: string
         compress*: bool
         shardID*: int 
-        shardCount*: int
         gateway*: string
         session_id: string
         limiter: RateLimits
@@ -574,15 +574,20 @@ type
         sequence: int
         interval: int
         handlers: Table[EventType, pointer]
+    DiscordClient* = ref object
+        globalRL: RateLimits
+        shards*: seq[Shard]
+        shardCount*: int
+        token*: string
+        stop: bool
     
-
-method addHandler*(s: Session, t: EventType, p: pointer) {.gcsafe, base, inline.} =
+method addHandler*(s: Shard, t: EventType, p: pointer) {.gcsafe, base, inline.} =
     ## Adds a handler tied to a websocket event
     initLock(s.mut)
     s.handlers[t] = p
     deinitLock(s.mut)
 
-method removeHandler*(s: Session, t: EventType) {.gcsafe, base, inline.} =
+method removeHandler*(s: Shard, t: EventType) {.gcsafe, base, inline.} =
     ## Removes a websocket event handler
     initLock(s.mut)
     s.handlers.del(t)
@@ -818,7 +823,7 @@ proc newGuildIntegrationsUpdate(payload: JsonNode): GuildIntegrationsUpdate {.in
     )
 
 proc newGuildMemberAdd(payload: JsonNode): GuildMemberAdd {.inline.} =
-    result = newGuildMember(payload).GuildMemberAdd
+    result = newGuildMember(payload)
 
 proc newGuildMemberRemove(payload: JsonNode): GuildMemberRemove {.inline.} =
     result = GuildMemberRemove(
@@ -952,8 +957,8 @@ proc newReaction(payload: JsonNode): Reaction {.inline.} =
 
 proc newMessage(payload: JsonNode): Message =
     result = Message(
-        id: payload["id"].str,
-        channel_id: payload["channel_id"].str,
+        id: if payload.hasKey("id"): payload["id"].str else: "",
+        channel_id: if payload.hasKey("channel_id"): payload["channel_id"].str else: "",
         author: if payload.hasKey("author"): marshal.to[User]($payload["author"]) else: User(),
         content: if payload.hasKey("content"): payload["content"].str else: "",
         timestamp: if payload.hasKey("timestamp"): payload["timestamp"].str else: $getLocalTime(getTime()),
