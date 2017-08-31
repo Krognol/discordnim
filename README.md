@@ -28,19 +28,22 @@ There are some examples in the `examples` folder.
 Initialising a `Session`:
 
 ```nim
-import discord, asyncdispatch
+import discordnim, asyncdispatch
 
 proc someMessageCreateProc(s: Session, m: MessageCreate) =
     if m.content == "ping":
         asyncCheck s.channelMessageSend(m.channel_id, "pong!")
 
-let session = newSession("Bot <your token>")
+let client = newDiscordClient("Bot <your token>")
+let shard = client.addShard()
 ## Add your gateway event methods
-session.addHandler(EventType.message_create, someMessageCreateProc)
+shard.addHandler(EventType.message_create, someMessageCreateProc)
 
 ## Lastly you connect
 s.compress = true
-waitFor s.startSession()
+waitFor shard.startSession()
+# Alternatively you can do 
+# `client.startSession()`, but only useful if you have more than one shard.
 ```
 
 All programs have to be compiled with the `-d:ssl` flag.

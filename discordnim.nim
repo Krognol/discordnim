@@ -1,2 +1,2 @@
-import src/discordnim
-export discordnim
+import src/discord
+export discord
