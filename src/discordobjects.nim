@@ -123,9 +123,9 @@ type
         recipients*: seq[User]
         nsfw*: bool
         parent_id*: string
-        icon: string
-        owner_id: string
-        application_id: string
+        icon*: string
+        owner_id*: string
+        application_id*: string
     Message* = object of RootObj
         `type`: int
         tts*: bool
@@ -207,10 +207,10 @@ type
         height*: int
         width*: int
     Presence* = object
-        since: int
-        afk: bool
-        game: Game
-        status: string
+        since*: int
+        afk*: bool
+        game*: Game
+        status*: string
     Guild* = object of RootObj
         id*: string
         name*: string
@@ -230,7 +230,7 @@ type
         joined_at*: string
         large*: bool
         unavailable*: bool
-        features: seq[string]
+        features*: seq[string]
         explicit_content_filter*: int
         member_count*: int
         voice_states*: seq[VoiceState]
@@ -295,11 +295,11 @@ type
         verified*: bool
         email*: string
     UserGuild* = object
-        id: string
-        name: string
-        icon: string
-        owner: bool
-        permissions: int
+        id*: string
+        name*: string
+        icon*: string
+        owner*: bool
+        permissions*: int
     Connection* = object
         id*: string
         name*: string
@@ -430,8 +430,8 @@ type
         options*: AuditLogOptions
     AuditLog* = object
         webhooks*: seq[Webhook]
-        users: seq[User]
-        audit_log_entries: seq[AuditLogEntry]
+        users*: seq[User]
+        audit_log_entries*: seq[AuditLogEntry]
     MessageDeleteBulk* = object
         ids*: seq[string]
         channel_id*: string
@@ -484,7 +484,7 @@ type
         session_id*: string
         guilds*: seq[Guild]
         trace*: seq[string] 
-        presences: seq[Presence]
+        presences*: seq[Presence]
     Pin* = object of RootObj
         last_pin_timestamp*: string
         channel_id*: string
@@ -500,8 +500,8 @@ type
     GuildCreate* = Guild
     GuildUpdate* = Guild
     GuildDelete* = object
-        id: string
-        unavailable: bool
+        id*: string
+        unavailable*: bool
     GuildBanAdd* = User
     GuildBanRemove* = User
     ChannelCreate* = DChannel
@@ -511,14 +511,14 @@ type
     UserUpdate* = User
     VoiceStateUpdate* = VoiceState
     MessageReactionAdd* = object of RootObj
-        user_id: string
-        message_id: string
-        channel_id: string
-        emoji: Emoji
+        user_id*: string
+        message_id*: string
+        channel_id*: string
+        emoji*: Emoji
     MessageReactionRemove* = MessageReactionAdd
     MessageReactionRemoveAll* = object
-        message_id: string
-        channel_id: string
+        message_id*: string
+        channel_id*: string
     WebhooksUpdate = Webhook
     EventType* = enum
         channel_create
@@ -578,6 +578,7 @@ type
         token*: string
         mut: Lock
         globalRL: RateLimits
+        httpC: AsyncHttpClient
         shards*: seq[Shard]
         handlers: Table[EventType, pointer]
     
