@@ -32,7 +32,7 @@ proc messageCreateProc(s: Shard, m: MessageCreate) =
 
 let client = newDiscordClient("Bot <Token>")
 let s = client.addShard()
-s.addHandler(message_create, messageCreateProc)
+client.addHandler(message_create, messageCreateProc)
 
 proc endSession() {.noconv.} =
     waitFor client.disconnect()

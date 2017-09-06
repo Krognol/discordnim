@@ -7,7 +7,7 @@ proc messageCreate(s: Shard, m: MessageCreate) =
     if s.cache.me.id == m.author.id: return
     if m.content == "ping":
         asyncCheck s.channelMessageSend(m.channel_id, "pong")
-
+        
 let d = newDiscordClient("Bot <your bot token>")
 let s = d.addShard()
 proc endSession() {.noconv.} =
@@ -15,5 +15,5 @@ proc endSession() {.noconv.} =
 
 setControlCHook(endSession)
 
-s.addHandler(EventType.message_create, messageCreate)
+d.addHandler(EventType.message_create, messageCreate)
 waitfor s.startSession()

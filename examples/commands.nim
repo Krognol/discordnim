@@ -24,6 +24,6 @@ proc endSession() {.noconv.} =
 
 setControlCHook(endSession)
 
-s.addHandler(EventType.message_create, messageCreate)
+client.addHandler(EventType.message_create, messageCreate)
 
 waitFor s.startSession()

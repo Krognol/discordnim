@@ -18,13 +18,13 @@ proc messageUpdate(s: Shard, m: MessageUpdate) =
 
 
 var client = newDiscordClient("Bot <Token>")
+client.addHandler(EventType.message_create, messageCreate)
+client.addHandler(EventType.message_update, messageUpdate)
 
 if client.shardCount > 2:
     for i in 1..client.shardCount:
         let s = client.addShard()
         s.shardID = i
-        s.addHandler(EventType.message_create, messageCreate)
-        s.addHandler(EventType.message_update, messageUpdate)
 
 proc endSession() {.noconv.} =
     waitFor client.disconnect()

@@ -25,7 +25,7 @@ proc endSession() {.noconv.} =
 
 setControlCHook(endSession)
 
-s.addHandler(EventType.message_create, messageCreateProc)
-s.addHandler(EventType.message_delete, messageDeleteProc)
+client.addHandler(EventType.message_create, messageCreateProc)
+client.addHandler(EventType.message_delete, messageDeleteProc)
 
 waitFor s.startSession()
