@@ -6,28 +6,18 @@ method request(s: DiscordClient,
                 sequence : int, 
                 mp: MultipartData = nil,
                 xheaders: HttpHeaders = nil): Future[AsyncResponse] {.base, gcsafe, async.} =
-
-    let client = newAsyncHttpClient("DiscordBot (https://github.com/Krognol/discordnim, v" & VERSION & ")")
-    var id: string
-    if bucketid == "":
-        id = split(url, "?", 2)[0]
-    else:
-        id = bucketid
-    await s.globalRL.preCheck(id)
  
-    if s.token != "": 
-        client.headers["Authorization"] = s.token
+    await s.globalRL.preCheck(bucketid)
 
-    client.headers["Content-Type"] = contenttype 
-    client.headers["Content-Length"] = $b.len
+    s.httpC.headers["Content-Type"] = contenttype 
+    s.httpC.headers["Content-Length"] = $(b.len)
     if mp == nil:
-        result = await client.request(url, meth, b)
+        result = await s.httpC.request(url, meth, b)
     elif mp != nil and meth == "POST":
-        result = await client.post(url, b, mp)
-    client.close()
+        result = await s.httpC.post(url, b, mp)
     
     if (await s.globalRL.postUpdate(url, result)) and sequence < 5:
-        result = await s.request(id, meth, url, contenttype, b, sequence+1)
+        result = await s.request(bucketid, meth, url, contenttype, b, sequence+1)
     if result == nil: raise newException(Exception, "Rest API returned nil")
 
 method request(s: Shard,
@@ -41,7 +31,7 @@ method request(s: Shard,
     else:
         id = bucketid
     await s.limiter.preCheck(id)
-    result = await s.client.request(bucketid, meth, url, contenttype, b, sequence, mp, xheaders)
+    result = await s.client.request(id, meth, url, contenttype, b, sequence, mp, xheaders)
     if (await s.limiter.postUpdate(url, result)):
         echo "You got ratelimited"
 

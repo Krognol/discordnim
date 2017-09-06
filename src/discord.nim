@@ -166,9 +166,11 @@ proc newDiscordClient*(token: string): DiscordClient {.gcsafe.} =
         globalRL: newRateLimiter(),
         shardcount: 0,
         mut: Lock(),
+        httpC: newAsyncHttpClient("DiscordBot (https://github.com/Krognol/discordnim, v" & VERSION & ")"),
         shards: @[],
         handlers: initTable[EventType, pointer]()
     )
+    result.httpC.headers.add("Authorization", token)
 
     result.initEvents()
 
@@ -348,7 +350,7 @@ method identify(s: Shard) {.async, gcsafe, base.} =
     try:
         await s.connection.sock.sendText($payload, true)
     except:
-        echo "Error sending identify packet\c\L" & getCurrentExceptionMsg()
+        echo "Error sending identify packet\n" & getCurrentExceptionMsg()
 
 method resume(s: Shard) {.async, gcsafe, base.} =
     let payload = %*{
@@ -438,13 +440,14 @@ proc sessionHandleSocketMessage(s: Shard) {.gcsafe, async, thread.} =
             echo $data
     poll()
 
-    echo "connection closed\c\Lcode: ", res.opcode, "\c\Ldata: ", res.data
+    echo "connection closed\ncode: ", res.opcode, "\ndata: ", res.data
     s.suspended = true
     s.stop = true
     if not s.connection.sock.isClosed:
         s.connection.sock.close()
 
 method disconnect*(s: Shard) {.gcsafe, base, async.} =
+    ## Disconnects a shard
     s.stop = true
     s.cache.clear()
     await s.connection.close() # Does not seem to send the close code properly?
@@ -454,10 +457,11 @@ method disconnect*(d: DiscordClient) {.gcsafe, base, async.} =
     for shard in d.shards:
         asyncCheck shard.disconnect()
     d.handlers.clear()
+    d.httpC.close()
     d.stop = true
 
 method startSession*(s: Shard) {.base, async, gcsafe.} =
-    ## Starts a Shard
+    ## Connects a Shard
     if s.connection != nil:
         echo "Shard is already connected"
         return
