@@ -38,9 +38,9 @@ let client = newDiscordClient("Bot <your token>")
 let shard = client.addShard()
 ## Add your gateway event methods
 shard.addHandler(EventType.message_create, someMessageCreateProc)
+shard.compress = true
 
 ## Lastly you connect
-s.compress = true
 waitFor shard.startSession()
 # Alternatively you can do 
 # `client.startSession()`, but only useful if you have more than one shard.
