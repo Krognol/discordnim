@@ -556,42 +556,42 @@ type
         on_ready
     Shard* = ref ShardImpl
     ShardImpl = object
-        mut: Lock
-        client: DiscordClient
-        token*: string
-        compress*: bool
-        shardID*: int 
-        gateway*: string
-        session_id: string
-        limiter: RateLimits
-        connection*: AsyncWebSocket
-        voiceConnections: seq[VoiceConnection]
-        cache*: Cache
         shouldResume: bool
         suspended: bool
         invalidated: bool
         stop: bool
+        compress*: bool
         sequence: int
         interval: int
-        handlers: Table[EventType, pointer]
+        shardID*: int 
+        token*: string
+        gateway*: string
+        session_id: string
+        cache*: Cache
+        limiter: RateLimits
+        client: DiscordClient
+        connection*: AsyncWebSocket
+        voiceConnections: seq[VoiceConnection] # Does not work yet
     DiscordClient* = ref object
-        globalRL: RateLimits
-        shards*: seq[Shard]
+        stop: bool
         shardCount*: int
         token*: string
-        stop: bool
+        mut: Lock
+        globalRL: RateLimits
+        shards*: seq[Shard]
+        handlers: Table[EventType, pointer]
     
-method addHandler*(s: Shard, t: EventType, p: pointer) {.gcsafe, base, inline.} =
+method addHandler*(d: DiscordClient, t: EventType, p: pointer) {.gcsafe, base, inline.} =
     ## Adds a handler tied to a websocket event
-    initLock(s.mut)
-    s.handlers[t] = p
-    deinitLock(s.mut)
+    initLock(d.mut)
+    d.handlers[t] = p
+    deinitLock(d.mut)
 
-method removeHandler*(s: Shard, t: EventType) {.gcsafe, base, inline.} =
+method removeHandler*(d: DiscordClient, t: EventType) {.gcsafe, base, inline.} =
     ## Removes a websocket event handler
-    initLock(s.mut)
-    s.handlers.del(t)
-    deinitLock(s.mut)
+    initLock(d.mut)
+    d.handlers.del(t)
+    deinitLock(d.mut)
 
 
 # This isn't very pretty, but it is significantly faster than `json.to(T)`, and also faster than marshal.to[T].
