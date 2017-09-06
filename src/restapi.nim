@@ -1129,16 +1129,10 @@ proc defaultAvatar*(u: User): string =
     if u.avatar.isNilOrEmpty():
         result = "https://cdn.discordapp.com/embed/avatars/$1.png" % [$(u.discriminator.parseInt mod 5)]
     else: 
-        result = endpointAvatar(u.id, u.avatar)
-
-proc defaultIcon*(g: Guild): string =
-    ## Returns the icon url for the guild.
-    ##
-    ## If the guild doesn't have an icon it returns the default icon.
-    if g.icon.isNilOrEmpty():
-        result = "https://cdn.discordapp.com/embed/avatars/$1.png" % [$(g.id.parseInt mod 5)]
-    else:
-        result = endpointGuildIcon(g.id, g.icon)
+        if u.avatar.startsWith("a_"):
+            result = endpointAvatarAnimated(u.id, u.avatar)
+        else:
+            result = endpointAvatar(u.id, u.avatar)
 
 proc stripMentions*(msg: Message): string {.gcsafe.} =  
     ## Strips all user mentions from a message

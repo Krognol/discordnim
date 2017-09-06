@@ -21,6 +21,8 @@ proc endpointAttachment*(cid, aid, fname: string): string {.inline.} = CDN_ATTAC
 
 proc endpointAvatar*(uid, hash: string): string {.inline.} = CDN_AVATARS & uid & "/" & hash & ".png"
 
+proc endpointAvatarAnimated*(uid, hash: string): string {.inline.} = CDN_AVATARS & uid & "/" & hash & ".gif"
+
 proc endpointGuildIcon*(gid, hash: string): string {.inline.} = CDN_ICONS & gid & "/" & hash & ".png"
 
 proc endpointGuildSplash*(gid, hash: string): string {.inline.} = CDN_SPLASHES & gid & "/" & hash & ".png"
