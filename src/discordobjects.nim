@@ -554,6 +554,7 @@ type
         voice_server_update
         on_resume
         on_ready
+        on_disconnect
     Shard* = ref ShardImpl
     ShardImpl = object
         shouldResume: bool
@@ -578,7 +579,6 @@ type
         token*: string
         mut: Lock
         globalRL: RateLimits
-        httpC: AsyncHttpClient
         shards*: seq[Shard]
         handlers: Table[EventType, pointer]
     

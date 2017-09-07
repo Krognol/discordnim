@@ -163,11 +163,9 @@ proc newDiscordClient*(token: string): DiscordClient {.gcsafe.} =
         globalRL: newRateLimiter(),
         shardcount: 0,
         mut: Lock(),
-        httpC: newAsyncHttpClient("DiscordBot (https://github.com/Krognol/discordnim, v" & VERSION & ")"),
         shards: @[],
         handlers: initTable[EventType, pointer]()
     )
-    result.httpC.headers.add("Authorization", token)
 
     result.initEvents()
 
@@ -398,7 +396,7 @@ proc sessionHandleSocketMessage(s: Shard) {.gcsafe, async, thread.} =
                 if t == nil:
                     echo "Failed to uncompress data and I'm not sure why. Sorry."
                 else: res.data = t
-    
+        
         let data = parseJson(res.data)
          
         if data["s"].kind != JNull:
@@ -441,6 +439,8 @@ proc sessionHandleSocketMessage(s: Shard) {.gcsafe, async, thread.} =
     s.stop = true
     if not s.connection.sock.isClosed:
         s.connection.sock.close()
+    echo "Disconnected..."
+    cast[proc(s: Shard){.cdecl.}](s.client.handlers[on_disconnect])(s)
 
 method disconnect*(s: Shard) {.gcsafe, base, async.} =
     ## Disconnects a shard
@@ -453,7 +453,6 @@ method disconnect*(d: DiscordClient) {.gcsafe, base, async.} =
     for shard in d.shards:
         asyncCheck shard.disconnect()
     d.handlers.clear()
-    d.httpC.close()
     d.stop = true
 
 method startSession*(s: Shard) {.base, async, gcsafe.} =

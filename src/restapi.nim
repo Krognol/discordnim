@@ -6,15 +6,17 @@ method request(s: DiscordClient,
                 sequence : int, 
                 mp: MultipartData = nil,
                 xheaders: HttpHeaders = nil): Future[AsyncResponse] {.base, gcsafe, async.} =
- 
+    let client = newAsyncHttpClient("DiscordBot (https://github.com/Krognol/discordnim, v" & VERSION & ")")
     await s.globalRL.preCheck(bucketid)
 
-    s.httpC.headers["Content-Type"] = contenttype 
-    s.httpC.headers["Content-Length"] = $(b.len)
+    client.headers["Authorization"] = s.token
+    client.headers["Content-Type"] = contenttype 
+    client.headers["Content-Length"] = $(b.len)
     if mp == nil:
-        result = await s.httpC.request(url, meth, b)
+        result = await client.request(url, meth, b)
     elif mp != nil and meth == "POST":
-        result = await s.httpC.post(url, b, mp)
+        result = await client.post(url, b, mp)
+    client.close()
     
     if (await s.globalRL.postUpdate(url, result)) and sequence < 5:
         result = await s.request(bucketid, meth, url, contenttype, b, sequence+1)
