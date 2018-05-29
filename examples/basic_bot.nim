@@ -1,19 +1,29 @@
-## Has to be compiled with 
-## '-d:ssl' flag
+## 
+##  Copyright (c) 2018 emekoi
+##
+##  This library is free software; you can redistribute it and/or modify it
+##  under the terms of the MIT license. See LICENSE for details.
+##
 
-import asyncdispatch, discordnim, strutils
+import asyncdispatch, ospaths, ../src/discord
 
-proc messageCreate(s: Shard, m: MessageCreate) =
-    if s.cache.me.id == m.author.id: return
-    if m.content == "ping":
-        asyncCheck s.channelMessageSend(m.channel_id, "pong")
-        
-let d = newDiscordClient("Bot <your bot token>")
-let s = d.addShard()
+const DISCORD_TOKEN = getEnv("DISCORD_TOKEN")
+
+if DISCORD_TOKEN == "":
+  raise newException(Exception, "no DISCORD_TOKEN env variable found")
+
+proc someMessageCreateProc(s: Shard, m: MessageCreate) {.cdecl.} =
+  if m.content == "ping!":
+    asyncCheck s.channelMessageSend(m.channel_id, "pong!")
+
+let client = newDiscordClient("Bot " & DISCORD_TOKEN)
+client.addHandler(EventType.message_create, someMessageCreateProc)
+
+let shard = client.addShard()
+shard.compress = true
+
 proc endSession() {.noconv.} =
-    waitFor d.disconnect()
+  waitFor client.disconnect()
 
 setControlCHook(endSession)
-
-d.addHandler(EventType.message_create, messageCreate)
-waitfor s.startSession()
+waitFor shard.startSession()

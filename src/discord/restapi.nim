@@ -1,5 +1,17 @@
-include discordobjects, endpoints
-import httpclient, asyncnet, strutils, json, marshal, net, re, ospaths, mimetypes, cgi, sequtils
+## 
+##  Copyright (c) 2018 emekoi
+##
+##  This library is free software; you can redistribute it and/or modify it
+##  under the terms of the MIT license. See LICENSE for details.
+##
+
+include
+    objects, endpoints
+
+import
+    httpclient, asyncnet, strutils,
+    json, marshal, net, re, ospaths,
+    mimetypes, cgi, sequtils
 
 method request(s: DiscordClient, 
                 bucketid, meth, url, contenttype, b: string = "", 
