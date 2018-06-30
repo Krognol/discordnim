@@ -1,7 +1,18 @@
+## 
+##  Copyright (c) 2018 emekoi
+##
+##  This library is free software; you can redistribute it and/or modify it
+##  under the terms of the MIT license. See LICENSE for details.
+##
+
 # Wish i could split this up a bit, but errors because cyclical includes
-include restapi
-import marshal, json, cgi, discordobjects, endpoints,
-       websocket/shared, asyncdispatch, asyncnet, uri, zip/zlib
+include discord/restapi
+
+import
+    marshal, json, cgi, asyncdispatch,
+    asyncnet, uri, zip/zlib,
+    discord/objects, discord/endpoints,
+    discord/private/websocket/shared
        
 # Gateway op codes
 {.hint[XDeclaredButNotUsed]: off.}

@@ -1,25 +1,34 @@
-## Has to be compiled with 
-## '-d:ssl' flag
+## 
+##  Copyright (c) 2018 emekoi
+##
+##  This library is free software; you can redistribute it and/or modify it
+##  under the terms of the MIT license. See LICENSE for details.
+##
 
-import asyncdispatch, discordnim
+import asyncdispatch, ospaths, ../src/discord
 
-proc messageCreate(s: Shard, m: MessageCreate) =
-    if s.cache.me.id == m.author.id: return
-    if m.content == "img":
-        let f = readFile("somefile.png")
-        asyncCheck s.channelFileSend(m.channel_id, "somefile.png", f)
-    elif m.content == "img but with a message":
-        let f = readFile("somefile.png")
-        asyncCheck s.channelFileSendWithMessage(m.channel_id, "somefile.png", f, "here's a file but with a message")
+const DISCORD_TOKEN = getEnv("DISCORD_TOKEN")
 
-let client = newDiscordClient("Bot <token>")
-let s = client.addShard()
+if DISCORD_TOKEN == "":
+  raise newException(Exception, "no DISCORD_TOKEN env variable found")
 
-proc endSession() {.noconv.} =
-    waitFor client.disconnect()
+proc messageCreate(s: Shard, m: MessageCreate) {.cdecl.} =
+  if s.cache.me.id == m.author.id: return
+  if m.content == "img":
+    let f = readFile("somefile.png")
+    asyncCheck s.channelFileSend(m.channel_id, "somefile.png", f)
+  elif m.content == "img but with a message":
+    let f = readFile("somefile.png")
+    asyncCheck s.channelFileSendWithMessage(m.channel_id, "somefile.png", f, "here's a file but with a message")
 
-setControlCHook(endSession)
-
+let client = newDiscordClient("Bot " & DISCORD_TOKEN)
 client.addHandler(EventType.message_create, messageCreate)
 
-waitFor s.startSession()
+let shard = client.addShard()
+shard.compress = true
+
+proc endSession() {.noconv.} =
+  waitFor client.disconnect()
+
+setControlCHook(endSession)
+waitFor shard.startSession()
