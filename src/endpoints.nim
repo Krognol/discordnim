@@ -99,6 +99,10 @@ proc endpointGuildEmbed*(gid : string): string {.inline.} = endpointGuild(gid) &
 
 proc endpointGuildAuditLog(gid: string): string {.inline.} = endpointGuild(gid) & "/audit-logs"
 
+proc endpointGuildEmojis(gid: string): string {.inline.} = endpointGuild(gid) & "/emojis"
+
+proc endpointGuildEmoji(gid, eid: string): string {.inline.} = endpointGuildEmojis(gid) & "/" & eid
+
 # Invite endpoints
 
 proc endpointInvite*(ic : string): string {.inline.} = BASE & "/invites/" & ic
