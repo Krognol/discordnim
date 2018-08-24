@@ -670,7 +670,8 @@ proc newChannel(payload: JsonNode): Channel {.inline.} =
     )
 
     if payload.hasKey("recipients"):
-        for user in payload["recipents"].elems:
+        result.recipients = @[]
+        for user in payload["recipients"].elems:
             result.recipients.add(newUser(user))
 
 proc newChannelSeq(payload: JsonNode): seq[Channel] =
