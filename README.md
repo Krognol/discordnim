@@ -2,7 +2,7 @@
 
 A Discord library for Nim. 
 
-Websockets from [niv/websocket.nim](https://github.com/niv/websocket.nim) -- Slightly altered.
+Websockets from [niv/websocket.nim](https://github.com/niv/websocket.nim)
 
 # Installing
 
