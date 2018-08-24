@@ -1,4 +1,4 @@
-import json, tables, locks, websocket/client, times, httpclient, strutils, asyncdispatch, marshal, sequtils
+import json, tables, locks, websocket/shared, times, httpclient, strutils, asyncdispatch, marshal, sequtils
 {.hint[XDeclaredButNotUsed]: off.}
 
 type 
@@ -15,7 +15,7 @@ type
 method preCheck(r: RateLimit) {.async, gcsafe, base.} =
     if r.limit == 0: return
     
-    let diff = r.reset - getTime().toSeconds.int64
+    let diff = r.reset - getTime().toUnix.int64
     if diff < 0:
         r.reset += 3
         r.remaining = r.limit
@@ -1026,7 +1026,7 @@ proc newMessage(payload: JsonNode): Message =
         channel_id: if payload.hasKey("channel_id"): payload["channel_id"].str else: "",
         author: if payload.hasKey("author"): newUser(payload["author"]) else: nil,
         content: if payload.hasKey("content"): payload["content"].str else: "",
-        timestamp: if payload.hasKey("timestamp"): payload["timestamp"].str else: $getLocalTime(getTime()),
+        timestamp: if payload.hasKey("timestamp"): payload["timestamp"].str else: $utc(getTime()),
         edited_timestamp: if payload.hasKey("edited_timestamp") and payload["edited_timestamp"].kind != JNull: payload["edited_timestamp"].str else: "",
         tts: if payload.hasKey("tts"): payload["tts"].bval else: false,
         mention_everyone: if payload.hasKey("mention_everyone"): payload["mention_everyone"].bval else: false,

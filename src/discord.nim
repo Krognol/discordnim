@@ -1,7 +1,7 @@
 # Wish i could split this up a bit, but errors because cyclical includes
 include restapi
 import marshal, json, cgi, discordobjects, endpoints,
-       websocket/shared, asyncdispatch, asyncnet, uri, zip/zlib
+       websocket/client, asyncdispatch, asyncnet, uri, zip/zlib
        
 # Gateway op codes
 {.hint[XDeclaredButNotUsed]: off.}
@@ -356,7 +356,7 @@ method resume(s: Shard) {.async, gcsafe, base.} =
 method reconnect(s: Shard) {.async, gcsafe, base.} =
     await s.connection.close()
     try:
-        s.connection = await newAsyncWebsocket("gateway.discord.gg", Port 443, "/"&GATEWAYVERSION, ssl = true)
+        s.connection = await newAsyncWebsocketClient("gateway.discord.gg", Port 443, "/"&GATEWAYVERSION, ssl = true)
     except:
         raise getCurrentException()
     s.sequence = 0
@@ -388,7 +388,7 @@ proc sessionHandleSocketMessage(s: Shard): Future[void]  =
         let tres = s.connection.sock.readData(true)
         if tres.failed():
             s.connection.sock.close()
-            result.fail(tres.error)
+            result.fail(tres.error) 
             break
 
         try:
@@ -479,7 +479,7 @@ method startSession*(s: Shard) {.base, async.} =
     s.suspended = true
     try:
         let wsurl = parseUri(s.gateway)
-        s.connection = await newAsyncWebsocket(
+        s.connection = await newAsyncWebsocketClient(
                 wsurl.hostname, 
                 if wsurl.scheme == "wss": Port(443) else: Port(80), 
                 wsurl.path&GATEWAYVERSION, 
