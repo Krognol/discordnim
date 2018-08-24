@@ -28,7 +28,7 @@ method preCheck(r: RateLimit) {.async, gcsafe, base.} =
     
     r.remaining.dec
 
-method postUpdate(r: RateLimit, url: string, response: AsyncResponse): Future[bool] {.async, gcsafe, base.} =
+method postCheck(r: RateLimit, url: string, response: AsyncResponse): Future[bool] {.async, gcsafe, base.} =
     if response.headers.hasKey("X-RateLimit-Reset"): r.reset = response.headers["X-RateLimit-Reset"].parseInt
     if response.headers.hasKey("X-RateLimit-Limit"): r.limit = response.headers["X-RateLimit-Limit"].parseInt
     if response.headers.hasKey("X-RateLimit-Remaining"): r.remaining = response.headers["X-RateLimit-Remaining"].parseInt
@@ -40,15 +40,15 @@ method postUpdate(r: RateLimit, url: string, response: AsyncResponse): Future[bo
         await sleepAsync delay+100
         result = true
 
-method postUpdate(r: RateLimits, url: string, response: AsyncResponse): Future[bool] {.async, gcsafe, base.} =
+method postCheck(r: RateLimits, url: string, response: AsyncResponse): Future[bool] {.async, gcsafe, base.} =
     if response.headers.hasKey("X-RateLimit-Global"):
         initLock(r.global.lock)
-        result = await r.global.postUpdate(url, response)
+        result = await r.global.postCheck(url, response)
         deinitLock(r.global.lock)
     else:
         let rl = if r.endpoints.hasKey(url): r.endpoints[url] else: RateLimit(lock: Lock(), reset: 0, limit: 0, remaining: 0)
         initLock(rl.lock)
-        result = await rl.postUpdate(url, response)
+        result = await rl.postCheck(url, response)
         deinitLock(rl.lock)
 
 method preCheck(r: RateLimits, url: string) {.async, gcsafe, base.} =
@@ -108,42 +108,73 @@ type
         `type`*: string
         allow*: int
         deny*: int
-    DChannel* = object of RootObj
+    ChannelType* = enum
+        CTGuildText
+        CTDM
+        CTGuildVoice
+        CTGroupDM
+        CTGuildCategory
+    Channel* = object of RootObj
         id*: string
+        `type`*: ChannelType
         guild_id*: string
-        name*: string
-        `type`*: int
         position*: int
         permission_overwrites*: seq[Overwrite]
+        name*: string
         topic*: string
+        nsfw*: bool
         last_message_id*: string
-        last_pin_timestamp*: string
         bitrate*: int
         user_limit*: int
         recipients*: seq[User]
-        nsfw*: bool
-        parent_id*: string
         icon*: string
         owner_id*: string
         application_id*: string
-    Message* = object of RootObj
-        `type`: int
-        tts*: bool
-        timestamp*: string
-        pinned*: bool
-        nonce*: string
-        mention_roles*: seq[string]
-        mentions*: seq[User]
-        mention_everyone*: bool
+        parent_id*: string
+        last_pin_timestamp*: string
+    MessageType* = enum
+        MTDefault
+        MTRecipientAdd
+        MTRecipientRemove
+        MTCall
+        MTChannelNameChange
+        MTChannelIconChange
+        MTChannelPinnedMessage
+        MTGuildMemberJoin
+    MessageActivityType* = enum
+        MATJoin
+        MATSpectate
+        MATListen
+        MATJoinRequest
+    MessageActivity* = ref object
+        `type`*: MessageActivityType
+        party_id*: string
+    MessageApplication* = ref object
         id*: string
-        embeds*: seq[Embed]
-        edited_timestamp*: string
-        content*: string
+        cover_image*: string
+        description*: string
+        icon*: string
+        name*: string
+    Message* = object of RootObj
+        id*: string
         channel_id*: string
         author*: User
+        content*: string
+        timestamp*: string
+        edited_timestamp*: string
+        tts*: bool
+        mention_everyone*: bool
+        mentions*: seq[User]
+        mention_roles*: seq[string]
         attachments*: seq[Attachment]
+        embeds*: seq[Embed]
         reactions*: seq[Reaction]
+        nonce*: string
+        pinned*: bool
         webhook_id*: string
+        `type`*: MessageType
+        activity*: MessageActivity
+        application*: MessageApplication
     Reaction* = object
         count*: int
         me*: bool
@@ -152,8 +183,10 @@ type
         id*: string
         name*: string
         roles*: seq[string]
+        user*: User
         require_colons*: bool
         managed*: bool
+        animated*: bool
     Embed* = object
         title*: string
         `type`*: string
@@ -216,7 +249,9 @@ type
         name*: string
         icon*: string
         splash*: string
+        owner*: bool
         owner_id*: string
+        permissions*: int
         region*: string
         afk_channel_id*: string
         afk_timeout*: int
@@ -224,22 +259,23 @@ type
         embed_channel_id*: string
         verification_level*: int
         default_message_notifications*: int
+        explicit_content_filter*: int
         roles*: seq[Role]
         emojis*: seq[Emoji]
+        features*: seq[string]
         mfa_level*: int
+        application_id*: string
+        widget_enabled*: bool
+        widget_channel_id*: string
+        system_channel_id*: string
         joined_at*: string
         large*: bool
         unavailable*: bool
-        features*: seq[string]
-        explicit_content_filter*: int
         member_count*: int
         voice_states*: seq[VoiceState]
         members*: seq[GuildMember]
-        channels*: seq[DChannel]
+        channels*: seq[Channel]
         presences*: seq[Presence]
-        application_id*: string
-        widget_channel_id*: string
-        widget_enabled*: bool
     GuildMember* = object of RootObj
         guild_id*: string
         user*: User
@@ -258,15 +294,17 @@ type
         expire_behavior*: int
         expire_grace_period*: int
         user*: User
-        account*: Account
+        account*: IntegrationAccount
         synced_at*: string
-    Account* = object
+    IntegrationAccount* = object
         id*: string
         name*: string
     Invite* = object
         code*: string
         guild*: InviteGuild
         channel*: InviteChannel
+        approximate_presence_count*: int
+        approximate_member_count*: int
     InviteMetadata* = object
         inviter*: User
         uses*: int
@@ -284,14 +322,14 @@ type
         id*: string
         name*: string
         `type`*: int
-    User* = object of RootObj
+    User* = ref object of RootObj
         id*: string
-        guild_id: string
         username*: string
         discriminator*: string
         avatar*: string
         bot*: bool
         mfa_enabled*: bool
+        locale*: string
         verified*: bool
         email*: string
     UserGuild* = object
@@ -319,8 +357,6 @@ type
     VoiceRegion* = object
         id*: string
         name*: string
-        sample_hostname*: string
-        sample_port*: int
         vip*: bool
         optimal*: bool
         deprecated*: bool
@@ -403,7 +439,7 @@ type
         ALCOverwrites,
         ALCNil
     AuditLogChangeValue* = ref AuditLogChangeValueObj
-    AuditLogChangeValueObj* = object
+    AuditLogChangeValueObj = object
         case kind*: AuditLogChangeKind
         of ALCString:
             str*: string
@@ -428,6 +464,7 @@ type
         id*: string
         action_type*: int
         options*: AuditLogOptions
+        reason*: string
     AuditLog* = object
         webhooks*: seq[Webhook]
         users*: seq[User]
@@ -471,7 +508,7 @@ type
         cacheGuildMembers*: bool
         cacheUsers*: bool
         cacheRoles*: bool
-        channels: Table[string, DChannel]
+        channels: Table[string, Channel]
         guilds: Table[string, Guild]
         users: Table[string, User]
         members: Table[string, GuildMember]
@@ -480,7 +517,7 @@ type
     Ready* = object
         v*: int
         user*: User
-        private_channels*: seq[DChannel]
+        private_channels*: seq[Channel]
         session_id*: string
         guilds*: seq[Guild]
         trace*: seq[string] 
@@ -504,9 +541,9 @@ type
         unavailable*: bool
     GuildBanAdd* = User
     GuildBanRemove* = User
-    ChannelCreate* = DChannel
-    ChannelUpdate* = DChannel
-    ChannelDelete* = DChannel
+    ChannelCreate* = Channel
+    ChannelUpdate* = Channel
+    ChannelDelete* = Channel
     ChannelPinsUpdate* = object of Pin
     UserUpdate* = User
     VoiceStateUpdate* = VoiceState
@@ -570,37 +607,24 @@ type
         session_id: string
         cache*: Cache
         limiter: RateLimits
-        client: DiscordClient
         connection*: AsyncWebSocket
         voiceConnections: seq[VoiceConnection] # Does not work yet
-    DiscordClient* = ref object
-        stop: bool
-        shardCount*: int
-        token*: string
         mut: Lock
         globalRL: RateLimits
-        shards*: seq[Shard]
         handlers: Table[EventType, pointer]
+        shardCount*: int
     
-method addHandler*(d: DiscordClient, t: EventType, p: pointer) {.gcsafe, base, inline.} =
+method addHandler*(d: Shard, t: EventType, p: pointer){.gcsafe, base, inline.} =
     ## Adds a handler tied to a websocket event
     initLock(d.mut)
     d.handlers[t] = p
     deinitLock(d.mut)
-
-method removeHandler*(d: DiscordClient, t: EventType) {.gcsafe, base, inline.} =
-    ## Removes a websocket event handler
-    initLock(d.mut)
-    d.handlers.del(t)
-    deinitLock(d.mut)
-
 
 # This isn't very pretty, but it is significantly faster than `json.to(T)`, and also faster than marshal.to[T].
 # should also be "safer" to use than either of them.
 # Might move to another file in the future
 proc newUser(payload: JsonNode): User {.inline.} =
     result = User(
-            guild_id: if payload.hasKey("guild_id"): payload["guild_id"].str else: "",
             id: payload["id"].str,
             username: if payload.hasKey("username"): payload["username"].str else: "",
             discriminator: if payload.hasKey("discriminator"): payload["discriminator"].str else: "0000",
@@ -608,8 +632,14 @@ proc newUser(payload: JsonNode): User {.inline.} =
             bot: if payload.hasKey("bot"): payload["bot"].bval else: false,
             mfa_enabled: if payload.hasKey("mfa_enabled"): payload["mfa_enabled"].bval else: false,
             verified: if payload.hasKey("verified"): payload["verified"].bval else: false,
-            email: if payload.hasKey("email") and payload["email"].kind != JNull: payload["email"].str else: ""
+            email: if payload.hasKey("email") and payload["email"].kind != JNull: payload["email"].str else: "",
+            locale: if payload.hasKey("locale"): payload["locale"].str else: ""
     )
+
+proc newUserSeq(payload: JsonNode): seq[User] =
+    result = newSeq[User](payload.elems.len)
+    for i, user in payload.elems:
+        result[i] = newUser(user)
 
 proc newUnavailableGuild(payload: JsonNode): Guild {.inline.} =
     result = Guild(
@@ -622,12 +652,12 @@ proc newResumed(payload: JsonNode): Resumed {.inline.} =
         trace: marshal.to[seq[string]]($payload["trace"])
     )
 
-proc newChannel(payload: JsonNode): DChannel {.inline.} =
-    result = DChannel(
+proc newChannel(payload: JsonNode): Channel {.inline.} =
+    result = Channel(
         id: payload["id"].str,
         guild_id: if payload.hasKey("guild_id") and payload["guild_id"].kind != JNull: payload["guild_id"].str else: "",
         name: if payload.hasKey("name") and payload["name"].kind != JNull: payload["name"].str else: "",
-        `type`: payload["type"].num.int,
+        `type`: ChannelType(payload["type"].num.int),
         position: if payload.hasKey("position") and payload["position"].kind != JNull: payload["position"].num.int else: 0,
         permission_overwrites: if payload.hasKey("permission_overwrites"): marshal.to[seq[Overwrite]]($payload["permission_overwrites"]) else: @[],
         topic: if payload.hasKey("topic") and payload["topic"].kind != JNull: payload["topic"].str else: "",
@@ -642,6 +672,11 @@ proc newChannel(payload: JsonNode): DChannel {.inline.} =
     if payload.hasKey("recipients"):
         for user in payload["recipents"].elems:
             result.recipients.add(newUser(user))
+
+proc newChannelSeq(payload: JsonNode): seq[Channel] =
+    result = newSeq[Channel](payload.elems.len)
+    for i, chan in payload.elems:
+        result[i] = newChannel(chan)
 
 proc newChannelCreate(payload: JsonNode): ChannelCreate {.inline.} =
     result = newChannel(payload)
@@ -663,6 +698,11 @@ proc newRole(payload: JsonNode): Role {.inline.} =
         mentionable: payload["mentionable"].bval
     )
 
+proc newRoleSeq(payload: JsonNode): seq[Role] =
+    result = newSeq[Role](payload.elems.len)
+    for i, role in payload.elems:
+        result[i] = newRole(role)
+
 proc newEmoji(payload: JsonNode): Emoji {.inline.} =
     result = Emoji(
         id: if payload.hasKey("id") and payload["id"].kind != JNull: payload["id"].str else: "",
@@ -670,6 +710,8 @@ proc newEmoji(payload: JsonNode): Emoji {.inline.} =
         roles: if payload.hasKey("roles"): marshal.to[seq[string]]($payload["roles"]) else: @[],
         require_colons: if payload.hasKey("require_colons"): payload["require_colons"].bval else: false,
         managed: if payload.hasKey("managed"): payload["managed"].bval else: false,
+        user: if payload.hasKey("user"): newUser(payload["user"]) else: nil,
+        animated: if payload.hasKey("animated"): payload["animated"].bval else: false
     )
 
 proc newGuild(payload: JsonNode): Guild  =
@@ -693,7 +735,8 @@ proc newGuild(payload: JsonNode): Guild  =
         widget_enabled: if payload.hasKey("widget_enabled"): payload["widget_enabled"].bval else: false,
         widget_channel_id: if payload.hasKey("widget_channel_id") and payload["widget_channel_id"].kind != JNull: payload["widget_channel_id"].str else: "",
         roles: @[],
-        emojis: @[]
+        emojis: @[],
+        system_channel_id: if payload.hasKey("system_channel_id") and payload["system_channel_id"].kind != JNull: payload["system_channel_id"].str else: ""
     )
 
     for role in payload["roles"].elems:
@@ -725,6 +768,11 @@ proc newGuildMember(payload: JsonNode): GuildMember {.inline.} =
         deaf: payload["deaf"].bval,
         mute: payload["mute"].bval,
     )
+
+proc newGuildMemberSeq(payload: JsonNode): seq[GuildMember] =
+    result = newSeq[GuildMember](payload.elems.len)
+    for i, member in payload.elems:
+        result[i] = newGuildMember(member)
 
 proc newGame(payload: JsonNode): Game {.inline.} =
     result = Game(
@@ -786,7 +834,7 @@ proc newReady(payload: JsonNode): Ready =
     result = Ready(
         v: payload["v"].num.int,
         user: newUser(payload["user"]),
-        private_channels: marshal.to[seq[DChannel]]($payload["private_channels"]),
+        private_channels: newChannelSeq(payload["private_channels"]),
         session_id: payload["session_id"].str,
         trace: marshal.to[seq[string]]($payload["_trace"]),
         presences: marshal.to[seq[Presence]]($payload["presences"]),
@@ -956,11 +1004,26 @@ proc newReaction(payload: JsonNode): Reaction {.inline.} =
         emoji: newEmoji(payload["emoji"])
     )
 
+proc newMessageActivity(payload: JsonNode): MessageActivity {.inline.} = 
+    result = MessageActivity(
+        `type`: MessageActivityType(payload["type"].num.int),
+        party_id: if payload.hasKey("part_id"): payload["party_id"].str else: ""
+    )
+
+proc newMessageApplication(payload: JsonNode): MessageApplication {.inline.} =
+    result = MessageApplication(
+        id: payload["id"].str,
+        cover_image: payload["cover_image"].str,
+        description: payload["description"].str,
+        icon: payload["icon"].str,
+        name: payload["name"].str
+    )
+
 proc newMessage(payload: JsonNode): Message =
     result = Message(
         id: if payload.hasKey("id"): payload["id"].str else: "",
         channel_id: if payload.hasKey("channel_id"): payload["channel_id"].str else: "",
-        author: if payload.hasKey("author"): marshal.to[User]($payload["author"]) else: User(),
+        author: if payload.hasKey("author"): newUser(payload["author"]) else: nil,
         content: if payload.hasKey("content"): payload["content"].str else: "",
         timestamp: if payload.hasKey("timestamp"): payload["timestamp"].str else: $getLocalTime(getTime()),
         edited_timestamp: if payload.hasKey("edited_timestamp") and payload["edited_timestamp"].kind != JNull: payload["edited_timestamp"].str else: "",
@@ -970,11 +1033,13 @@ proc newMessage(payload: JsonNode): Message =
         nonce: if payload.hasKey("nonce") and payload["nonce"].kind != JNull: payload["nonce"].str else: "",
         pinned: if payload.hasKey("pinned"): payload["pinned"].bval else: false,
         webhook_id: if payload.hasKey("webhook_id"): payload["webhook_id"].str else: "",
-        `type`: if payload.hasKey("type"): payload["type"].num.int else: 0,
+        `type`: if payload.hasKey("type"): MessageType(payload["type"].num.int) else: MTDefault,
         reactions: @[],
         mentions: @[],
         attachments: @[],
         embeds: @[],
+        activity: if payload.hasKey("activity"): newMessageActivity(payload["activity"]) else: nil,
+        application: if payload.hasKey("application"): newMessageApplication(payload["application"]) else: nil
     )
 
     if payload.hasKey("mentions"):
@@ -1028,6 +1093,11 @@ proc newMessageReactionRemoveAll(payload: JsonNode): MessageReactionRemoveAll {.
         message_id: payload["message_id"].str
     )
 
+proc newMessageSeq(payload: JsonNode): seq[Message] =
+    result = newSeq[Message](payload.elems.len)
+    for i, msg in payload.elems:
+        result[i] = newMessage(msg)
+
 proc newWebhooksUpdate(payload: JsonNode): WebhooksUpdate {.inline.} =
     result = WebhooksUpdate(
         guild_id: payload["guild_id"].str,
@@ -1073,8 +1143,15 @@ proc newInvite(payload: JsonNode): Invite {.inline.} =
     result = Invite(
         code: payload["code"].str,
         guild: if payload.hasKey("guild"): newInviteGuild(payload["guild"]) else: InviteGuild(),
-        channel: if payload.hasKey("channel"): newInviteChannel(payload["channel"]) else: InviteChannel()
+        channel: if payload.hasKey("channel"): newInviteChannel(payload["channel"]) else: InviteChannel(),
+        approximate_presence_count: if payload.hasKey("approximate_presence_count"): payload["approximate_presence_count"].num.int else: 0,
+        approximate_member_count: if payload.hasKey("approximage_member_count"): payload["approximage_member_count"].num.int else: 0
     )
+
+proc newInviteSeq(payload: JsonNode): seq[Invite] =
+    result = newSeq[Invite](payload.elems.len)
+    for i, inv in payload.elems:
+        result[i] = newInvite(inv)
 
 proc newVoiceRegion(payload: JsonNode): VoiceRegion {.inline.} =
     result = VoiceRegion(
@@ -1084,12 +1161,15 @@ proc newVoiceRegion(payload: JsonNode): VoiceRegion {.inline.} =
         vip: payload["vip"].bval,
         optimal: payload["optimal"].bval,
         id: payload["id"].str,
-        sample_hostname: if payload.hasKey("sample_hostname"): payload["sample_hostname"].str else: "",
-        sample_port: if payload.hasKey("sample_port"): payload["sample_port"].num.int else: 0,
     )
 
-proc newIntegrationAccount(payload: JsonNode): Account {.inline.} =
-    result = Account(
+proc newVoiceRegionSeq(payload: JsonNode): seq[VoiceRegion] =
+    result = newSeq[VoiceRegion](payload.elems.len)
+    for i, region in payload.elems:
+        result[i] = newVoiceRegion(region)
+
+proc newIntegrationAccount(payload: JsonNode): IntegrationAccount {.inline.} =
+    result = IntegrationAccount(
         id: payload["id"].str,
         name: payload["name"].str
     )
@@ -1109,6 +1189,11 @@ proc newIntegration(payload: JsonNode): Integration {.inline.} =
         synced_at: payload["synced_at"].str,
     )
 
+proc newIntegrationSeq(payload: JsonNode): seq[Integration] =
+    result = newSeq[Integration](payload.elems.len)
+    for i, integ in payload.elems:
+        result[i] = newIntegration(integ)
+
 proc newWebhook(payload: JsonNode): Webhook {.inline.} =
     result = Webhook(
         id: payload["id"].str,
@@ -1119,6 +1204,11 @@ proc newWebhook(payload: JsonNode): Webhook {.inline.} =
         avatar: if payload["avatar"].kind != JNull: payload["avatar"].str else: "",
         token: payload["token"].str
     )
+
+proc newWebhookSeq(payload: JsonNode): seq[Webhook] =
+    result = newSeq[Webhook](payload.elems.len)
+    for i, wh in payload.elems:
+        result[i] = newWebhook(wh)
 
 proc newGuildEmbed(payload: JsonNode): GuildEmbed {.inline.} =
     result = GuildEmbed(
@@ -1235,11 +1325,12 @@ proc newAuditLogOptions(payload: JsonNode): AuditLogOptions {.inline.} =
 
 proc newAuditLogEntry(payload: JsonNode): AuditLogEntry = 
     result = AuditLogEntry(
-        target_id: payload["target_id"].str,
+        target_id: if payload.hasKey("target_id"): payload["target_id"].str else: "",
         user_id: payload["user_id"].str,
         id: payload["id"].str,
         action_type: payload["action_type"].num.int,
-        changes: @[]
+        changes: @[],
+        reason: if payload.hasKey("reason"): payload["reason"].str else: ""
     )
     
     if payload.hasKey("options"):
@@ -1272,3 +1363,8 @@ proc newUserGuild(payload: JsonNode): UserGuild {.inline.} =
         owner: payload["owner"].bval,
         permissions: payload["permissions"].num.int
     )
+
+proc newUserGuildSeq(payload: JsonNode): seq[UserGuild] =
+    result = newSeq[UserGuild](payload.elems.len)
+    for i, guild in payload.elems:
+        result[i] = newUserGuild(guild)
