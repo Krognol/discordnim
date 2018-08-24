@@ -17,16 +17,27 @@ proc messageUpdate(s: Shard, m: MessageUpdate) =
         asyncCheck s.channelMessageSend(m.channel_id, "ping")
 
 
-var client = newDiscordClient("Bot <Token>")
+var shards: seq[Shard] = @[]
+
+let client = newShard("Bot <Token>")
 client.addHandler(EventType.message_create, messageCreate)
 client.addHandler(EventType.message_update, messageUpdate)
 
+
 if client.shardCount > 2:
-    for i in 1..client.shardCount:
-        let s = client.addShard()
+    for i in 0..client.shardCount-1:
+        let s = newShard("Bot <Token>")
+        s.addHandler(EventType.message_create, messageCreate)
+        s.addHandler(EventType.message_update, messageUpdate)
         s.shardID = i
+        asyncCheck s.startSession()
+
+client.shardID = client.shardCount
 
 proc endSession() {.noconv.} =
+    for shard in shards:
+        waitFor shard.disconnect()
+
     waitFor client.disconnect()
 
 setControlCHook(endSession)

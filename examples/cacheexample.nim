@@ -30,19 +30,18 @@ proc messageCreateProc(s: Shard, m: MessageCreate) =
         asyncCheck s.channelmessageSend(m.channel_id, $roles)
         # Sends "@[(id: 299604263133380629, name: nano, color: 2067276, hoist: false, position: 1, permissions: 2146958463, managed: false, mentionable: true)]"
 
-let client = newDiscordClient("Bot <Token>")
-let s = client.addShard()
-client.addHandler(message_create, messageCreateProc)
+let shard = newShard("Bot <Token>")
+shard.addHandler(message_create, messageCreateProc)
 
 proc endSession() {.noconv.} =
-    waitFor client.disconnect()
+    waitFor shard.disconnect()
 
 setControlCHook(endSession)
 
-s.cache.cacheChannels = true
-s.cache.cacheGuilds = true
-s.cache.cacheRoles = true
-s.cache.cacheGuildMembers = true
-s.cache.cacheUsers = true
+shard.cache.cacheChannels = true
+shard.cache.cacheGuilds = true
+shard.cache.cacheRoles = true
+shard.cache.cacheGuildMembers = true
+shard.cache.cacheUsers = true
 
-asyncCheck s.startSession()
+waitFor shard.startSession()

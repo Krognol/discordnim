@@ -18,14 +18,14 @@ let messageDeleteProc = proc(s: Shard, m: MessageDelete) =
         cachedMessages.del(m.id)
 
 
-let client = newDiscordClient("Bot <your bot token>")
-let s = client.addShard()
+let shard = newShard("Bot <your bot token>")
+
 proc endSession() {.noconv.} =
-    waitFor client.disconnect()
+    waitFor shard.disconnect()
 
 setControlCHook(endSession)
 
-client.addHandler(EventType.message_create, messageCreateProc)
-client.addHandler(EventType.message_delete, messageDeleteProc)
+shard.addHandler(EventType.message_create, messageCreateProc)
+shard.addHandler(EventType.message_delete, messageDeleteProc)
 
-waitFor s.startSession()
+waitFor shard.startSession()

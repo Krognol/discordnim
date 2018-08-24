@@ -25,14 +25,13 @@ proc messageCreate(s: Shard, m: MessageCreate) =
         asyncCheck s.channelmessageSendEmbed(m.channel_id, embed)
 
 
-let client = newDiscordClient("Bot <your bot token>")
-let s = client.addShard()
+let shard = newShard("Bot <your bot token>")
 
 proc endSession() {.noconv.} =
-    waitFor client.disconnect()
+    waitFor shard.disconnect()
 
 setControlCHook(endSession)
 
-client.addHandler(EventType.message_create, messageCreate)
+shard.addHandler(EventType.message_create, messageCreate)
 
-asyncCheck s.startSession()
+waitFor shard.startSession()

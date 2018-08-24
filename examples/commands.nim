@@ -13,17 +13,16 @@ proc messageCreate(s: Shard, m: MessageCreate) =
             of PREFIX & "help":
                 asyncCheck s.channelMessageSend(m.channel_id, "This is supposed to be some help command!")
             of PREFIX & "date":
-                asyncCheck s.channelMessageSend(m.channel_id, $getLocalTime(getTime()))
+                asyncCheck s.channelMessageSend(m.channel_id, $utc(getTime()))
             else: discard
 
-let client = newDiscordClient("Bot <token>")
-let s = client.addShard()
+let shard = newShard("Bot <token>")
 
 proc endSession() {.noconv.} =
-    waitFor client.disconnect()
+    waitFor shard.disconnect()
 
 setControlCHook(endSession)
 
-client.addHandler(EventType.message_create, messageCreate)
+shard.addHandler(EventType.message_create, messageCreate)
 
-waitFor s.startSession()
+waitFor shard.startSession()

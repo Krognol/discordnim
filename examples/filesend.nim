@@ -12,14 +12,13 @@ proc messageCreate(s: Shard, m: MessageCreate) =
         let f = readFile("somefile.png")
         asyncCheck s.channelFileSendWithMessage(m.channel_id, "somefile.png", f, "here's a file but with a message")
 
-let client = newDiscordClient("Bot <token>")
-let s = client.addShard()
+let shard = newShard("Bot <token>")
 
 proc endSession() {.noconv.} =
-    waitFor client.disconnect()
+    waitFor shard.disconnect()
 
 setControlCHook(endSession)
 
-client.addHandler(EventType.message_create, messageCreate)
+shard.addHandler(EventType.message_create, messageCreate)
 
-waitFor s.startSession()
+waitFor shard.startSession()
