@@ -25,25 +25,23 @@ You can check your version with `nim --version`
 There are some examples in the `examples` folder.
 
 
-Initialising a `Session`:
+Initialising a `Shard`:
 
 ```nim
 import discordnim, asyncdispatch
 
-proc someMessageCreateProc(s: Session, m: MessageCreate) =
+proc someMessageCreateProc(s: Shard, m: MessageCreate) =
     if m.content == "ping":
         asyncCheck s.channelMessageSend(m.channel_id, "pong!")
 
-let client = newDiscordClient("Bot <your token>")
-let shard = client.addShard()
+let client = newShard("Bot <your token>")
+
 ## Add your gateway event methods
 shard.addHandler(EventType.message_create, someMessageCreateProc)
-shard.compress = true
+shard.compress = true # can be set to false if you don't want compressed websocket payloads
 
 ## Lastly you connect
 waitFor shard.startSession()
-# Alternatively you can do 
-# `client.startSession()`, but only useful if you have more than one shard.
 ```
 
 All programs have to be compiled with the `-d:ssl` flag.
@@ -51,10 +49,6 @@ All programs have to be compiled with the `-d:ssl` flag.
 When compression is enabled you need a `zlib1.dll` present. Somewhere. I don't know where it should be placed.
 
 [Documentation](https://krognol.github.io/discordnim/)
-
-# Disclaimer
-
-This package hasn't been tested on any Mac systems and are thus not guaranteed to work on them. Although, I have a hard time believeing they wouldn't work.
 
 # Contributing
 
