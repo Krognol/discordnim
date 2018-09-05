@@ -15,7 +15,7 @@ type
 method preCheck(r: RateLimit) {.async, gcsafe, base.} =
     if r.limit == 0: return
     
-    let diff = r.reset - getTime().toUnix.int64
+    let diff = r.reset - getTime().toUnix
     if diff < 0:
         r.reset += 3
         r.remaining = r.limit
@@ -103,6 +103,18 @@ const
     auditMessageDelete* = 72
 
 type 
+    # TODO: replace IDs with Snowflake object
+    SnowflakeKind = enum
+        SKString
+        SKInt
+    Snowflake* = object
+        ## Snowlake is a unique id for most Discord objects
+        # TODO replace string ids with Snowflake
+        case kind: SnowflakeKind
+        of SKInt:
+            ival*: int64
+        of SKString:
+            sval*: string
     Overwrite* = object
         id*: string
         `type`*: string
@@ -322,7 +334,7 @@ type
         id*: string
         name*: string
         `type`*: int
-    User* = ref object of RootObj
+    User* = object of RootObj
         id*: string
         username*: string
         discriminator*: string
@@ -611,14 +623,36 @@ type
         voiceConnections: seq[VoiceConnection] # Does not work yet
         mut: Lock
         globalRL: RateLimits
-        handlers: Table[EventType, pointer]
+        handlers: Table[EventType, seq[pointer]]
         shardCount*: int
     
-method addHandler*(d: Shard, t: EventType, p: pointer){.gcsafe, base, inline.} =
+const DISCORD_EPOCH = int64(1420070400000)
+
+method timestamp*(s: Snowflake): DateTime {.base.} =
+    var i: int64
+    case s.kind
+    of SKInt: i = s.ival
+    of SKString: 
+        i = (s.sval.parseBiggestInt.int64)
+        
+    i = ((i shr 22) + DISCORD_EPOCH) div 1000
+    i.fromUnix.utc
+
+proc toSnowflake*(id: string): Snowflake = Snowflake(kind: SKString, sval: id)
+proc toSnowflake*(id: int64): Snowflake = Snowflake(kind: SKInt, ival: id)
+
+method addHandler*(d: Shard, t: EventType, p: pointer): (proc()) {.gcsafe, base, inline.} =
     ## Adds a handler tied to a websocket event
     initLock(d.mut)
-    d.handlers[t] = p
+    if not d.handlers.hasKey(t): d.handlers.add(t, newSeq[pointer]())
+    d.handlers[t].add(p)
+    let i = d.handlers[t].high
     deinitLock(d.mut)
+
+    result = proc()=
+        initLock(d.mut)
+        d.handlers[t].del(i) 
+        deinitLock(d.mut)
 
 # This isn't very pretty, but it is significantly faster than `json.to(T)`, and also faster than marshal.to[T].
 # should also be "safer" to use than either of them.
@@ -711,7 +745,7 @@ proc newEmoji(payload: JsonNode): Emoji {.inline.} =
         roles: if payload.hasKey("roles"): marshal.to[seq[string]]($payload["roles"]) else: @[],
         require_colons: if payload.hasKey("require_colons"): payload["require_colons"].bval else: false,
         managed: if payload.hasKey("managed"): payload["managed"].bval else: false,
-        user: if payload.hasKey("user"): newUser(payload["user"]) else: nil,
+        user: if payload.hasKey("user"): newUser(payload["user"]) else: User(),
         animated: if payload.hasKey("animated"): payload["animated"].bval else: false
     )
 
@@ -1024,7 +1058,7 @@ proc newMessage(payload: JsonNode): Message =
     result = Message(
         id: if payload.hasKey("id"): payload["id"].str else: "",
         channel_id: if payload.hasKey("channel_id"): payload["channel_id"].str else: "",
-        author: if payload.hasKey("author"): newUser(payload["author"]) else: nil,
+        author: if payload.hasKey("author"): newUser(payload["author"]) else: User(),
         content: if payload.hasKey("content"): payload["content"].str else: "",
         timestamp: if payload.hasKey("timestamp"): payload["timestamp"].str else: $utc(getTime()),
         edited_timestamp: if payload.hasKey("edited_timestamp") and payload["edited_timestamp"].kind != JNull: payload["edited_timestamp"].str else: "",
