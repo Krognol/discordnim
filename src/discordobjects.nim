@@ -15,7 +15,7 @@ type
 method preCheck(r: RateLimit) {.async, gcsafe, base.} =
     if r.limit == 0: return
     
-    let diff = r.reset - getTime().toUnix
+    let diff = r.reset - getTime().utc.toTime.toUnix
     if diff < 0:
         r.reset += 3
         r.remaining = r.limit
@@ -103,20 +103,11 @@ const
     auditMessageDelete* = 72
 
 type 
-    # TODO: replace IDs with Snowflake object
-    SnowflakeKind = enum
-        SKString
-        SKInt
     Snowflake* = object
         ## Snowlake is a unique id for most Discord objects
-        # TODO replace string ids with Snowflake
-        case kind: SnowflakeKind
-        of SKInt:
-            ival*: int64
-        of SKString:
-            sval*: string
+        val*: string
     Overwrite* = object
-        id*: string
+        id*: Snowflake
         `type`*: string
         allow*: int
         deny*: int
@@ -127,7 +118,7 @@ type
         CTGroupDM
         CTGuildCategory
     Channel* = object of RootObj
-        id*: string
+        id*: Snowflake
         `type`*: ChannelType
         guild_id*: string
         position*: int
@@ -162,13 +153,13 @@ type
         `type`*: MessageActivityType
         party_id*: string
     MessageApplication* = ref object
-        id*: string
+        id*: Snowflake
         cover_image*: string
         description*: string
         icon*: string
         name*: string
     Message* = object of RootObj
-        id*: string
+        id*: Snowflake
         channel_id*: string
         author*: User
         content*: string
@@ -192,7 +183,7 @@ type
         me*: bool
         emoji*: Emoji
     Emoji* = object
-        id*: string
+        id*: Snowflake
         name*: string
         roles*: seq[string]
         user*: User
@@ -244,7 +235,7 @@ type
         value*: string
         inline*: bool
     Attachment* = object
-        id*: string
+        id*: Snowflake
         filename*: string
         size*: int
         url*: string
@@ -257,7 +248,7 @@ type
         game*: Game
         status*: string
     Guild* = object of RootObj
-        id*: string
+        id*: Snowflake
         name*: string
         icon*: string
         splash*: string
@@ -297,7 +288,7 @@ type
         deaf*: bool
         mute*: bool
     Integration* = object
-        id*: string
+        id*: Snowflake
         name*: string
         `type`*: string
         enabled*: bool
@@ -309,7 +300,7 @@ type
         account*: IntegrationAccount
         synced_at*: string
     IntegrationAccount* = object
-        id*: string
+        id*: Snowflake
         name*: string
     Invite* = object
         code*: string
@@ -326,16 +317,16 @@ type
         created_at*: string
         revoked*: bool
     InviteGuild* = object
-        id*: string
+        id*: Snowflake
         name*: string
         splash*: string
         icon*: string
     InviteChannel* = object
-        id*: string
+        id*: Snowflake
         name*: string
         `type`*: int
     User* = object of RootObj
-        id*: string
+        id*: Snowflake
         username*: string
         discriminator*: string
         avatar*: string
@@ -345,13 +336,13 @@ type
         verified*: bool
         email*: string
     UserGuild* = object
-        id*: string
+        id*: Snowflake
         name*: string
         icon*: string
         owner*: bool
         permissions*: int
     Connection* = object
-        id*: string
+        id*: Snowflake
         name*: string
         `type`*: string
         revoked*: bool
@@ -367,14 +358,14 @@ type
         self_mute*: bool
         suppress*: bool
     VoiceRegion* = object
-        id*: string
+        id*: Snowflake
         name*: string
         vip*: bool
         optimal*: bool
         deprecated*: bool
         custom*: bool
     Webhook* = object
-        id*: string
+        id*: Snowflake
         guild_id*: string
         channel_id*: string
         user*: User
@@ -382,7 +373,7 @@ type
         avatar*: string
         token*: string
     Role* = object
-        id*: string
+        id*: Snowflake
         name*: string
         color*: int
         hoist*: bool
@@ -440,7 +431,7 @@ type
         members_removed*: string
         channel_id*: string
         count*: string
-        id*: string
+        id*: Snowflake
         `type`*: string
         role_name*: string
     AuditLogChangeKind* = enum
@@ -473,7 +464,7 @@ type
         target_id*: string
         changes*: seq[AuditLogChange]
         user_id*: string
-        id*: string
+        id*: Snowflake
         action_type*: int
         options*: AuditLogOptions
         reason*: string
@@ -549,7 +540,7 @@ type
     GuildCreate* = Guild
     GuildUpdate* = Guild
     GuildDelete* = object
-        id*: string
+        id*: Snowflake
         unavailable*: bool
     GuildBanAdd* = User
     GuildBanRemove* = User
@@ -629,20 +620,24 @@ type
 const DISCORD_EPOCH = int64(1420070400000)
 
 method timestamp*(s: Snowflake): DateTime {.base.} =
-    var i: int64
-    case s.kind
-    of SKInt: i = s.ival
-    of SKString: 
-        i = (s.sval.parseBiggestInt.int64)
+    ## Makes a timestamp from the Snowflake
+    var i = (s.val.parseBiggestInt.int64)
         
     i = ((i shr 22) + DISCORD_EPOCH) div 1000
     i.fromUnix.utc
 
-proc toSnowflake*(id: string): Snowflake = Snowflake(kind: SKString, sval: id)
-proc toSnowflake*(id: int64): Snowflake = Snowflake(kind: SKInt, ival: id)
+proc toSnowflake*(id: string): Snowflake {.inline.}  = Snowflake(val: id)
+proc toSnowflake*(id: int64): Snowflake {.inline.}  = Snowflake(val: $id)
+proc `==`*(a, b: Snowflake): bool {.inline.}  = a.val == b.val
+proc `==`*(a: Snowflake, b: string): bool {.inline.}  = a.val == b
+proc `==`*(a: string, b: Snowflake): bool {.inline.}  = a == b.val
+proc `&`*(a: string, b: Snowflake): string {.inline.}  = a & b.val
+proc `$`*(a: Snowflake): string {.inline.} = a.val
 
 method addHandler*(d: Shard, t: EventType, p: pointer): (proc()) {.gcsafe, base, inline.} =
-    ## Adds a handler tied to a websocket event
+    ## Adds a handler tied to a websocket event.
+    ##
+    ## Returns a proc that removes the event handler.
     initLock(d.mut)
     if not d.handlers.hasKey(t): d.handlers.add(t, newSeq[pointer]())
     d.handlers[t].add(p)
@@ -659,7 +654,7 @@ method addHandler*(d: Shard, t: EventType, p: pointer): (proc()) {.gcsafe, base,
 # Might move to another file in the future
 proc newUser(payload: JsonNode): User {.inline.} =
     result = User(
-            id: payload["id"].str,
+            id: toSnowflake(payload["id"].str),
             username: if payload.hasKey("username"): payload["username"].str else: "",
             discriminator: if payload.hasKey("discriminator"): payload["discriminator"].str else: "0000",
             avatar: if payload.hasKey("avatar") and payload["avatar"].kind != JNull: payload["avatar"].str else: "",
@@ -677,7 +672,7 @@ proc newUserSeq(payload: JsonNode): seq[User] =
 
 proc newUnavailableGuild(payload: JsonNode): Guild {.inline.} =
     result = Guild(
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
         unavailable: payload["unavailable"].bval
     )
 
@@ -688,7 +683,7 @@ proc newResumed(payload: JsonNode): Resumed {.inline.} =
 
 proc newChannel(payload: JsonNode): Channel {.inline.} =
     result = Channel(
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
         guild_id: if payload.hasKey("guild_id") and payload["guild_id"].kind != JNull: payload["guild_id"].str else: "",
         name: if payload.hasKey("name") and payload["name"].kind != JNull: payload["name"].str else: "",
         `type`: ChannelType(payload["type"].num.int),
@@ -724,7 +719,7 @@ proc newChannelDelete(payload: JsonNode): ChannelDelete {.inline.} =
 
 proc newRole(payload: JsonNode): Role {.inline.} =
     result = Role(
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
         name: payload["name"].str,
         color: payload["color"].num.int,
         hoist: payload["hoist"].bval,
@@ -740,7 +735,7 @@ proc newRoleSeq(payload: JsonNode): seq[Role] =
 
 proc newEmoji(payload: JsonNode): Emoji {.inline.} =
     result = Emoji(
-        id: if payload.hasKey("id") and payload["id"].kind != JNull: payload["id"].str else: "",
+        id: if payload.hasKey("id") and payload["id"].kind != JNull: toSnowflake(payload["id"].str) else: toSnowflake(""),
         name: if payload.hasKey("name") and payload["name"].kind != JNull: payload["name"].str else: "",
         roles: if payload.hasKey("roles"): marshal.to[seq[string]]($payload["roles"]) else: @[],
         require_colons: if payload.hasKey("require_colons"): payload["require_colons"].bval else: false,
@@ -751,7 +746,7 @@ proc newEmoji(payload: JsonNode): Emoji {.inline.} =
 
 proc newGuild(payload: JsonNode): Guild  =
     result = Guild(
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
         name: payload["name"].str,
         icon: if payload["icon"].kind != JNull: payload["icon"].str else: "",
         splash: if payload.hasKey("splash") and payload["splash"].kind != JNull: payload["splash"].str else: "",
@@ -861,7 +856,7 @@ proc newGuildUpdate(payload: JsonNode): GuildUpdate {.inline.} =
 
 proc newGuildDelete(payload: JsonNode): GuildDelete {.inline.} =
     result = GuildDelete(
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
         unavailable: payload["unavailable"].bval,
     )
 
@@ -951,7 +946,7 @@ proc newGuildRoleDelete(payload: JsonNode): GuildRoleDelete {.inline.} =
 
 proc newAttachment(payload: JsonNode): Attachment {.inline.} =
     result = Attachment(
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
         filename: payload["filename"].str,
         size: payload["size"].num.int,
         url: payload["url"].str,
@@ -1047,7 +1042,7 @@ proc newMessageActivity(payload: JsonNode): MessageActivity {.inline.} =
 
 proc newMessageApplication(payload: JsonNode): MessageApplication {.inline.} =
     result = MessageApplication(
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
         cover_image: payload["cover_image"].str,
         description: payload["description"].str,
         icon: payload["icon"].str,
@@ -1056,7 +1051,7 @@ proc newMessageApplication(payload: JsonNode): MessageApplication {.inline.} =
 
 proc newMessage(payload: JsonNode): Message =
     result = Message(
-        id: if payload.hasKey("id"): payload["id"].str else: "",
+        id: if payload.hasKey("id"): toSnowflake(payload["id"].str) else: toSnowflake(""),
         channel_id: if payload.hasKey("channel_id"): payload["channel_id"].str else: "",
         author: if payload.hasKey("author"): newUser(payload["author"]) else: User(),
         content: if payload.hasKey("content"): payload["content"].str else: "",
@@ -1101,7 +1096,7 @@ proc newMessageUpdate(payload: JsonNode): MessageUpdate {.inline.} =
 
 proc newMessageDelete(payload: JsonNode): MessageDelete {.inline.} =
     result = MessageDelete(
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
         channel_id: payload["channel_id"].str
     )
 
@@ -1161,7 +1156,7 @@ proc newVoiceServerUpdate(payload: JsonNode): VoiceServerUpdate {.inline.} =
 
 proc newInviteGuild(payload: JsonNode): InviteGuild {.inline.} =
     result = InviteGuild(
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
         name: payload["name"].str,
         splash: if payload.hasKey("splash") and payload["splash"].kind != JNull: payload["splash"].str else: "",
         icon: if payload.hasKey("icon") and payload["icon"].kind != JNull: payload["icon"].str else: ""
@@ -1169,7 +1164,7 @@ proc newInviteGuild(payload: JsonNode): InviteGuild {.inline.} =
 
 proc newInviteChannel(payload: JsonNode): InviteChannel {.inline.} =
     result = InviteChannel(
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
         name: payload["name"].str,
         `type`: if payload.hasKey("type"): payload["type"].num.int else: 0,
     )
@@ -1195,7 +1190,7 @@ proc newVoiceRegion(payload: JsonNode): VoiceRegion {.inline.} =
         custom: payload["custom"].bval,
         vip: payload["vip"].bval,
         optimal: payload["optimal"].bval,
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
     )
 
 proc newVoiceRegionSeq(payload: JsonNode): seq[VoiceRegion] =
@@ -1205,13 +1200,13 @@ proc newVoiceRegionSeq(payload: JsonNode): seq[VoiceRegion] =
 
 proc newIntegrationAccount(payload: JsonNode): IntegrationAccount {.inline.} =
     result = IntegrationAccount(
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
         name: payload["name"].str
     )
 
 proc newIntegration(payload: JsonNode): Integration {.inline.} =
     result = Integration(
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
         name: payload["name"].str,
         `type`: payload["type"].str,
         enabled: payload["enabled"].bval,
@@ -1231,7 +1226,7 @@ proc newIntegrationSeq(payload: JsonNode): seq[Integration] =
 
 proc newWebhook(payload: JsonNode): Webhook {.inline.} =
     result = Webhook(
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
         guild_id: if payload.hasKey("guild_id"): payload["guild_id"].str else: "",
         channel_id: payload["channel_id"].str,
         user: if payload.hasKey("user") and payload["user"].kind != JNull: newUser(payload["user"]) else: User(),
@@ -1278,7 +1273,7 @@ proc newAuditLogChangeValue(o: seq[Overwrite]): AuditLogChangeValue =
 
 proc newOverwrite(payload: JsonNode): Overwrite {.inline.} =
     result = Overwrite(
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
         `type`: payload["type"].str,
         allow: payload["allow"].num.int,
         deny: payload["deny"].num.int
@@ -1353,7 +1348,7 @@ proc newAuditLogOptions(payload: JsonNode): AuditLogOptions {.inline.} =
         members_removed: if payload.hasKey("members_removed"): payload["members_removed"].str else: "",
         channel_id: if payload.hasKey("channel_id"): payload["channel_id"].str else: "",
         count: if payload.hasKey("count"): payload["count"].str else: "0",
-        id: if payload.hasKey("id"): payload["id"].str else: "",
+        id: if payload.hasKey("id"): toSnowflake(payload["id"].str) else: toSnowflake(""),
         `type`: if payload.hasKey("type"): payload["type"].str else: "",
         role_name: if payload.hasKey("role_name"): payload["role_name"].str else: ""
     )
@@ -1362,7 +1357,7 @@ proc newAuditLogEntry(payload: JsonNode): AuditLogEntry =
     result = AuditLogEntry(
         target_id: if payload.hasKey("target_id"): payload["target_id"].str else: "",
         user_id: payload["user_id"].str,
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
         action_type: payload["action_type"].num.int,
         changes: @[],
         reason: if payload.hasKey("reason"): payload["reason"].str else: ""
@@ -1392,7 +1387,7 @@ proc newAuditLog(payload: JsonNode): AuditLog =
 
 proc newUserGuild(payload: JsonNode): UserGuild {.inline.} =
     result = UserGuild(
-        id: payload["id"].str,
+        id: toSnowflake(payload["id"].str),
         name: payload["name"].str,
         icon: if payload.hasKey("icon") and payload["icon"].kind != JNull: payload["icon"].str else: "",
         owner: payload["owner"].bval,
