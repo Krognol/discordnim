@@ -1,4 +1,3 @@
-# Wish i could split this up a bit, but errors because cyclical includes
 include restapi
 import marshal, json, cgi, discordobjects, endpoints,
        websocket/client, asyncdispatch, asyncnet, uri, zip/zlib
@@ -81,16 +80,20 @@ const
 
 method getGateway(s: Shard): Future[tuple[url: string, sc: int]] {.base, async, gcsafe.} =
     var url = gateway()
-    let res = await s.request(url, "GET", url, "application/json", "", 0)
-    let body = await res.body()
-    type Temp2 = object
-        total: int
-        remaining: int
-        reset_after: int
-    type Temp = object
-        url: string 
-        shards: int
-        session_start_limit: Temp2
+    let 
+        res = await s.request(url, "GET", url, "application/json", "", 0)
+        body = await res.body()
+
+    type 
+        Temp2 = object
+            total: int
+            remaining: int
+            reset_after: int
+        Temp = object
+            url: string 
+            shards: int
+            session_start_limit: Temp2
+    
     let t = marshal.to[Temp](body)
     result = (t.url, t.shards)
 
@@ -105,29 +108,27 @@ method updateStreamingStatus*(s: Shard, idle: int = 0, game: string, url: string
     ## Updates the ``Playing ...`` message of the current user.
     if s.connection.sock.isClosed(): return
     var data = UpdateStatusData(status: status, afk: false)
-    if idle > 0:
-        data.since = idle
+    
+    if idle > 0: data.since = idle
     
     if game != "":
-        var gt = 0
-        if url != "":
-            gt = 1
-        data.game = Game(name: game, `type`: gt)
-        if url != "": data.game.url = url 
+        data.game = Game(name: game, `type`: 0)
 
-    let payload = %*{
+        if url != "":
+            data.game.`type` = 1
+            data.game.url = url
+
+    await s.connection.sock.sendText($(%*{
         "op": 3,
         "d": data
-    }
-    await s.connection.sock.sendText($payload)
+    }))
 
 method updateStatus*(s: Shard, idle: int = 0, game: string = "") {.base, gcsafe, async, inline.} =
     ## Updates the ``Playing ...`` status
     asyncCheck s.updateStreamingStatus(idle, game, "")
 
 proc newShard*(token: string): Shard {.gcsafe.} =
-    if token == "":
-        raise newException(Exception, "No token") 
+    if token == "": raise newException(Exception, "No token") 
 
     result = Shard(
         token: token,
@@ -146,22 +147,18 @@ proc newShard*(token: string): Shard {.gcsafe.} =
         )
     )
 
-    #result.initEvents()
-
     let gateway = waitFor result.getGateway()
     result.gateway = gateway.url.strip&"/"&GATEWAYVERSION
 
-
-type
-  IdentifyError* = object of Exception
 
 proc each(arr: seq[pointer], s: Shard) =
     for p in arr:
         cast[proc(_: Shard){.cdecl.}](p)(s)
 
-proc each[T](arr: seq[pointer], s: Shard, data: T) =
-    for p in arr:
-        cast[proc(_: Shard, d: T){.cdecl.}](p)(s, data)
+proc each[T](s: Shard, want: EventType, data: T) {.async, gcsafe.} =
+    if s.handlers.hasKey(want):
+        for p in s.handlers[want]:
+            cast[proc(_: Shard, d: T){.cdecl.}](p)(s, data)
 
 method handleDispatch(s: Shard, event: string, data: JsonNode) {.async, gcsafe, base.} =
     case event:
@@ -170,212 +167,123 @@ method handleDispatch(s: Shard, event: string, data: JsonNode) {.async, gcsafe, 
             s.session_id = payload.session_id
             s.cache.version = payload.v
             s.cache.me = payload.user
-            s.cache.users[payload.user.id] = payload.user 
+            s.cache.users[payload.user.id.val] = payload.user 
             for channel in payload.private_channels: 
-                s.cache.channels[channel.id] = channel
+                s.cache.channels[channel.id.val] = channel
                 
             s.cache.ready = payload
-            if s.handlers.hasKey(on_ready):
-                (s.handlers[on_ready]).each(s, payload)
-            #cast[proc(_: Shard, r: Ready) {.cdecl.}](s.handlers[on_ready])(s, payload)
+            asyncCheck s.each(on_ready, payload)
         of "RESUMED":
-            let payload = newResumed(data)
-            #cast[proc(_: Shard, r: Resumed) {.cdecl.}](s.handlers[on_resume])(s, payload)
-            if s.handlers.hasKey(on_resume):
-                (s.handlers[on_resume]).each(s, payload)
+            asyncCheck s.each(on_ready, newResumed(data))
         of "CHANNEL_CREATE":
             let payload = newChannelCreate(data)
-            if s.cache.cacheChannels: s.cache.channels[payload.id] = payload
-            #cast[proc(_: Shard, r: ChannelCreate) {.cdecl.}](s.handlers[channel_create])(s, payload)
-            if s.handlers.hasKey(channel_create):
-                (s.handlers[channel_create]).each(s, payload)
+            if s.cache.cacheChannels: s.cache.channels[payload.id.val] = payload
+            asyncCheck s.each(channel_create, payload)
         of "CHANNEL_UPDATE":
             let payload = newChannelUpdate(data)
             if s.cache.cacheChannels: s.cache.updateChannel(payload)
-            #cast[proc(_: Shard, r: ChannelUpdate) {.cdecl.}](s.handlers[channel_update])(s, payload)
-            if s.handlers.hasKey(channel_update):
-                (s.handlers[channel_update]).each(s, payload)
+            asyncCheck s.each(on_ready, payload)
         of "CHANNEL_DELETE":
             let payload = newChannelDelete(data)
-            if s.cache.cacheChannels: s.cache.removeChannel(payload.id)
-            #cast[proc(_: Shard, r: ChannelDelete) {.cdecl.}](s.handlers[channel_delete])(s, payload)
-            if s.handlers.hasKey(channel_delete):
-                (s.handlers[channel_delete]).each(s, payload)
+            if s.cache.cacheChannels: s.cache.removeChannel(payload.id.val)
+            asyncCheck s.each(channel_delete, payload)
         of "CHANNEL_PINS_UPDATE":
-            let payload = newChannelPinsUpdate(data)
-            #cast[proc(_: Shard, r: ChannelPinsUpdate) {.cdecl.}](s.handlers[channel_pins_update])(s, payload)
-            if s.handlers.hasKey(channel_pins_update):
-                (s.handlers[channel_pins_update]).each(s, payload)
+            asyncCheck s.each(channel_pins_update, newChannelPinsUpdate(data))
         of "GUILD_CREATE":
             let payload = newGuildCreate(data)
-            if s.cache.cacheGuilds: s.cache.guilds[payload.id] = payload
-            #cast[proc(_: Shard, r: GuildCreate) {.cdecl.}](s.handlers[guild_create])(s, payload)
-            if s.handlers.hasKey(guild_create):
-                (s.handlers[guild_create]).each(s, payload)
+            if s.cache.cacheGuilds: s.cache.guilds[payload.id.val] = payload
+            asyncCheck s.each(guild_create, payload)
         of "GUILD_UPDATE":
             let payload = newGuildUpdate(data)
             if s.cache.cacheGuilds: s.cache.updateGuild(payload)
-            #cast[proc(_: Shard, r: GuildUpdate) {.cdecl.}](s.handlers[guild_update])(s, payload)
-            if s.handlers.hasKey(guild_update):
-                (s.handlers[guild_update]).each(s, payload)
+            asyncCheck s.each(guild_update, payload)
         of "GUILD_DELETE":
             let payload = newGuildDelete(data)
-            if s.cache.cacheGuilds: s.cache.removeGuild(payload.id)
-            #cast[proc(_: Shard, r: GuildDelete) {.cdecl.}](s.handlers[guild_delete])(s, payload)
-            if s.handlers.hasKey(guild_delete):
-                (s.handlers[guild_delete]).each(s, payload)
+            if s.cache.cacheGuilds: s.cache.removeGuild(payload.id.val)
+            asyncCheck s.each(guild_delete, payload)
         of "GUILD_BAN_ADD":
-            let payload = newGuildBanAdd(data)
-            #cast[proc(_: Shard, r: GuildBanAdd) {.cdecl.}](s.handlers[guild_ban_add])(s, payload)
-            if s.handlers.hasKey(guild_ban_add):
-                (s.handlers[guild_ban_add]).each(s, payload)
+            asyncCheck s.each(guild_ban_add, newGuildBanAdd(data))
         of "GUILD_BAN_REMOVE":
-            let payload = newGuildBanRemove(data)
-            #cast[proc(_: Shard, r: GuildBanRemove) {.cdecl.}](s.handlers[guild_ban_remove])(s, payload)
-            if s.handlers.hasKey(guild_ban_remove):
-                (s.handlers[guild_ban_remove]).each(s, payload)
+            asyncCheck s.each(guild_ban_remove, newGuildBanRemove(data))
         of "GUILD_EMOJIS_UPDATE":
-            let payload = newGuildEmojisUpdate(data)
-            #cast[proc(_: Shard, r: GuildEmojisUpdate) {.cdecl.}](s.handlers[guild_emojis_update])(s, payload)
-            if s.handlers.hasKey(guild_emojis_update):
-                (s.handlers[guild_emojis_update]).each(s, payload)
+            asyncCheck s.each(guild_emojis_update, newGuildEmojisUpdate(data))
         of "GUILD_INTEGRATIONS_UPDATE":
-            let payload = newGuildIntegrationsUpdate(data)
-            #cast[proc(_: Shard, r: GuildIntegrationsUpdate) {.cdecl.}](s.handlers[guild_integrations_update])(s, payload)
-            if s.handlers.hasKey(guild_integrations_update):
-                (s.handlers[guild_integrations_update]).each(s, payload)
+            asyncCheck s.each(guild_integrations_update, newGuildIntegrationsUpdate(data))
         of "GUILD_MEMBER_ADD":
             let payload = newGuildMemberAdd(data)
             if s.cache.cacheGuildMembers: s.cache.addGuildMember(payload)
-            #cast[proc(_: Shard, r: GuildMemberAdd) {.cdecl.}](s.handlers[guild_member_add])(s, payload)
-            if s.handlers.hasKey(guild_member_add):
-                (s.handlers[guild_member_add]).each(s, payload)
+            asyncCheck s.each(guild_member_add, payload)
         of "GUILD_MEMBER_UPDATE":
             let payload = newGuildMemberUpdate(data)
             if s.cache.cacheGuildMembers: s.cache.updateGuildMember(payload)
-            #cast[proc(_: Shard, r: GuildMemberUpdate) {.cdecl.}](s.handlers[guild_member_update])(s, payload)
-            if s.handlers.hasKey(guild_member_update):
-                (s.handlers[guild_member_update]).each(s, payload)
+            asyncCheck s.each(guild_member_update, payload)
         of "GUILD_MEMBER_REMOVE":
             let payload = newGuildMemberRemove(data)
             if s.cache.cacheGuildMembers: s.cache.removeGuildMember(payload)
-            #cast[proc(_: Shard, r: GuildMemberRemove) {.cdecl.}](s.handlers[guild_member_remove])(s, payload)
-            if s.handlers.hasKey(guild_member_remove):
-                (s.handlers[guild_member_remove]).each(s, payload)
+            asyncCheck s.each(guild_member_remove, payload)
         of "GUILD_MEMBERS_CHUNK":
-            let payload = newGuildMembersChunk(data)
-            #cast[proc(_: Shard, r: GuildMembersChunk) {.cdecl.}](s.handlers[guild_members_chunk])(s, payload)
-            if s.handlers.hasKey(guild_members_chunk):
-                (s.handlers[guild_members_chunk]).each(s, payload)
+            asyncCheck s.each(guild_members_chunk, newGuildMembersChunk(data))
         of "GUILD_ROLE_CREATE":
             let payload = newGuildRoleCreate(data)
-            if s.cache.cacheRoles: s.cache.roles[payload.role.id] = payload.role
-            #cast[proc(_: Shard, r: GuildRoleCreate) {.cdecl.}](s.handlers[guild_role_create])(s, payload)
-            if s.handlers.hasKey(guild_role_create):
-                (s.handlers[guild_role_create]).each(s, payload)
+            if s.cache.cacheRoles: s.cache.roles[payload.role.id.val] = payload.role
+            asyncCheck s.each(guild_role_create, payload)
         of "GUILD_ROLE_UPDATE":
             let payload = newGuildRoleUpdate(data)
             if s.cache.cacheRoles: s.cache.updateRole(payload.role)
-            #cast[proc(_: Shard, r: GuildRoleUpdate) {.cdecl.}](s.handlers[guild_role_update])(s, payload)
-            if s.handlers.hasKey(guild_role_update):
-                (s.handlers[guild_role_update]).each(s, payload)
+            asyncCheck s.each(guild_role_update, payload)
         of "GUILD_ROLE_DELETE":
             let payload = newGuildRoleDelete(data)
             if s.cache.cacheRoles: s.cache.removeRole(payload.role_id)
-            #cast[proc(_: Shard, r: GuildRoleDelete) {.cdecl.}](s.handlers[guild_role_delete])(s, payload)
-            if s.handlers.hasKey(guild_role_delete):
-                (s.handlers[guild_role_delete]).each(s, payload)
+            asyncCheck s.each(guild_role_delete, payload)
         of "MESSAGE_CREATE":
-            let payload = newMessageCreate(data)
-            #cast[proc(_: Shard, r: MessageCreate) {.cdecl.}](s.handlers[message_create])(s, payload)
-            if s.handlers.hasKey(message_create):
-                (s.handlers[message_create]).each(s, payload)
+            asyncCheck s.each(message_create, newMessageCreate(data))
         of "MESSAGE_UPDATE":
-            let payload = newMessageUpdate(data)
-            #cast[proc(_: Shard, r: MessageUpdate) {.cdecl.}](s.handlers[message_update])(s, payload)
-            if s.handlers.hasKey(message_update):
-                (s.handlers[message_update]).each(s, payload)
+            asyncCheck s.each(message_update, newMessageUpdate(data))
         of "MESSAGE_DELETE":
-            let payload = newMessageDelete(data)
-            #cast[proc(_: Shard, r: MessageDelete) {.cdecl.}](s.handlers[message_delete])(s, payload)
-            if s.handlers.hasKey(message_delete):
-                (s.handlers[message_delete]).each(s, payload)
+            asyncCheck s.each(message_delete, newMessageDelete(data))
         of "MESSAGE_DELETE_BULK":
-            let payload = newMessageDeleteBulk(data)
-            #cast[proc(_: Shard, r: MessageDeleteBulk) {.cdecl.}](s.handlers[message_delete_bulk])(s, payload)
-            if s.handlers.hasKey(message_delete_bulk):
-                (s.handlers[message_delete_bulk]).each(s, payload)
+            asyncCheck s.each(message_delete_bulk, newMessageDeleteBulk(data))
         of "MESSAGE_REACTION_ADD":
-            let payload = newMessageReactionAdd(data)
-            #cast[proc(_: Shard, r: MessageReactionAdd) {.cdecl.}](s.handlers[message_reaction_add])(s, payload)
-            if s.handlers.hasKey(message_reaction_add):
-                (s.handlers[message_reaction_add]).each(s, payload)
+            asyncCheck s.each(message_reaction_add, newMessageReactionAdd(data))
         of "MESSAGE_REACTION_REMOVE":
-            let payload = newMessageReactionRemove(data)
-            #cast[proc(_: Shard, r: MessageReactionRemove) {.cdecl.}](s.handlers[message_reaction_remove])(s, payload)
-            if s.handlers.hasKey(message_reaction_remove):
-                (s.handlers[message_reaction_remove]).each(s, payload)
+            asyncCheck s.each(message_reaction_remove, newMessageReactionRemove(data))
         of "MESSAGE_REACTION_REMOVE_ALL":
-            let payload = newMessageReactionRemoveAll(data)
-            #cast[proc(_: Shard, r: MessageReactionRemoveAll) {.cdecl.}](s.handlers[message_reaction_remove_all])(s, payload)
-            if s.handlers.hasKey(message_reaction_remove_all):
-                (s.handlers[message_reaction_remove_all]).each(s, payload)
+            asyncCheck s.each(message_reaction_remove_all, newMessageReactionRemoveAll(data))
         of "PRESENCE_UPDATE":
-            var payload = newPresenceUpdate(data)
-            #cast[proc(_: Shard, r: PresenceUpdate) {.cdecl.}](s.handlers[presence_update])(s, payload)
-            if s.handlers.hasKey(presence_update):
-                (s.handlers[presence_update]).each(s, payload)
+            asyncCheck s.each(presence_update, newPresenceUpdate(data))
         of "TYPING_START":
-            let payload = newTypingStart(data)
-            #cast[proc(_: Shard, r: TypingStart) {.cdecl.}](s.handlers[typing_start])(s, payload)
-            if s.handlers.hasKey(typing_start):
-                (s.handlers[typing_start]).each(s, payload)
+            asyncCheck s.each(typing_start, newTypingStart(data))
         of "USER_UPDATE":
-            let payload = newUserUpdate(data)
-            #cast[proc(_: Shard, r: UserUpdate) {.cdecl.}](s.handlers[user_update])(s, payload)
-            if s.handlers.hasKey(user_update):
-                (s.handlers[user_update]).each(s, payload)
+            asyncCheck s.each(user_update, newUserUpdate(data))
         of "VOICE_STATE_UPDATE":
-            let payload = newVoiceStateUpdate(data)
-            #cast[proc(_: Shard, r: VoiceStateUpdate) {.cdecl.}](s.handlers[voice_state_update])(s, payload)
-            if s.handlers.hasKey(voice_state_update):
-                (s.handlers[voice_state_update]).each(s, payload)
+            asyncCheck s.each(voice_state_update, newVoiceStateUpdate(data))
         of "VOICE_SERVER_UPDATE":
-            let payload = newVoiceServerUpdate(data)
-            #cast[proc(_: Shard, r: VoiceServerUpdate) {.cdecl.}](s.handlers[voice_server_update])(s, payload)
-            if s.handlers.hasKey(voice_server_update):
-                (s.handlers[voice_server_update]).each(s, payload)
+            asyncCheck s.each(voice_server_update, newVoiceServerUpdate(data))
         of "WEBHOOKS_UPDATE":
-            let payload = newWebhooksUpdate(data)
-            #cast[proc(_: Shard, r: WebhooksUpdate) {.cdecl.}](s.handlers[webhooks_update])(s, payload)
-            if s.handlers.hasKey(webhooks_update):
-                (s.handlers[webhooks_update]).each(s, payload)
-        of "USER_SETTINGS_UPDATE": discard
-        of "PRESENCES_REPLACE": discard
+            asyncCheck s.each(webhooks_update, newWebhooksUpdate(data))
+        of "USER_SETTINGS_UPDATE", "PRESENCES_REPLACE": discard
         else:
-            echo "Unknown websocket event :: " & event & "\c\L" & $data
+            echo "Unknown websocket event :: " & event & "\n" & $data
 
 method identify(s: Shard) {.async, gcsafe, base.} =
-    var properties = %*{
-        "$os": system.hostOS,
-        "$browser": "Discordnim v"&VERSION,
-        "$device": "Discordnim v"&VERSION,
-        "$referrer": "",
-        "$referring_domain": ""
-    }
-    
-    var payload = %*{
-        "op": opIDENTIFY,
-        "d": %*{
-            "token": s.token,
-            "properties": properties,
-            "compress": s.compress
+    let payload = %*{
+            "op": opIDENTIFY,
+            "d": %*{
+                "token": s.token,
+                "properties": %*{
+                    "$os": system.hostOS,
+                    "$browser": "Discordnim v"&VERSION,
+                    "$device": "Discordnim v"&VERSION,
+                    "$referrer": "",
+                    "$referring_domain": ""
+                },
+                "compress": s.compress
+            }
         }
-    }
     
     if s.shardCount > 1: 
         if s.shardID >= s.shardCount:
-            raise newException(IdentifyError, "ShardID has to be lower than ShardCount")
+            raise newException(Exception, "ShardID has to be lower than ShardCount")
         payload["shard"] = %*[s.shardID, s.shardCount]
 
     try:
@@ -384,12 +292,11 @@ method identify(s: Shard) {.async, gcsafe, base.} =
         echo "Error sending identify packet\n" & getCurrentExceptionMsg()
 
 method resume(s: Shard) {.async, gcsafe, base.} =
-    let payload = %*{
+    await s.connection.sock.sendText($(%*{
         "token": s.token,
         "session_id": s.session_id,
         "seq": s.sequence
-    }
-    await s.connection.sock.sendText($payload)
+    }))
 
 method reconnect(s: Shard) {.async, gcsafe, base.} =
     await s.connection.close()
@@ -432,8 +339,7 @@ proc sessionHandleSocketMessage(s: Shard): Future[void]  =
         try:
             res = waitFor tres
         except:
-            echo "Encountered an error while waiting for websocket data"
-            echo getCurrentExceptionMsg()
+            echo "Encountered an error while waiting for websocket data\n", getCurrentExceptionMsg()
             break
         
         if s.compress:
@@ -452,24 +358,20 @@ proc sessionHandleSocketMessage(s: Shard): Future[void]  =
             break
          
         if data["s"].kind != JNull:
-            let i = data["s"].num.int
-            s.sequence = i
+            s.sequence = data["s"].num.int
 
         case data["op"].num
         of opDispatch:
-            let event = data["t"].str
-            asyncCheck s.handleDispatch(event, data["d"])
+            asyncCheck s.handleDispatch(data["t"].str, data["d"])
         of opHello:
             if s.shouldResumeSession():
                 waitFor s.resume()
             else:
                 s.suspended = false
-                let interval = data["d"].fields["heartbeat_interval"].num.int
-                s.interval = interval
+                s.interval = data["d"].fields["heartbeat_interval"].num.int
                 asyncCheck s.setupHeartbeats()
         of opHeartbeat:
-            let hb = %*{"op": opHeartbeat, "d": s.sequence}
-            waitFor s.connection.sock.sendText($hb)
+            waitFor s.connection.sock.sendText($(%*{"op": opHeartbeat, "d": s.sequence}))
         of opHeartbeatAck:
             # TODO :: Should probably check for HEARTBEAT_ACKs and close the connection if we don't get one
             discard
@@ -485,8 +387,6 @@ proc sessionHandleSocketMessage(s: Shard): Future[void]  =
         else:
             echo "Unknown opcode :: ", $data
         
-        #poll()
-
     echo "connection closed\ncode: ", res.opcode, "\ndata: ", res.data
     s.suspended = true
     s.stop = true
@@ -498,20 +398,22 @@ proc sessionHandleSocketMessage(s: Shard): Future[void]  =
     else:
         raise result.error
     if s.handlers.hasKey(on_disconnect):
-        (s.handlers[on_disconnect]).each(s)#cast[proc(s: Shard){.cdecl.}](s.handlers[on_disconnect])(s)
+        (s.handlers[on_disconnect]).each(s)
 
 method disconnect*(s: Shard) {.gcsafe, base, async.} =
     ## Disconnects a shard
     s.stop = true
     s.cache.clear()
-    await s.connection.close() # Does not seem to send the close code properly?
+    await s.connection.close()
 
 method startSession*(s: Shard) {.base, async.} =
     ## Connects a Shard
     if s.connection != nil and not s.connection.sock.isClosed():
         echo "Shard is already connected"
         return
+
     s.suspended = true
+
     try:
         let wsurl = parseUri(s.gateway)
         s.connection = await newAsyncWebsocketClient(
@@ -525,6 +427,7 @@ method startSession*(s: Shard) {.base, async.} =
         echo getCurrentExceptionMsg()
         s.stop = true
         return
+
     try:
         await sessionHandleSocketMessage(s)
     except:
