@@ -11,7 +11,7 @@ const
     CDN_CHANNEL_ICONS = CDN_BASE & "/channel-icons"
     
     GATEWAYVERSION = "?v=7&encoding=json"
-    VERSION* = "2.0.0"
+    VERSION* = "2.1.0"
 
 proc gateway*(): string {.inline.} = BASE & "/gateway/bot"
 

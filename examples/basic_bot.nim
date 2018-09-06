@@ -10,10 +10,11 @@ proc messageCreate(s: Shard, m: MessageCreate) =
         
 let d = newShard("Bot <Token>")
 
-proc endSession() {.noconv.} = 
+proc endSession() {.noconv.} =
     waitFor d.disconnect()
 
 setControlCHook(endSession)
 d.compress = true
-d.addHandler(EventType.message_create, messageCreate)
+let removeProc = d.addHandler(EventType.message_create, messageCreate)
 waitFor d.startSession()
+removeProc()

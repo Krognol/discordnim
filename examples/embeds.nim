@@ -15,7 +15,7 @@ proc messageCreate(s: Shard, m: MessageCreate) =
         # e.g Author, Footer, etc.
         # they should always be set to nil
         # Your bot will crash if they're not set to nil
-        let embed = Embed(
+        let embed = Embed( 
             title: "Embed title", 
             description: "Embed description",
             url: "https://github.com/Krognol/discordnim",
@@ -32,6 +32,6 @@ proc endSession() {.noconv.} =
 
 setControlCHook(endSession)
 
-shard.addHandler(EventType.message_create, messageCreate)
+discard shard.addHandler(EventType.message_create, messageCreate)
 
 waitFor shard.startSession()

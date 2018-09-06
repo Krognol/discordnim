@@ -5,11 +5,11 @@ import asyncdispatch, discordnim
 
 proc messageCreate(s: Shard, m: MessageCreate) =
     echo "Message was created!"
-    if s.cache.me.id == m.author.id: return
+    if s.cache.me.id == m.author.id: return 
     if m.content == "ping":
         asyncCheck s.channelMessageSend(m.channel_id, "pong")
     elif m.content == "you're stupid!":
-        asyncCheck s.channelMessageDelete(m.channel_id, m.id)
+        asyncCheck s.channelMessageDelete($m.channel_id, $m.id)
 
 proc messageUpdate(s: Shard, m: MessageUpdate) =
     echo "Message was updated"
@@ -20,15 +20,15 @@ proc messageUpdate(s: Shard, m: MessageUpdate) =
 var shards: seq[Shard] = @[]
 
 let client = newShard("Bot <Token>")
-client.addHandler(EventType.message_create, messageCreate)
-client.addHandler(EventType.message_update, messageUpdate)
+discard client.addHandler(EventType.message_create, messageCreate)
+discard client.addHandler(EventType.message_update, messageUpdate)
 
 
 if client.shardCount > 2:
     for i in 0..client.shardCount-1:
         let s = newShard("Bot <Token>")
-        s.addHandler(EventType.message_create, messageCreate)
-        s.addHandler(EventType.message_update, messageUpdate)
+        discard s.addHandler(EventType.message_create, messageCreate)
+        discard s.addHandler(EventType.message_update, messageUpdate)
         s.shardID = i
         asyncCheck s.startSession()
 

@@ -21,17 +21,17 @@ proc messageCreateProc(s: Shard, m: MessageCreate) =
 
         # This should be getting it from the cache since
         # we have cacheGuild(Members) set to true.
-        var member = waitFor s.guildMember("214858616140857355", m.author.id)
+        var member = waitFor s.guildMember("214858616140857355", $m.author.id)
         
         for role in member.roles:
             let r = waitFor s.guildRole("214858616140857355", role)
             roles.add(r)
         
         asyncCheck s.channelmessageSend(m.channel_id, $roles)
-        # Sends "@[(id: 299604263133380629, name: nano, color: 2067276, hoist: false, position: 1, permissions: 2146958463, managed: false, mentionable: true)]"
+        # Sends "@[(id: 299604263133380629, name: Foo, color: 2067276, hoist: false, position: 1, permissions: 2146958463, managed: false, mentionable: true)]"
 
 let shard = newShard("Bot <Token>")
-shard.addHandler(message_create, messageCreateProc)
+discard shard.addHandler(message_create, messageCreateProc)
 
 proc endSession() {.noconv.} =
     waitFor shard.disconnect()

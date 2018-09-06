@@ -2,7 +2,7 @@
 ## '-d:ssl' flag
 
 import asyncdispatch, discordnim, times
-
+ 
 const PREFIX = "!"
 
 proc messageCreate(s: Shard, m: MessageCreate) =
@@ -23,6 +23,6 @@ proc endSession() {.noconv.} =
 
 setControlCHook(endSession)
 
-shard.addHandler(EventType.message_create, messageCreate)
+discard shard.addHandler(EventType.message_create, messageCreate)
 
 waitFor shard.startSession()
