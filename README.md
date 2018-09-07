@@ -6,16 +6,16 @@ Websockets from [niv/websocket.nim](https://github.com/niv/websocket.nim)
 
 # Installing
 
-This assumes that you have your Nim environment (including [Nimble](https://github.com/nim-lang/nimble)) already set up, and that your Nim version is `0.17.0` or greater.
+This assumes that you have your Nim environment (including [Nimble](https://github.com/nim-lang/nimble)) already set up, and that your Nim version is `0.18.0` or greater.
 You can check your version with `nim --version`
 
 ```
->> nim --version
-<< Nim Compiler Version 0.17.0 (2017-05-17) [Windows: amd64]
-<< Copyright (c) 2006-2017 by Andreas Rumpf
-<< 
-<< git hash: bf0afaf3c4a7f901a525cbb035d6421a2f30bfe8
-<< active boot switches: -d:release
+nim -v
+Nim Compiler Version 0.18.0 [Windows: amd64]
+Copyright (c) 2006-2018 by Andreas Rumpf
+
+git hash: 5ee9e86c87d831d32441db658046fc989a197ac9
+active boot switches: -d:release
 ```
 
 `nimble install discordnim`
@@ -37,7 +37,7 @@ proc someMessageCreateProc(s: Shard, m: MessageCreate) =
 let client = newShard("Bot <your token>")
 
 ## Add your gateway event methods
-shard.addHandler(EventType.message_create, someMessageCreateProc)
+discard shard.addHandler(EventType.message_create, someMessageCreateProc)
 shard.compress = true # can be set to false if you don't want compressed websocket payloads
 
 ## Lastly you connect
