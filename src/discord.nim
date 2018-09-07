@@ -18,7 +18,6 @@ const
     opHello                 = 10
     opHeartbeatAck          = 11
 
-
 # Permissions 
 const
     permCreateInstantInvite* = 0x00000001
@@ -77,7 +76,6 @@ const
         permManageGuild or
         permAdministrator
 
-
 method getGateway(s: Shard): Future[tuple[url: string, sc: int]] {.base, async, gcsafe.} =
     var url = gateway()
     let 
@@ -97,12 +95,11 @@ method getGateway(s: Shard): Future[tuple[url: string, sc: int]] {.base, async, 
     let t = marshal.to[Temp](body)
     result = (t.url, t.shards)
 
-type 
-    UpdateStatusData = object
-        since: int # idle_since
-        game: Game
-        afk: bool
-        status: string
+type UpdateStatusData = object
+    since: int # idle_since
+    game: Game
+    afk: bool
+    status: string
 
 method updateStreamingStatus*(s: Shard, idle: int = 0, game: string, url: string = "", status: string = "online") {.base, async, gcsafe.} =
     ## Updates the ``Playing ...`` message of the current user.
@@ -301,14 +298,14 @@ method resume(s: Shard) {.async, gcsafe, base.} =
 method reconnect(s: Shard) {.async, gcsafe, base.} =
     await s.connection.close()
     try:
-        s.connection = await newAsyncWebsocketClient("gateway.discord.gg", Port 443, "/"&GATEWAYVERSION, ssl = true)
+        s.connection = await newAsyncWebsocketClient("gateway.discord.gg", Port 443, "/"&GATEWAYVERSION, true)
     except:
         raise getCurrentException()
     s.sequence = 0
     s.session_ID = ""
     await s.identify()
 
-method shouldResumeSession(s: Shard): bool {.gcsafe, inline, base.} = (not s.invalidated) and (not s.suspended)
+method shouldResumeSession(s: Shard): bool {.gcsafe, inline, base.} = s.suspended and (not s.invalidated)
 
 method setupHeartbeats(s: Shard) {.async, gcsafe, base.} =
     while not s.stop and not s.connection.sock.isClosed:
@@ -367,7 +364,6 @@ proc sessionHandleSocketMessage(s: Shard): Future[void]  =
             if s.shouldResumeSession():
                 waitFor s.resume()
             else:
-                s.suspended = false
                 s.interval = data["d"].fields["heartbeat_interval"].num.int
                 asyncCheck s.setupHeartbeats()
         of opHeartbeat:
@@ -412,15 +408,13 @@ method startSession*(s: Shard) {.base, async.} =
         echo "Shard is already connected"
         return
 
-    s.suspended = true
-
     try:
         let wsurl = parseUri(s.gateway)
         s.connection = await newAsyncWebsocketClient(
                 wsurl.hostname, 
                 if wsurl.scheme == "wss": Port(443) else: Port(80), 
                 wsurl.path&GATEWAYVERSION, 
-                ssl = true, 
+                true, 
                 useragent = "Discordnim (https://github.com/Krognol/discordnim v"&VERSION&")"
             )
     except:
