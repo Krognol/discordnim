@@ -1,4 +1,4 @@
-import json, tables, locks, websocket/shared, times, httpclient, strutils, asyncdispatch, marshal, sequtils
+import json, tables, locks, websocket/shared, times, httpclient, strutils, asyncdispatch, marshal, sequtils, net
 {.hint[XDeclaredButNotUsed]: off.}
 
 type 
@@ -495,11 +495,8 @@ type
         token: string
         guild_id: string
         endpoint: string
-    VoiceConnection* = object
-        sampleRate: uint
-        frameSize: uint16
-        channels: uint8
-        volume: float
+    VoiceConnection* = ref object
+        
     Resumed* = object
         trace*: seq[string]
     Cache* = ref object
@@ -611,7 +608,7 @@ type
         cache*: Cache
         limiter: RateLimits
         connection*: AsyncWebSocket
-        voiceConnections: seq[VoiceConnection] # Does not work yet
+        voiceConnections: Table[string, VoiceConnection] # voice connection tied to guild
         mut: Lock
         globalRL: RateLimits
         handlers: Table[EventType, seq[pointer]]
@@ -1398,3 +1395,188 @@ proc newUserGuildSeq(payload: JsonNode): seq[UserGuild] =
     result = newSeq[UserGuild](payload.elems.len)
     for i, guild in payload.elems:
         result[i] = newUserGuild(guild)
+
+proc join(g1: var Guild, g2: Guild) =
+    ## Joins g1(regular guild) and g2(Ready event guild)
+    ## with g2's Ready event only fields
+    g1.joined_at = g2.joined_at
+    g1.large = g2.large
+    g1.unavailable = g2.unavailable
+    g1.member_count = g2.member_count
+    g1.voice_states = g2.voice_states
+    g1.members = g2.members
+    g1.channels = g2.channels
+    g1.presences = g2.presences
+
+type CacheError = object of Exception
+
+# Caching stuff
+method getGuild*(c: Cache, id: string): tuple[guild: Guild, exists: bool] {.base, gcsafe.} =
+    ## Gets a guild from the cache
+    if c == nil: raise newException(CacheError, "The cache is nil")
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
+    result = (Guild(), false)
+    
+    if c.guilds.hasKey(id):
+        result.guild = c.guilds[id]
+        for g in c.ready.guilds:
+            if g.id == result.guild.id:
+                result.guild.join(g)
+                result.exists = true
+                break
+
+method removeGuild*(c: Cache, guildid: string) {.raises: CacheError, base, gcsafe.}  =
+    ## Removes a guild from the cache
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    if not c.guilds.hasKey(guildid): return
+    
+    initLock(c.lock)
+    c.guilds.del(guildid)
+    deinitLock(c.lock)
+
+method updateGuild*(c: Cache, guild: Guild) {.raises: CacheError, inline, base, gcsafe.} =
+    ## Updates a guild in the cache
+    if c == nil: raise newException(CacheError, "The cache is nil")
+    
+    initLock(c.lock)
+    c.guilds[guild.id.val] = guild
+    deinitLock(c.lock)
+
+method getUser*(c: Cache, id: string): tuple[user: User, exists: bool] {.base, gcsafe.}  =
+    ## Gets a user from the cache
+    if c == nil: raise newException(CacheError, "The cache is nil")
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
+    result = (User(), false)
+    
+    if c.users.hasKey(id):
+       result = (c.users[id], true)
+
+method removeUser*(c: Cache, id: string) {.raises: CacheError, inline, base, gcsafe.}  =
+    ## Removes a user from the cache
+    if c == nil: raise newException(CacheError, "The cache is nil")
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
+    if not c.users.hasKey(id): return
+
+    c.users.del(id)
+
+method updateUser*(c: Cache, user: User) {.inline, base, gcsafe.}  =
+    ## Updates a user in the cache
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    initLock(c.lock)
+    c.users[user.id.val] = user
+    deinitLock(c.lock)
+
+method getChannel*(c: Cache, id: string): tuple[channel: Channel, exists: bool] {.base, gcsafe.} =
+    ## Gets a channel from the cache
+    if c == nil: raise newException(CacheError, "The cache is nil")
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
+    result = (Channel(), false)
+
+    if c.channels.hasKey(id):
+        result = (c.channels[id], true)
+
+
+method updateChannel*(c: Cache, chan: Channel) {.inline, base, gcsafe.}  =
+    ## Updates a channel in the cache
+    if c == nil: raise newException(CacheError, "The cache is nil")
+    initLock(c.lock)
+    c.channels[chan.id.val] = chan
+    deinitLock(c.lock)
+
+method removeChannel*(c: Cache, chan: string) {.raises: CacheError, inline, base, gcsafe.}  =
+    ## Removes a channel from the cache
+    if c == nil: raise newException(CacheError, "The cache is nil")
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
+    if not c.channels.hasKey(chan): return
+
+    c.channels.del(chan)
+
+method getGuildMember*(c: Cache, guild, memberid: string): tuple[member: GuildMember, exists: bool] {. base, gcsafe.} =
+    ## Gets a guild member from the cache
+    if c == nil: raise newException(CacheError, "The cache is nil")
+    
+    result = (GuildMember(), false)
+    var (guild, exists) = c.getGuild(guild)
+
+    if not exists:
+        return
+    
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
+    for member in guild.members: 
+        if member.user.id == memberid:
+            result = (member, true)
+            break
+
+method addGuildMember*(c: Cache, member: GuildMember) {.inline, base, gcsafe.} =
+    ## Adds a guild member to the cache
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    initLock(c.lock)
+    c.members.add(member.user.id.val, member)
+    deinitLock(c.lock)
+
+method updateGuildMember*(c: Cache, m: GuildMember) {.inline, base, gcsafe.} =
+    ## Updates a guild member in the cache
+    if c == nil: raise newException(CacheError, "The cache is nil")
+
+    initLock(c.lock)
+    c.members[m.user.id.val] = m
+    deinitLock(c.lock)
+
+method removeGuildMember*(c: Cache, gmember: GuildMember) {.inline, base, gcsafe.} =
+    ## Removes a guild member from the cache
+    if c == nil: raise newException(CacheError, "The cache is nil")
+    initLock(c.lock)
+    c.members.del(gmember.user.id.val)
+    deinitLock(c.lock)
+
+method getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bool] {.base, gcsafe.} =
+    ## Gets a role from the cache
+    if c == nil: raise newException(CacheError, "The cache is nil")
+    
+    result = (Role(), false)
+    var (guild, exists) = c.getGuild(guildid)
+
+    if not exists:
+        return
+    
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
+    for role in guild.roles:
+        if role.id == roleid:
+            result = (role, true)
+            return
+
+method updateRole*(c: Cache, role: Role) {.raises: CacheError, base, gcsafe.} =
+    ## Updates a role in the cache
+    if c == nil: raise newException(CacheError, "The cache is nil")
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
+
+    c.roles[role.id.val] = role
+
+method removeRole*(c: Cache, role: string) {.raises: CacheError, base, gcsafe.} =
+    ## Removes a role from the cache
+    if c == nil: raise newException(CacheError, "The cache is nil")
+    initLock(c.lock)
+    defer: deinitLock(c.lock)
+
+    if not c.roles.hasKey(role): return
+
+    c.roles.del(role)
+
+method clear*(c: Cache) {.base, gcsafe.} =
+    ## Clears a cache of all cached objects
+    c.channels.clear()
+    c.guilds.clear()
+    c.members.clear()
+    c.roles.clear()
+    c.users.clear()

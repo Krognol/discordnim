@@ -32,192 +32,6 @@ method request(s: Shard,
     if (await s.limiter.postCheck(url, result)):
         echo "You got ratelimited"
 
-type
-    CacheError* = object of Exception
-
-proc join(g1: var Guild, g2: Guild) =
-    ## Joins g1(regular guild) and g2(Ready event guild)
-    ## with g2's Ready event only fields
-    g1.joined_at = g2.joined_at
-    g1.large = g2.large
-    g1.unavailable = g2.unavailable
-    g1.member_count = g2.member_count
-    g1.voice_states = g2.voice_states
-    g1.members = g2.members
-    g1.channels = g2.channels
-    g1.presences = g2.presences
-
-# Caching stuff
-method getGuild*(c: Cache, id: string): tuple[guild: Guild, exists: bool] {.base, gcsafe.} =
-    ## Gets a guild from the cache
-    if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
-    result = (Guild(), false)
-    
-    if c.guilds.hasKey(id):
-        result.guild = c.guilds[id]
-        for g in c.ready.guilds:
-            if g.id == result.guild.id:
-                result.guild.join(g)
-                result.exists = true
-                break
-
-method removeGuild*(c: Cache, guildid: string) {.raises: CacheError, base, gcsafe.}  =
-    ## Removes a guild from the cache
-    if c == nil: raise newException(CacheError, "The cache is nil")
-
-    if not c.guilds.hasKey(guildid): return
-    
-    initLock(c.lock)
-    c.guilds.del(guildid)
-    deinitLock(c.lock)
-
-method updateGuild*(c: Cache, guild: Guild) {.raises: CacheError, inline, base, gcsafe.} =
-    ## Updates a guild in the cache
-    if c == nil: raise newException(CacheError, "The cache is nil")
-    
-    initLock(c.lock)
-    c.guilds[guild.id.val] = guild
-    deinitLock(c.lock)
-
-method getUser*(c: Cache, id: string): tuple[user: User, exists: bool] {.base, gcsafe.}  =
-    ## Gets a user from the cache
-    if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
-    result = (User(), false)
-    
-    if c.users.hasKey(id):
-       result = (c.users[id], true)
-
-method removeUser*(c: Cache, id: string) {.raises: CacheError, inline, base, gcsafe.}  =
-    ## Removes a user from the cache
-    if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
-    if not c.users.hasKey(id): return
-
-    c.users.del(id)
-
-method updateUser*(c: Cache, user: User) {.inline, base, gcsafe.}  =
-    ## Updates a user in the cache
-    if c == nil: raise newException(CacheError, "The cache is nil")
-
-    initLock(c.lock)
-    c.users[user.id.val] = user
-    deinitLock(c.lock)
-
-method getChannel*(c: Cache, id: string): tuple[channel: Channel, exists: bool] {.base, gcsafe.} =
-    ## Gets a channel from the cache
-    if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
-    result = (Channel(), false)
-
-    if c.channels.hasKey(id):
-        result = (c.channels[id], true)
-
-
-method updateChannel*(c: Cache, chan: Channel) {.inline, base, gcsafe.}  =
-    ## Updates a channel in the cache
-    if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
-    c.channels[chan.id.val] = chan
-    deinitLock(c.lock)
-
-method removeChannel*(c: Cache, chan: string) {.raises: CacheError, inline, base, gcsafe.}  =
-    ## Removes a channel from the cache
-    if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
-    if not c.channels.hasKey(chan): return
-
-    c.channels.del(chan)
-
-method getGuildMember*(c: Cache, guild, memberid: string): tuple[member: GuildMember, exists: bool] {. base, gcsafe.} =
-    ## Gets a guild member from the cache
-    if c == nil: raise newException(CacheError, "The cache is nil")
-    
-    result = (GuildMember(), false)
-    var (guild, exists) = c.getGuild(guild)
-
-    if not exists:
-        return
-    
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
-    for member in guild.members: 
-        if member.user.id == memberid:
-            result = (member, true)
-            break
-
-method addGuildMember*(c: Cache, member: GuildMember) {.inline, base, gcsafe.} =
-    ## Adds a guild member to the cache
-    if c == nil: raise newException(CacheError, "The cache is nil")
-
-    initLock(c.lock)
-    c.members.add(member.user.id.val, member)
-    deinitLock(c.lock)
-
-method updateGuildMember*(c: Cache, m: GuildMember) {.inline, base, gcsafe.} =
-    ## Updates a guild member in the cache
-    if c == nil: raise newException(CacheError, "The cache is nil")
-
-    initLock(c.lock)
-    c.members[m.user.id.val] = m
-    deinitLock(c.lock)
-
-method removeGuildMember*(c: Cache, gmember: GuildMember) {.inline, base, gcsafe.} =
-    ## Removes a guild member from the cache
-    if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
-    c.members.del(gmember.user.id.val)
-    deinitLock(c.lock)
-
-method getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bool] {.base, gcsafe.} =
-    ## Gets a role from the cache
-    if c == nil: raise newException(CacheError, "The cache is nil")
-    
-    result = (Role(), false)
-    var (guild, exists) = c.getGuild(guildid)
-
-    if not exists:
-        return
-    
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
-    for role in guild.roles:
-        if role.id == roleid:
-            result = (role, true)
-            return
-
-method updateRole*(c: Cache, role: Role) {.raises: CacheError, base, gcsafe.} =
-    ## Updates a role in the cache
-    if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
-
-    c.roles[role.id.val] = role
-
-method removeRole*(c: Cache, role: string) {.raises: CacheError, base, gcsafe.} =
-    ## Removes a role from the cache
-    if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
-
-    if not c.roles.hasKey(role): return
-
-    c.roles.del(role)
-
-method clear*(c: Cache) {.base, gcsafe.} =
-    ## Clears a cache of all cached objects
-    c.channels.clear()
-    c.guilds.clear()
-    c.members.clear()
-    c.roles.clear()
-    c.users.clear()
-
 proc doreq(s: Shard, meth, endpoint, payload: string = "", xheaders: HttpHeaders = nil, mpd: MultipartData = nil): Future[JsonNode] =
     result = newFuture[JsonNode]("shard.request")
     let resnw = s.request(endpoint, meth, endpoint, "application/json", payload, 0, xheaders = xheaders)
@@ -230,12 +44,7 @@ proc doreq(s: Shard, meth, endpoint, payload: string = "", xheaders: HttpHeaders
     result.complete(body.parseJson)
 
 method channel*(s: Shard, channel_id: string): Future[Channel] {.base, gcsafe, async.} =
-    let (chan, exists) = s.cache.getChannel(channel_id)
-    if exists:
-        result = chan
-        return
-    let res = await doreq(s, endpointChannels(channel_id))
-    result = newChannel(res)
+    result = (await doreq(s, endpointChannels(channel_id))).newChannel
     if s.cache.cacheChannels:
         s.cache.channels[result.id.val] = result
 
@@ -463,10 +272,6 @@ method createGuild*(s: Shard,
     
 method guild*(s: Shard, id: string): Future[Guild] {.base, gcsafe, async.} =
     ## Gets a guild
-    if s.cache.cacheGuilds:
-        let (guild, exists) = s.cache.getGuild(id)
-        if exists:
-            return guild
     result = (await doreq(s, "GET", endpointGuild(id))).newGuild
     if s.cache.cacheGuilds:
         s.cache.updateGuild(result)
@@ -482,11 +287,6 @@ method deleteGuild*(s: Shard, guild: string): Future[Guild] {.base, gcsafe, inli
     
 method guildChannels*(s: Shard, guild: string): Future[seq[Channel]] {.base, gcsafe, async.} =
     ## Returns all guild channels
-    if s.cache.cacheGuilds and s.cache.cacheChannels:
-        let (guild, exists) = s.cache.getGuild(guild)
-        if exists:
-            return guild.channels
-            
     result = (await doreq(s, "GET", endpointGuildChannels(guild))).newChannelSeq
     if s.cache.cacheChannels:
         for chan in result:
@@ -522,10 +322,6 @@ method guildMembers*(s: Shard, guild: string, limit, after: int): Future[seq[Gui
 
 method guildMember*(s: Shard, guild, userid: string): Future[GuildMember] {.base, gcsafe, async.} =
     ## Returns a guild member with the userid
-    if s.cache.cacheGuildMembers:
-        let (member, exists) = s.cache.getGuildMember(guild, userid)
-        if exists:
-            return member
     result = (await doreq(s, "GET", endpointGuildMember(guild, userid))).newGuildMember
 
     if s.cache.cacheGuildMembers:
@@ -611,10 +407,6 @@ method guildRemoveBan*(s: Shard, guild, userid: string, reason: string = ""): Fu
 
 method guildRoles*(s: Shard, guild: string): Future[seq[Role]] {.base, gcsafe, async.} =
     ## Returns all guild roles
-    if s.cache.cacheGuilds and s.cache.cacheRoles:
-        let (guild, exists) = s.cache.getGuild(guild)
-        if exists:
-            return guild.roles
     result = (await doreq(s, "GET", endpointGuildRoles(guild))).newRoleSeq
 
     if s.cache.cacheRoles:
@@ -756,9 +548,6 @@ method me*(s: Shard): User {.base, gcsafe, inline.} =
 method user*(s: Shard, userid: string): Future[User] {.base, gcsafe, async.} =
     ## Gets a user
     if userid == s.cache.me.id: return s.cache.me
-    if s.cache.cacheUsers:
-        let (user, exists) = s.cache.getUser(userid)
-        if exists: return user
     result = (await doreq(s, "GET", endpointUser(userid))).newUser
     if s.cache.cacheUsers:
         s.cache.updateUser(result)
@@ -844,7 +633,7 @@ proc `$`*(u: User): string {.gcsafe, inline.} =
 proc `$`*(c: Channel): string {.gcsafe, inline.} =
     ## Stringifies a channel.
     ##
-    ## e.g: #channel-name
+    ## e.g: #channel-name 
     result = "#" & c.name
 
 proc `$`*(e: Emoji): string {.gcsafe, inline.} =
@@ -888,10 +677,10 @@ proc defaultAvatar*(u: User): string =
             result = endpointAvatarAnimated(u.id.val, u.avatar)
         else:
             result = endpointAvatar(u.id.val, u.avatar)
-            
+
 proc timestamp*(i: int64): DateTime  =
     ## Takes an ID and converts it into a timestamp
-    let it = ((i shr 22) + 1420070400000) div 1000
+    let it = ((i shr 22) + DISCORD_EPOCH) div 1000
     result = it.fromUnix.utc
 
 proc stripMentions*(msg: Message): string {.gcsafe.} =  
@@ -981,8 +770,8 @@ proc messageGuild*(s: Shard, m: Message): string =
     result = ""
     if s.cache.cacheChannels:
         var (chan, exists) = s.cache.getChannel(m.channel_id)
-        if exists:
+        if exists and (not chan.guild_id.isNilOrEmpty):
             return chan.guild_id
     var chan = waitFor s.channel(m.channel_id)
-    if chan != Channel():
+    if not chan.guild_id.isNilOrEmpty:
         result = chan.guild_id
