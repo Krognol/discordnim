@@ -1,4 +1,4 @@
-import json, tables, locks, websocket/shared, times, httpclient, strutils, asyncdispatch, marshal, sequtils, net
+import json, tables, locks, websocket/shared, times, httpclient, strutils, asyncdispatch, marshal, sequtils, macros, typetraits
 {.hint[XDeclaredButNotUsed]: off.}
 
 type 
@@ -117,7 +117,7 @@ type
         CTGuildVoice
         CTGroupDM
         CTGuildCategory
-    Channel* = object of RootObj
+    Channel* = object
         id*: Snowflake
         `type`*: ChannelType
         guild_id*: string
@@ -149,16 +149,16 @@ type
         MATSpectate
         MATListen
         MATJoinRequest
-    MessageActivity* = ref object
+    MessageActivity* = object
         `type`*: MessageActivityType
         party_id*: string
-    MessageApplication* = ref object
+    MessageApplication* = object
         id*: Snowflake
         cover_image*: string
         description*: string
         icon*: string
         name*: string
-    Message* = object of RootObj
+    Message* = object
         id*: Snowflake
         channel_id*: string
         author*: User
@@ -178,6 +178,7 @@ type
         `type`*: MessageType
         activity*: MessageActivity
         application*: MessageApplication
+        guild_id*: string
     Reaction* = object
         count*: int
         me*: bool
@@ -203,7 +204,7 @@ type
         video*: EmbedVideo
         provider*: EmbedProvider
         author*: EmbedAuthor
-        fields*: seq[EmbedField] not nil
+        fields*: seq[EmbedField]
     EmbedThumbnail* = object
         url*: string
         proxy_url*: string
@@ -247,7 +248,7 @@ type
         afk*: bool
         game*: Game
         status*: string
-    Guild* = object of RootObj
+    Guild* = object
         id*: Snowflake
         name*: string
         icon*: string
@@ -279,7 +280,7 @@ type
         members*: seq[GuildMember]
         channels*: seq[Channel]
         presences*: seq[Presence]
-    GuildMember* = object of RootObj
+    GuildMember* = object
         guild_id*: string
         user*: User
         nick*: string
@@ -325,7 +326,7 @@ type
         id*: Snowflake
         name*: string
         `type`*: int
-    User* = object of RootObj
+    User* = object
         id*: Snowflake
         username*: string
         discriminator*: string
@@ -347,7 +348,7 @@ type
         `type`*: string
         revoked*: bool
         integrations*: seq[Integration]
-    VoiceState* = object of RootObj
+    VoiceState* = object
         guild_id*: string
         channel_id*: string
         user_id*: string
@@ -381,13 +382,13 @@ type
         permissions*: int
         managed*: bool
         mentionable*: bool
-    ChannelParams* = ref object
+    ChannelParams* = object
         name*: string
         position*: int
         topic*: string
         bitrate*: int
         user_limit*: int
-    GuildParams* = ref object
+    GuildParams* = object
         name*: string
         region*: string
         verification_level*: int
@@ -397,7 +398,7 @@ type
         icon*: string
         owner_id*: string
         splash*: string
-    GuildMemberParams* = ref object
+    GuildMemberParams* = object
         nick*: string
         roles*: seq[string]
         mute*: bool
@@ -406,7 +407,7 @@ type
     GuildEmbed* = object
         enabled*: bool
         channel_id*: string
-    WebhookParams* = ref object
+    WebhookParams* = object
         content*: string
         username*: string
         avatar_url*: string
@@ -441,8 +442,7 @@ type
         ALCRoles,
         ALCOverwrites,
         ALCNil
-    AuditLogChangeValue* = ref AuditLogChangeValueObj
-    AuditLogChangeValueObj = object
+    AuditLogChangeValue* = ref object
         case kind*: AuditLogChangeKind
         of ALCString:
             str*: string
@@ -475,7 +475,7 @@ type
     MessageDeleteBulk* = object
         ids*: seq[string]
         channel_id*: string
-    Game* = object of RootObj
+    Game* = object
         name*: string
         `type`*: int
         url*: string
@@ -488,6 +488,7 @@ type
         guild_id*: string
         status*: string
     TypingStart* = object
+        guild_id*: string
         channel_id*: string
         user_id*: string
         timestamp*: int
@@ -495,7 +496,7 @@ type
         token: string
         guild_id: string
         endpoint: string
-    VoiceConnection* = ref object
+    VoiceConnection* = object
         
     Resumed* = object
         trace*: seq[string]
@@ -520,9 +521,8 @@ type
         private_channels*: seq[Channel]
         session_id*: string
         guilds*: seq[Guild]
-        trace*: seq[string] 
-        presences*: seq[Presence]
-    Pin* = object of RootObj
+        trace*: seq[string]
+    Pin* = object
         last_pin_timestamp*: string
         channel_id*: string
     MessageCreate* = Message
@@ -544,10 +544,10 @@ type
     ChannelCreate* = Channel
     ChannelUpdate* = Channel
     ChannelDelete* = Channel
-    ChannelPinsUpdate* = object of Pin
+    ChannelPinsUpdate* = Pin
     UserUpdate* = User
     VoiceStateUpdate* = VoiceState
-    MessageReactionAdd* = object of RootObj
+    MessageReactionAdd* = object
         user_id*: string
         message_id*: string
         channel_id*: string
@@ -556,7 +556,7 @@ type
     MessageReactionRemoveAll* = object
         message_id*: string
         channel_id*: string
-    WebhooksUpdate = Webhook
+    WebhooksUpdate* = Webhook
     EventType* = enum
         channel_create
         channel_update
@@ -619,12 +619,16 @@ const DISCORD_EPOCH = int64(1420070400000)
 method timestamp*(s: Snowflake): DateTime {.base.} =
     ## Makes a timestamp from the Snowflake
     var i = (s.val.parseBiggestInt.int64)
-        
     i = ((i shr 22) + DISCORD_EPOCH) div 1000
     i.fromUnix.utc
 
 proc toSnowflake*(id: string): Snowflake {.inline.}  = Snowflake(val: id)
 proc toSnowflake*(id: int64): Snowflake {.inline.}  = Snowflake(val: $id)
+proc newSnowflake*(node: JsonNode): Snowflake {.inline.} =
+    case node.kind
+    of JInt: result = toSnowflake(node.num)
+    of JString: result = toSnowflake(node.str)
+    else: result = Snowflake(val: "")
 proc `==`*(a, b: Snowflake): bool {.inline.}  = a.val == b.val
 proc `==`*(a: Snowflake, b: string): bool {.inline.}  = a.val == b
 proc `==`*(a: string, b: Snowflake): bool {.inline.}  = a == b.val
@@ -646,602 +650,324 @@ method addHandler*(d: Shard, t: EventType, p: pointer): (proc()) {.gcsafe, base,
         d.handlers[t].del(i) 
         deinitLock(d.mut)
 
-# This isn't very pretty, but it is significantly faster than `json.to(T)`, and also faster than marshal.to[T].
-# should also be "safer" to use than either of them.
-# Might move to another file in the future
-proc newUser(payload: JsonNode): User {.inline.} =
-    result = User(
-            id: toSnowflake(payload["id"].str),
-            username: if payload.hasKey("username"): payload["username"].str else: "",
-            discriminator: if payload.hasKey("discriminator"): payload["discriminator"].str else: "0000",
-            avatar: if payload.hasKey("avatar") and payload["avatar"].kind != JNull: payload["avatar"].str else: "",
-            bot: if payload.hasKey("bot"): payload["bot"].bval else: false,
-            mfa_enabled: if payload.hasKey("mfa_enabled"): payload["mfa_enabled"].bval else: false,
-            verified: if payload.hasKey("verified"): payload["verified"].bval else: false,
-            email: if payload.hasKey("email") and payload["email"].kind != JNull: payload["email"].str else: "",
-            locale: if payload.hasKey("locale"): payload["locale"].str else: ""
+proc getRecList(node: NimNode): NimNode {.compileTime.} =
+    expectKind(node, nnkObjectTy)
+    result = node[2]
+
+template genHasKeyCheck(key, kind, default: NimNode): NimNode =
+    newTree(
+        nnkIfExpr,
+        newTree(
+            nnkElifExpr,
+            newTree(
+                nnkInfix,
+                newIdentNode("and"),
+                newCall(
+                    newDotExpr(
+                        newIdentNode("node"),
+                        newIdentNode("hasKey"),
+                    ),
+                    key,
+                ),
+                newTree(
+                    nnkInfix,
+                    newIdentNode("!="),
+                    newDotExpr(
+                        newTree(
+                            nnkBracketExpr,
+                            newIdentNode("node"),
+                            key
+                        ),
+                        newIdentNode("kind")
+                    ),
+                    newIdentNode("JNull")
+                )
+            ),
+            newDotExpr(
+                newTree(
+                    nnkBracketExpr,
+                    newIdentNode("node"),
+                    key,
+                ),
+                kind
+            )
+        ),
+        newTree(
+            nnkElseExpr,
+            newStmtList(
+                default,
+            )
+        )
     )
 
-proc newUserSeq(payload: JsonNode): seq[User] =
-    result = newSeq[User](payload.elems.len)
-    for i, user in payload.elems:
-        result[i] = newUser(user)
+macro genCtor(T: typedesc): untyped =
+    let 
+        realType = T.getTypeInst[1]
+        tname = $realType
+    
+    let recList = getRecList(realType.getTypeImpl)
 
-proc newUnavailableGuild(payload: JsonNode): Guild {.inline.} =
-    result = Guild(
-        id: toSnowflake(payload["id"].str),
-        unavailable: payload["unavailable"].bval
+    result = newTree(
+        nnkProcDef,
+        newIdentNode("new" & tname),
+        newEmptyNode(),
+        newEmptyNode(),
+        newTree(
+            nnkFormalParams,
+            newIdentNode(tname),
+            newIdentDefs(
+                newIdentNode("node"),
+                newIdentNode("JsonNode")
+            ),
+        ),
+        newTree(
+            nnkPragma,
+            newIdentNode("inline"),
+        ),
+        newEmptyNode(),
     )
 
-proc newResumed(payload: JsonNode): Resumed {.inline.} =
-    result = Resumed(
-        trace: marshal.to[seq[string]]($payload["trace"])
+    let 
+        ctor = newTree(nnkObjConstr, newIdentNode(tname))
+    var postCtorStmt = newSeq[NimNode]()
+
+    for field in recList:
+        let
+            fieldName = field[0]
+            fieldKind = field[1]
+            fieldNameStr = newStrLitNode($fieldName)
+        
+        let ece = newTree(
+            nnkExprColonExpr,
+            newIdentNode($fieldName)
+        )
+        
+        case fieldKind.kind
+        of nnkBracketExpr:
+            postCtorStmt.add(
+                newStmtList(
+                    newTree(
+                        nnkIfExpr,
+                        newTree(
+                            nnkElifBranch,
+                            newTree(
+                                nnkInfix,
+                                newIdentNode("and"),
+                                newCall(
+                                    newDotExpr(
+                                        newIdentNode("node"),
+                                        newIdentNode("hasKey")
+                                    ),
+                                    fieldNameStr,
+                                ),
+                                newTree(
+                                    nnkInfix,
+                                    newIdentNode(">"),
+                                    newDotExpr(
+                                        newDotExpr(
+                                            newTree(
+                                                nnkBracketExpr,
+                                                newIdentNode("node"),
+                                                fieldNameStr,
+                                            ),
+                                            newIdentNode("elems")
+                                        ),
+                                        newIdentNode("len")
+                                    ),
+                                    newIntLitNode(0),
+                                )
+                            ),
+                            newStmtList(
+                                newAssignment(
+                                    newDotExpr(
+                                        newIdentNode("result"),
+                                        fieldName,
+                                    ),
+                                    newCall(
+                                        newTree(
+                                            nnkBracketExpr,
+                                            newIdentNode("newSeq"),
+                                            fieldKind[1],
+                                        ),
+                                        newDotExpr(
+                                            newDotExpr(
+                                                newTree(
+                                                    nnkBracketExpr,
+                                                    newIdentNode("node"),
+                                                    fieldNameStr,
+                                                ),
+                                                newIdentNode("elems")
+                                            ),
+                                            newIdentNode("len")
+                                        )
+                                    )
+                                ),
+                                newTree(
+                                    nnkForStmt,
+                                    newIdentNode("i"),
+                                    newIdentNode("n"),
+                                    newDotExpr(
+                                        newTree(
+                                            nnkBracketExpr,
+                                            newIdentNode("node"),
+                                            fieldNameStr,
+                                        ),
+                                        newIdentNode("elems")
+                                    ),
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+
+            let seqAsgnStmt = newStmtList(
+                newTree(
+                    nnkAsgn,
+                    newTree(
+                        nnkBracketExpr,
+                        newDotExpr(
+                            newIdentNode("result"),
+                            fieldName,
+                        ),
+                        newIdentNode("i")
+                    )
+                )
+            )
+
+            case $fieldKind[1]
+            of "int": 
+                seqAsgnStmt[0].add(newCall(newIdentNode("int"), newDotExpr(newIdentNode("n"), newIdentNode("num"))))
+            of "int64": seqAsgnStmt[0].add(newDotExpr(newIdentNode("n"), newIdentNode("num")))
+            of "float": seqAsgnStmt[0].add(newDotExpr(newIdentNode("n"), newIdentNode("fnum")))
+            of "string": seqAsgnStmt[0].add(newDotExpr(newIdentNode("n"), newIdentNode("str")))
+            else: seqAsgnStmt[0].add(newCall(newIdentNode("new" & $fieldKind[1]), newIdentNode("n")))
+            postCtorStmt[postCtorStmt.high][0][0][1][1].add(seqAsgnStmt)
+        else:
+            case $fieldKind
+            of "int": 
+                let tree = genHasKeyCheck(fieldNameStr, newIdentNode("num"), newIntLitNode(0))
+                tree[0][1] = newDotExpr(tree[0][1], newIdentNode("int"))
+                ece.add(tree)
+            of "int64": ece.add(genHasKeyCheck(fieldNameStr, newIdentNode("num"), newIntLitNode(0)))
+            of "float": ece.add(genHasKeyCheck(fieldNameStr, newIdentNode("fnum"), newFloatLitNode(0.0)))
+            of "string": ece.add(genHasKeyCheck(fieldNameStr, newIdentNode("str"), newStrLitNode("")))
+            of "bool": ece.add(genHasKeyCheck(fieldNameStr, newIdentNode("bval"), newLit(false)))
+            else: 
+                if fieldKind.getType.kind == nnkEnumTy:
+                    let tree = genHasKeyCheck(fieldNameStr, newIdentNode("num"), newCall(newIdentNode($fieldKind), newIntLitNode(0)))
+                    tree[0][1] = newCall(newIdentNode($fieldKind), newDotExpr(newTree(nnkBracketExpr, newIdentNode("node"), fieldNameStr), newIdentNode("num")))
+                    ece.add(tree)
+                else:
+                    let tree = genHasKeyCheck(fieldNameStr, newEmptyNode(), newCall(newIdentNode($fieldKind)))
+                    tree[0][1][1] = newIdentNode("new" & $fieldKind)
+                    ece.add(tree)
+            ctor.add(ece)
+    result.add(
+        newStmtList(
+            newAssignment(
+                newIdentNode("result"),
+                ctor
+            ),
+        )
     )
 
-proc newChannel(payload: JsonNode): Channel {.inline.} =
-    result = Channel(
-        id: toSnowflake(payload["id"].str),
-        guild_id: if payload.hasKey("guild_id") and payload["guild_id"].kind != JNull: payload["guild_id"].str else: "",
-        name: if payload.hasKey("name") and payload["name"].kind != JNull: payload["name"].str else: "",
-        `type`: ChannelType(payload["type"].num.int),
-        position: if payload.hasKey("position") and payload["position"].kind != JNull: payload["position"].num.int else: 0,
-        permission_overwrites: if payload.hasKey("permission_overwrites"): marshal.to[seq[Overwrite]]($payload["permission_overwrites"]) else: @[],
-        topic: if payload.hasKey("topic") and payload["topic"].kind != JNull: payload["topic"].str else: "",
-        last_message_id: if payload.hasKey("last_message_id") and payload["last_message_id"].kind != JNull: payload["last_message_id"].str else: "",
-        bitrate: if payload.hasKey("bitrate"): payload["bitrate"].num.int else: 0,
-        user_limit: if payload.hasKey("user_limit"): payload["user_limit"].num.int else: 0,
-        icon: if payload.hasKey("avatar") and payload["avatar"].kind != JNull: payload["avatar"].str else: "",
-        owner_id: if payload.hasKey("owner_id"): payload["owner_id"].str else: "",
-        application_id: if payload.hasKey("application_id"): payload["application_id"].str else: ""
-    )
-
-    if payload.hasKey("recipients"):
-        result.recipients = @[]
-        for user in payload["recipients"].elems:
-            result.recipients.add(newUser(user))
-
-proc newChannelSeq(payload: JsonNode): seq[Channel] =
-    result = newSeq[Channel](payload.elems.len)
-    for i, chan in payload.elems:
-        result[i] = newChannel(chan)
-
-proc newChannelCreate(payload: JsonNode): ChannelCreate {.inline.} =
-    result = newChannel(payload)
-
-proc newChannelUpdate(payload: JsonNode): ChannelUpdate {.inline.} =
-    result = newChannel(payload)
-
-proc newChannelDelete(payload: JsonNode): ChannelDelete {.inline.} =
-    result = newChannel(payload)
-
-proc newRole(payload: JsonNode): Role {.inline.} =
-    result = Role(
-        id: toSnowflake(payload["id"].str),
-        name: payload["name"].str,
-        color: payload["color"].num.int,
-        hoist: payload["hoist"].bval,
-        position: payload["position"].num.int,
-        managed: payload["managed"].bval,
-        mentionable: payload["mentionable"].bval
-    )
-
-proc newRoleSeq(payload: JsonNode): seq[Role] =
-    result = newSeq[Role](payload.elems.len)
-    for i, role in payload.elems:
-        result[i] = newRole(role)
-
-proc newEmoji(payload: JsonNode): Emoji {.inline.} =
-    result = Emoji(
-        id: if payload.hasKey("id") and payload["id"].kind != JNull: toSnowflake(payload["id"].str) else: toSnowflake(""),
-        name: if payload.hasKey("name") and payload["name"].kind != JNull: payload["name"].str else: "",
-        roles: if payload.hasKey("roles"): marshal.to[seq[string]]($payload["roles"]) else: @[],
-        require_colons: if payload.hasKey("require_colons"): payload["require_colons"].bval else: false,
-        managed: if payload.hasKey("managed"): payload["managed"].bval else: false,
-        user: if payload.hasKey("user"): newUser(payload["user"]) else: User(),
-        animated: if payload.hasKey("animated"): payload["animated"].bval else: false
-    )
-
-proc newGuild(payload: JsonNode): Guild  =
-    result = Guild(
-        id: toSnowflake(payload["id"].str),
-        name: payload["name"].str,
-        icon: if payload["icon"].kind != JNull: payload["icon"].str else: "",
-        splash: if payload.hasKey("splash") and payload["splash"].kind != JNull: payload["splash"].str else: "",
-        owner_id: payload["owner_id"].str,
-        region: payload["region"].str,
-        afk_channel_id: if payload.hasKey("afk_channel_id") and payload["afk_channel_id"].kind != JNull: payload["afk_channel_id"].str else: "",
-        afk_timeout: payload["afk_timeout"].num.int,
-        embed_enabled: if payload.hasKey("embed_enabled"): payload["embed_enabled"].bval else: false,
-        embed_channel_id: if payload.hasKey("embed_channel_id") and payload["embed_channel_id"].kind != JNull: payload["embed_channel_id"].str else: "",
-        verification_level: payload["verification_level"].num.int,
-        default_message_notifications: payload["default_message_notifications"].num.int,
-        explicit_content_filter: payload["explicit_content_filter"].num.int,
-        features: marshal.to[seq[string]]($payload["features"]),
-        mfa_level: payload["mfa_level"].num.int,
-        application_id: if payload["application_id"].kind != JNull: payload["application_id"].str else: "",
-        widget_enabled: if payload.hasKey("widget_enabled"): payload["widget_enabled"].bval else: false,
-        widget_channel_id: if payload.hasKey("widget_channel_id") and payload["widget_channel_id"].kind != JNull: payload["widget_channel_id"].str else: "",
-        roles: @[],
-        emojis: @[],
-        system_channel_id: if payload.hasKey("system_channel_id") and payload["system_channel_id"].kind != JNull: payload["system_channel_id"].str else: ""
-    )
-
-    for role in payload["roles"].elems:
-        result.roles.add(newRole(role))
-
-    for emoji in payload["emojis"].elems:
-        result.emojis.add(newEmoji(emoji))
-
-proc newVoiceState(payload: JsonNode): VoiceState {.inline.} =
-    result = VoiceState(
-        guild_id: if payload.hasKey("guild_id") and payload["guild_id"].kind != JNull: payload["guild_id"].str else: "",
-        channel_id: if payload["channel_id"].kind != JNull: payload["channel_id"].str else: "",
-        user_id: payload["user_id"].str,
-        session_id: payload["session_id"].str,
-        deaf: payload["deaf"].bval,
-        mute: payload["mute"].bval,
-        self_deaf: payload["self_deaf"].bval,
-        self_mute: payload["self_mute"].bval,
-        suppress: payload["suppress"].bval
-    )
-
-proc newGuildMember(payload: JsonNode): GuildMember {.inline.} =
-    result = GuildMember(
-        guild_id: if payload.hasKey("guild_id"): payload["guild_id"].str else: "",
-        user: newUser(payload["user"]),
-        nick: if payload.hasKey("nick") and payload["nick"].kind != JNull: payload["nick"].str else: "",
-        roles: marshal.to[seq[string]]($payload["roles"]),
-        joined_at: payload["joined_at"].str,
-        deaf: payload["deaf"].bval,
-        mute: payload["mute"].bval,
-    )
-
-proc newGuildMemberSeq(payload: JsonNode): seq[GuildMember] =
-    result = newSeq[GuildMember](payload.elems.len)
-    for i, member in payload.elems:
-        result[i] = newGuildMember(member)
-
-proc newGame(payload: JsonNode): Game {.inline.} =
-    result = Game(
-        name: if payload.hasKey("name") and payload["name"].kind != JNull: payload["name"].str else: "",
-        `type`: if payload.hasKey("type"): payload["type"].num.int else: 0,
-        url: if payload.hasKey("url") and payload["url"].kind != JNull: payload["url"].str else: ""
-    )
-
-proc newPresence(payload: JsonNode): Presence {.inline.} =
-    result = Presence(
-        since: if payload.hasKey("since") and payload["since"].kind != JNull: payload["since"].num.int else: 0,
-        game: if payload.hasKey("game") and payload["game"].kind != JNull: newGame(payload["game"]) else: Game(),
-        status: payload["status"].str,
-        afk: payload["afk"].bval
-    )
-
-proc newPresenceUpdate(payload: JsonNode): PresenceUpdate {.inline.} =
-    result = PresenceUpdate(
-        user: newUser(payload["user"]),
-        status: payload["status"].str,
-        guild_id: payload["guild_id"].str,
-        roles: if payload.hasKey("roles"): marshal.to[seq[string]]($payload["roles"]) else: @[],
-        game: if payload.hasKey("game") and payload["game"].kind != JNull: newGame(payload["game"]) else: Game(),
-    )
-
-proc newGuildWithCreateFields(payload: JsonNode): Guild =
-    result = Guild(
-        joined_at: payload["joined_at"].str,
-        large: payload["large"].bval,
-        unavailable: payload["unavailable"].bval,
-        member_count: payload["member_count"].num.int,
-    )
-
-    for vstate in payload["voice_states"].elems:
-        result.voice_states.add(newVoiceState(vstate))
-
-    for member in payload["members"].elems:
-        result.members.add(newGuildMember(member))
-
-    for channel in payload["channels"].elems:
-        result.channels.add(newChannel(channel))
-
-    for presence in payload["presences"].elems:
-        result.presences.add(newPresence(presence))
-
-proc newGuildCreate(payload: JsonNode): GuildCreate {.inline.} =
-    result = newGuild(payload)
-
-proc newGuildUpdate(payload: JsonNode): GuildUpdate {.inline.} =
-    result = newGuild(payload)
-
-proc newGuildDelete(payload: JsonNode): GuildDelete {.inline.} =
-    result = GuildDelete(
-        id: toSnowflake(payload["id"].str),
-        unavailable: payload["unavailable"].bval,
-    )
-
-proc newReady(payload: JsonNode): Ready =
-    result = Ready(
-        v: payload["v"].num.int,
-        user: newUser(payload["user"]),
-        private_channels: newChannelSeq(payload["private_channels"]),
-        session_id: payload["session_id"].str,
-        trace: marshal.to[seq[string]]($payload["_trace"]),
-        presences: marshal.to[seq[Presence]]($payload["presences"]),
-        guilds: @[]
-    )
-
-    if payload.hasKey("guilds"):
-        for guild in payload["guilds"].elems:
-            result.guilds.add(newUnavailableGuild(guild))
-
-proc newChannelPinsUpdate(payload: JsonNode): ChannelPinsUpdate {.inline.} =
-    result = ChannelPinsUpdate(
-        channel_id: payload["channel_id"].str,
-        last_pin_timestamp: if payload.hasKey("last_pin_timestamp"): payload["last_pin_timestamp"].str else: ""
-    )
-
-proc newGuildBanAdd(payload: JsonNode): GuildBanAdd {.inline.} =
-    result = newUser(payload)
-
-proc newGuildBanRemove(payload: JsonNode): GuildBanRemove {.inline.} =
-    result = newUser(payload)
-
-proc newGuildEmojisUpdate(payload: JsonNode): GuildEmojisUpdate =
-    result = GuildEmojisUpdate(
-        guild_id: payload["guild_id"].str,
-        emojis: @[]
-    )
-
-    for emoji in payload["emojis"].elems:
-        result.emojis.add(newEmoji(emoji))
-
-proc newGuildIntegrationsUpdate(payload: JsonNode): GuildIntegrationsUpdate {.inline.} =
-    result = GuildIntegrationsUpdate(
-        guild_id: payload["guild_id"].str
-    )
-
-proc newGuildMemberAdd(payload: JsonNode): GuildMemberAdd {.inline.} =
-    result = newGuildMember(payload)
-
-proc newGuildMemberRemove(payload: JsonNode): GuildMemberRemove {.inline.} =
-    result = GuildMemberRemove(
-        guild_id: payload["guild_id"].str,
-        user: newUser(payload["user"])
-    )
-
-proc newGuildMemberUpdate(payload: JsonNode): GuildMemberUpdate {.inline.} =
-    result = GuildMemberUpdate(
-        guild_id: payload["guild_id"].str,
-        roles: marshal.to[seq[string]]($payload["roles"]),
-        user: newUser(payload["user"]),
-        nick: if payload["nick"].kind != JNull: payload["nick"].str else: ""
-    )
-
-proc newGuildMembersChunk(payload: JsonNode): GuildMembersChunk {.inline.} =
-    result = GuildMembersChunk(
-        guild_id: payload["guild_id"].str
-    )
-
-    for member in payload["members"].elems:
-        result.members.add(newGuildMember(member))
-
-proc newGuildRoleCreate(payload: JsonNode): GuildRoleCreate {.inline.} =
-    result = GuildRoleCreate(
-        guild_id: payload["guild_id"].str,
-        role: newRole(payload["role"])
-    )
-
-proc newGuildRoleUpdate(payload: JsonNode): GuildRoleUpdate {.inline.} =
-    result = GuildRoleUpdate(
-        guild_id: payload["guild_id"].str,
-        role: newRole(payload["role"])
-    )
-
-proc newGuildRoleDelete(payload: JsonNode): GuildRoleDelete {.inline.} =
-    result = GuildRoleDelete(
-        guild_id: payload["guild_id"].str,
-        role_id: payload["role_id"].str
-    )
-
-proc newAttachment(payload: JsonNode): Attachment {.inline.} =
-    result = Attachment(
-        id: toSnowflake(payload["id"].str),
-        filename: payload["filename"].str,
-        size: payload["size"].num.int,
-        url: payload["url"].str,
-        proxy_url: payload["proxy_url"].str,
-        height: if payload.hasKey("height") and payload["height"].kind != JNull: payload["height"].num.int else: 0,
-        width: if payload.hasKey("width") and payload["width"].kind != JNull: payload["width"].num.int else: 0,
-    )
-
-proc newEmbedFooter(payload: JsonNode): EmbedFooter {.inline.} =
-    result = EmbedFooter(
-        text: payload["text"].str,
-        icon_url: if payload.hasKey("icon_url"): payload["icon_url"].str else: "",
-        proxy_icon_url: if payload.hasKey("proxy_icon_url"): payload["proxy_icon_url"].str else: ""
-    )
-
-proc newEmbedImage(payload: JsonNode): EmbedImage{.inline.} =
-    result = EmbedImage(
-        url: payload["url"].str,
-        proxy_url: payload["proxy_url"].str,
-        height: payload["height"].num.int,
-        width: payload["width"].num.int
-    )
-
-proc newEmbedThumbnail(payload: JsonNode): EmbedThumbnail {.inline.} =
-    result = EmbedThumbnail(
-        url: payload["url"].str,
-        proxy_url: payload["proxy_url"].str,
-        height: payload["height"].num.int,
-        width: payload["width"].num.int
-    )
-
-proc newEmbedVideo(payload: JsonNode): EmbedVideo {.inline.} =
-    result = EmbedVideo(
-        url: payload["url"].str,
-        height: payload["height"].num.int,
-        width: payload["width"].num.int
-    )
-
-proc newEmbedProvider(payload: JsonNode): EmbedProvider {.inline.} =
-    result = EmbedProvider(
-        url: if payload["url"].kind != JNull: payload["url"].str else: "",
-        name: if payload["name"].kind != JNull: payload["name"].str else: ""
-    )
-
-proc newEmbedAuthor(payload: JsonNode): EmbedAuthor {.inline.} =
-    result = EmbedAuthor(
-        name: payload["name"].str,
-        url: if payload.hasKey("url"): payload["url"].str else: "",
-        icon_url: if payload.hasKey("icon_url"): payload["icon_url"].str else: "",
-        proxy_icon_url: if payload.hasKey("proxy_icon_url"): payload["proxy_icon_url"].str else: ""
-    )
-
-proc newEmbedField(payload: JsonNode): EmbedField {.inline.} =
-    result = EmbedField(
-        name: payload["name"].str,
-        value: payload["value"].str,
-        inline: payload["inline"].bval
-    )
-
-proc newEmbed(payload: JsonNode): Embed {.inline.} =
-    result = Embed(
-        title: if payload.hasKey("title"): payload["title"].str else: "",
-        `type`: if payload.hasKey("type"): payload["type"].str else: "rich",
-        description: if payload.hasKey("description"): payload["description"].str else: "",
-        url: if payload.hasKey("url"): payload["url"].str else: "",
-        timestamp: if payload.hasKey("timestamp"): payload["timestamp"].str else: "",
-        color: if payload.hasKey("color"): payload["color"].num.int else: 0x4f545c,
-        footer: if payload.hasKey("footer"): newEmbedFooter(payload["footer"]) else: EmbedFooter(),
-        image: if payload.hasKey("image"): newEmbedImage(payload["image"]) else: EmbedImage(),
-        thumbnail: if payload.hasKey("thumbnail"): newEmbedThumbnail(payload["thumbnail"]) else: EmbedThumbnail(),
-        video: if payload.hasKey("video"): newEmbedVideo(payload["video"]) else: EmbedVideo(),
-        provider: if payload.hasKey("provider"): newEmbedProvider(payload["provider"]) else: EmbedProvider(),
-        author: if payload.hasKey("author"): newEmbedAuthor(payload["author"]) else: EmbedAuthor(),
-        fields: @[]
-    )
-
-    if payload.hasKey("fields"):
-        for field in payload["fields"].elems:
-            result.fields.add(newEmbedField(field))
-
-proc newReaction(payload: JsonNode): Reaction {.inline.} =
-    result = Reaction(
-        count: payload["count"].num.int,
-        me: payload["me"].bval,
-        emoji: newEmoji(payload["emoji"])
-    )
-
-proc newMessageActivity(payload: JsonNode): MessageActivity {.inline.} = 
-    result = MessageActivity(
-        `type`: MessageActivityType(payload["type"].num.int),
-        party_id: if payload.hasKey("part_id"): payload["party_id"].str else: ""
-    )
-
-proc newMessageApplication(payload: JsonNode): MessageApplication {.inline.} =
-    result = MessageApplication(
-        id: toSnowflake(payload["id"].str),
-        cover_image: payload["cover_image"].str,
-        description: payload["description"].str,
-        icon: payload["icon"].str,
-        name: payload["name"].str
-    )
-
-proc newMessage(payload: JsonNode): Message =
-    result = Message(
-        id: if payload.hasKey("id"): toSnowflake(payload["id"].str) else: toSnowflake(""),
-        channel_id: if payload.hasKey("channel_id"): payload["channel_id"].str else: "",
-        author: if payload.hasKey("author"): newUser(payload["author"]) else: User(),
-        content: if payload.hasKey("content"): payload["content"].str else: "",
-        timestamp: if payload.hasKey("timestamp"): payload["timestamp"].str else: $utc(getTime()),
-        edited_timestamp: if payload.hasKey("edited_timestamp") and payload["edited_timestamp"].kind != JNull: payload["edited_timestamp"].str else: "",
-        tts: if payload.hasKey("tts"): payload["tts"].bval else: false,
-        mention_everyone: if payload.hasKey("mention_everyone"): payload["mention_everyone"].bval else: false,
-        mention_roles: if payload.hasKey("mention_roles"): marshal.to[seq[string]]($payload["mention_roles"]) else: @[],
-        nonce: if payload.hasKey("nonce") and payload["nonce"].kind != JNull: payload["nonce"].str else: "",
-        pinned: if payload.hasKey("pinned"): payload["pinned"].bval else: false,
-        webhook_id: if payload.hasKey("webhook_id"): payload["webhook_id"].str else: "",
-        `type`: if payload.hasKey("type"): MessageType(payload["type"].num.int) else: MTDefault,
-        reactions: @[],
-        mentions: @[],
-        attachments: @[],
-        embeds: @[],
-        activity: if payload.hasKey("activity"): newMessageActivity(payload["activity"]) else: nil,
-        application: if payload.hasKey("application"): newMessageApplication(payload["application"]) else: nil
-    )
-
-    if payload.hasKey("mentions"):
-        for mention in payload["mentions"].elems:
-            result.mentions.add(newUser(mention))
-
-    if payload.hasKey("attachments"):
-        for attachment in payload["attachments"].elems:
-            result.attachments.add(newAttachment(attachment))
-
-    if payload.hasKey("embeds"):
-        for embed in payload["embeds"].elems:
-            result.embeds.add(newEmbed(embed))
-
-    if payload.hasKey("reactions"):
-        for reaction in payload["reactions"]:
-            result.reactions.add(newReaction(reaction))
-
-proc newMessageCreate(payload: JsonNode): MessageCreate {.inline.} =
-    result = newmessage(payload)
-
-proc newMessageUpdate(payload: JsonNode): MessageUpdate {.inline.} =
-    result = newmessage(payload)
-
-proc newMessageDelete(payload: JsonNode): MessageDelete {.inline.} =
-    result = MessageDelete(
-        id: toSnowflake(payload["id"].str),
-        channel_id: payload["channel_id"].str
-    )
-
-proc newMessageDeleteBulk(payload: JsonNode): MessageDeleteBulk {.inline.} =
-    result = MessageDeleteBulk(
-        ids: marshal.to[seq[string]]($payload["ids"]),
-        channel_id: payload["channel_id"].str
-    )
-
-proc newMessageReactionAdd(payload: JsonNode): MessageReactionAdd {.inline.} =
-    result = MessageReactionAdd(
-        user_id: payload["user_id"].str,
-        channel_id: payload["channel_id"].str,
-        message_id: payload["message_id"].str,
-        emoji: newEmoji(payload["emoji"])
-    )
-
-proc newMessageReactionRemove(payload: JsonNode): MessageReactionRemove {.inline.} =
-    result = newMessageReactionAdd(payload)
-
-proc newMessageReactionRemoveAll(payload: JsonNode): MessageReactionRemoveAll {.inline.} =
-    result = MessageReactionRemoveAll(
-        channel_id: payload["channel_id"].str,
-        message_id: payload["message_id"].str
-    )
-
-proc newMessageSeq(payload: JsonNode): seq[Message] =
-    result = newSeq[Message](payload.elems.len)
-    for i, msg in payload.elems:
-        result[i] = newMessage(msg)
-
-proc newWebhooksUpdate(payload: JsonNode): WebhooksUpdate {.inline.} =
-    result = WebhooksUpdate(
-        guild_id: payload["guild_id"].str,
-        channel_id: payload["channel_id"].str,
-    )
-
-proc newTypingStart(payload: JsonNode): TypingStart {.inline.} =
-    result = TypingStart(
-        channel_id: payload["channel_id"].str,
-        user_id: payload["user_id"].str,
-        timestamp: payload["timestamp"].num.int
-    )
-
-proc newUserUpdate(payload: JsonNode): UserUpdate {.inline.} =
-    result = newUser(payload)
-
-proc newVoiceStateUpdate(payload: JsonNode): VoiceStateUpdate {.inline.} =
-    result = newVoiceState(payload)
-
-proc newVoiceServerUpdate(payload: JsonNode): VoiceServerUpdate {.inline.} =
-    result = VoiceServerUpdate(
-        token: payload["token"].str,
-        guild_id: payload["guild_id"].str,
-        endpoint: payload["endpoint"].str
-    )
-
-proc newInviteGuild(payload: JsonNode): InviteGuild {.inline.} =
-    result = InviteGuild(
-        id: toSnowflake(payload["id"].str),
-        name: payload["name"].str,
-        splash: if payload.hasKey("splash") and payload["splash"].kind != JNull: payload["splash"].str else: "",
-        icon: if payload.hasKey("icon") and payload["icon"].kind != JNull: payload["icon"].str else: ""
-    )
-
-proc newInviteChannel(payload: JsonNode): InviteChannel {.inline.} =
-    result = InviteChannel(
-        id: toSnowflake(payload["id"].str),
-        name: payload["name"].str,
-        `type`: if payload.hasKey("type"): payload["type"].num.int else: 0,
-    )
-
-proc newInvite(payload: JsonNode): Invite {.inline.} =
-    result = Invite(
-        code: payload["code"].str,
-        guild: if payload.hasKey("guild"): newInviteGuild(payload["guild"]) else: InviteGuild(),
-        channel: if payload.hasKey("channel"): newInviteChannel(payload["channel"]) else: InviteChannel(),
-        approximate_presence_count: if payload.hasKey("approximate_presence_count"): payload["approximate_presence_count"].num.int else: 0,
-        approximate_member_count: if payload.hasKey("approximage_member_count"): payload["approximage_member_count"].num.int else: 0
-    )
-
-proc newInviteSeq(payload: JsonNode): seq[Invite] =
-    result = newSeq[Invite](payload.elems.len)
-    for i, inv in payload.elems:
-        result[i] = newInvite(inv)
-
-proc newVoiceRegion(payload: JsonNode): VoiceRegion {.inline.} =
-    result = VoiceRegion(
-        name: payload["name"].str,
-        deprecated: payload["deprecated"].bval,
-        custom: payload["custom"].bval,
-        vip: payload["vip"].bval,
-        optimal: payload["optimal"].bval,
-        id: toSnowflake(payload["id"].str),
-    )
-
-proc newVoiceRegionSeq(payload: JsonNode): seq[VoiceRegion] =
-    result = newSeq[VoiceRegion](payload.elems.len)
-    for i, region in payload.elems:
-        result[i] = newVoiceRegion(region)
-
-proc newIntegrationAccount(payload: JsonNode): IntegrationAccount {.inline.} =
-    result = IntegrationAccount(
-        id: toSnowflake(payload["id"].str),
-        name: payload["name"].str
-    )
-
-proc newIntegration(payload: JsonNode): Integration {.inline.} =
-    result = Integration(
-        id: toSnowflake(payload["id"].str),
-        name: payload["name"].str,
-        `type`: payload["type"].str,
-        enabled: payload["enabled"].bval,
-        syncing: payload["syncing"].bval,
-        role_id: payload["role_id"].str,
-        expire_behavior: payload["expire_behavior"].num.int,
-        expire_grace_period: payload["expire_grace_period"].num.int,
-        user: newUser(payload["user"]),
-        account: newIntegrationAccount(payload["account"]),
-        synced_at: payload["synced_at"].str,
-    )
-
-proc newIntegrationSeq(payload: JsonNode): seq[Integration] =
-    result = newSeq[Integration](payload.elems.len)
-    for i, integ in payload.elems:
-        result[i] = newIntegration(integ)
-
-proc newWebhook(payload: JsonNode): Webhook {.inline.} =
-    result = Webhook(
-        id: toSnowflake(payload["id"].str),
-        guild_id: if payload.hasKey("guild_id"): payload["guild_id"].str else: "",
-        channel_id: payload["channel_id"].str,
-        user: if payload.hasKey("user") and payload["user"].kind != JNull: newUser(payload["user"]) else: User(),
-        name: if payload["name"].kind != JNull: payload["name"].str else: "",
-        avatar: if payload["avatar"].kind != JNull: payload["avatar"].str else: "",
-        token: payload["token"].str
-    )
-
-proc newWebhookSeq(payload: JsonNode): seq[Webhook] =
-    result = newSeq[Webhook](payload.elems.len)
-    for i, wh in payload.elems:
-        result[i] = newWebhook(wh)
-
-proc newGuildEmbed(payload: JsonNode): GuildEmbed {.inline.} =
-    result = GuildEmbed(
-        enabled: payload["enabled"].bval,
-        channel_id: payload["channel_id"].str
-    )
+    if len(postCtorStmt) > 0:
+        result[result.len-1].add(postCtorStmt)
+
+    # echo result.repr
+
+genCtor(User)
+genCtor(Overwrite)
+genCtor(Channel)
+genCtor(EmbedFooter)
+genCtor(EmbedImage)
+genCtor(EmbedThumbnail)
+genCtor(EmbedVideo)
+genCtor(EmbedProvider)
+genCtor(EmbedAuthor)
+genCtor(EmbedField)
+genCtor(Embed)
+genCtor(Attachment)
+genCtor(MessageActivity)
+genCtor(MessageApplication)
+genCtor(Emoji)
+genCtor(Reaction)
+genCtor(Message)
+genCtor(Game)
+genCtor(Presence)
+genCtor(Role)
+genCtor(GuildMember)
+genCtor(VoiceState)
+genCtor(VoiceRegion)
+genCtor(Guild)
+genCtor(IntegrationAccount)
+genCtor(InviteGuild)
+genCtor(InviteChannel)
+genCtor(Invite)
+genCtor(InviteMetadata)
+genCtor(UserGuild)
+genCtor(Integration)
+genCtor(Connection)
+genCtor(Webhook)
+genCtor(ChannelParams)
+genCtor(GuildParams)
+genCtor(GuildMemberParams)
+genCtor(GuildEmbed)
+genCtor(WebhookParams)
+genCtor(GuildEmojisUpdate)
+genCtor(GuildIntegrationsUpdate)
+genCtor(GuildRoleCreate)
+genCtor(GuildRoleUpdate)
+genCtor(GuildRoleDelete)
+genCtor(AuditLogOptions)
+genCtor(MessageDeleteBulk)
+genCtor(PresenceUpdate)
+genCtor(TypingStart)
+genCtor(VoiceServerUpdate)
+genCtor(Resumed)
+proc newMessageCreate(node: JsonNode): MessageUpdate {.inline.} =
+    result = newMessage(node)
+proc newMessageUpdate(node: JsonNode): MessageUpdate {.inline.} =
+    result = newMessage(node)
+proc newMessageDelete(node: JsonNode): MessageUpdate {.inline.} =
+    result = newMessage(node)
+proc newGuildMemberAdd(node: JsonNode): GuildMemberAdd {.inline.} =
+    result = newGuildMember(node)
+proc newGuildMemberUpdate(node: JsonNode): GuildMemberUpdate {.inline.} =
+    result = newGuildMember(node)
+proc newGuildMemberRemove(node: JsonNode): GuildMemberRemove {.inline.} =
+    result = newGuildMember(node)
+genCtor(GuildMembersChunk)
+proc newGuildCreate(node: JsonNode): GuildCreate {.inline.} =
+    result = newGuild(node)
+proc newGuildUpdate(node: JsonNode): GuildUpdate {.inline.} =
+    result = newGuild(node)
+genCtor(GuildDelete)
+proc newGuildBanAdd(node: JsonNode): GuildBanAdd {.inline.} =
+    result = newUser(node)
+proc newGuildBanRemove(node: JsonNode): GuildBanRemove {.inline.} =
+    result = newUser(node)
+proc newChannelCreate(node: JsonNode): ChannelCreate {.inline.} =
+    result = newChannel(node)
+proc newChannelUpdate(node: JsonNode): ChannelUpdate {.inline.} =
+    result = newChannel(node)
+proc newChannelDelete(node: JsonNode): ChannelDelete {.inline.} =
+    result = newChannel(node)
+genCtor(Pin)
+proc newChannelPinsUpdate(node: JsonNode): ChannelPinsUpdate {.inline.} =
+    result = newPin(node)
+proc newUserUpdate(node: JsonNode): UserUpdate {.inline.} =
+    result = newUser(node)
+proc newVoiceStateUpdate(node: JsonNode): VoiceStateUpdate {.inline.} =
+    result = newVoiceState(node)
+genCtor(MessageReactionAdd)
+proc newMessageReactionRemove(node: JsonNode): MessageReactionRemove {.inline.} =
+    result = newMessageReactionAdd(node)
+genCtor(MessageReactionRemoveAll)
+proc newWebhooksUpdate(node: JsonNode): WebhooksUpdate {.inline.} =
+    result = newWebhook(node)
+genCtor(Ready)
 
 proc newAuditLogChangeValue(s: string): AuditLogChangeValue =
     new(result)
@@ -1268,133 +994,70 @@ proc newAuditLogChangeValue(o: seq[Overwrite]): AuditLogChangeValue =
     result.kind = ALCOverwrites
     result.overwrites = o
 
-proc newOverwrite(payload: JsonNode): Overwrite {.inline.} =
-    result = Overwrite(
-        id: toSnowflake(payload["id"].str),
-        `type`: payload["type"].str,
-        allow: payload["allow"].num.int,
-        deny: payload["deny"].num.int
-    )
-
-proc newAuditLogChange(payload: seq[JsonNode]): AuditLogChange =
-    for change in payload:
-        case change["key"].str:
-        of "name", "icon_hash", "splash_hash",
-            "owner_id", "region", "afk_channel_id",
-            "vanity_url_code", "topic", "application_id",
-            "code", "nick", "avatar_hash", "id":
-                if change.hasKey("new_value"): 
-                    result.new_value = newAuditLogChangeValue(change["new_value"].str)
-                if change.hasKey("old_value"):
-                    result.old_value = newAuditLogChangeValue(change["old_value"].str)
-        of "afk_timeout", "mfa_level", "verification_level",
-            "explicit_content_filter", "default_message_notifications",
-            "prune_delete_days", "position", "bitrate", "permissions",
-            "color", "allow", "deny", "max_uses", "uses", "max_age":
-                if change.hasKey("new_value"):
-                    result.new_value = newAuditLogChangeValue(change["new_value"].num)
-                if change.hasKey("old_value"):
-                    result.old_value = newAuditLogChangeValue(change["old_value"].num)
-        of "widget_enabled", "nsfw", "hoist", "mentionable",
-            "temporary", "deaf", "mute":
-                if change.hasKey("new_value"):
-                    result.new_value = newAuditLogChangeValue(change["new_value"].bval)
-                if change.hasKey("old_value"):
-                    result.old_value = newAuditLogChangeValue(change["old_value"].bval)
-        of "$add", "$remove":
-            if change.hasKey("new_value"):
-                var roles: seq[Role] = @[]
-                for role in change["new_value"]:
-                    roles.add(newRole(role))
-                result.new_value = newAuditLogChangeValue(roles)
+proc newAuditLogChange(change: JsonNode): AuditLogChange =
+    case change["key"].str:
+    of "name", "icon_hash", "splash_hash",
+        "owner_id", "region", "afk_channel_id",
+        "vanity_url_code", "topic", "application_id",
+        "code", "nick", "avatar_hash", "id":
+            if change.hasKey("new_value"): 
+                result.new_value = newAuditLogChangeValue(change["new_value"].str)
             if change.hasKey("old_value"):
-                var roles: seq[Role] = @[]
-                for role in change["old_value"]:
-                    roles.add(newRole(role))
-                result.old_value = newAuditLogChangeValue(roles)
-        of "permission_overwrites":
+                result.old_value = newAuditLogChangeValue(change["old_value"].str)
+    of "afk_timeout", "mfa_level", "verification_level",
+        "explicit_content_filter", "default_message_notifications",
+        "prune_delete_days", "position", "bitrate", "permissions",
+        "color", "allow", "deny", "max_uses", "uses", "max_age":
             if change.hasKey("new_value"):
-                var overwrites: seq[Overwrite] = @[]
-                for overwrite in change["new_value"]:
-                    overwrites.add(newOverwrite(overwrite))
-                result.new_value = newAuditLogChangeValue(overwrites)
+                result.new_value = newAuditLogChangeValue(change["new_value"].num)
             if change.hasKey("old_value"):
-                var overwrites: seq[Overwrite] = @[]
-                for overwrite in change["old_value"]:
-                    overwrites.add(newOverwrite(overwrite))
-                result.old_value = newAuditLogChangeValue(overwrites)
-        of "type":
+                result.old_value = newAuditLogChangeValue(change["old_value"].num)
+    of "widget_enabled", "nsfw", "hoist", "mentionable",
+        "temporary", "deaf", "mute":
             if change.hasKey("new_value"):
-                case change["new_value"].kind:
-                of JString:
-                    result.new_value = newAuditLogChangeValue(change["new_value"].str)
-                of JInt:
-                    result.new_value = newAuditLogChangeValue(change["new_value"].num)
-                else: discard
+                result.new_value = newAuditLogChangeValue(change["new_value"].bval)
             if change.hasKey("old_value"):
-                case change["old_value"].kind:
-                of JString:
-                    result.old_value = newAuditLogChangeValue(change["old_value"].str) 
-                of JInt:
-                    result.old_value = newAuditLogChangeValue(change["old_value"].num)
-                else: discard
+                result.old_value = newAuditLogChangeValue(change["old_value"].bval)
+    of "$add", "$remove":
+        if change.hasKey("new_value"):
+            var roles: seq[Role] = @[]
+            for role in change["new_value"]:
+                roles.add(newRole(role))
+            result.new_value = newAuditLogChangeValue(roles)
+        if change.hasKey("old_value"):
+            var roles: seq[Role] = @[]
+            for role in change["old_value"]:
+                roles.add(newRole(role))
+            result.old_value = newAuditLogChangeValue(roles)
+    of "permission_overwrites":
+        if change.hasKey("new_value"):
+            var overwrites: seq[Overwrite] = @[]
+            for overwrite in change["new_value"]:
+                overwrites.add(newOverwrite(overwrite))
+            result.new_value = newAuditLogChangeValue(overwrites)
+        if change.hasKey("old_value"):
+            var overwrites: seq[Overwrite] = @[]
+            for overwrite in change["old_value"]:
+                overwrites.add(newOverwrite(overwrite))
+            result.old_value = newAuditLogChangeValue(overwrites)
+    of "type":
+        if change.hasKey("new_value"):
+            case change["new_value"].kind:
+            of JString:
+                result.new_value = newAuditLogChangeValue(change["new_value"].str)
+            of JInt:
+                result.new_value = newAuditLogChangeValue(change["new_value"].num)
+            else: discard
+        if change.hasKey("old_value"):
+            case change["old_value"].kind:
+            of JString:
+                result.old_value = newAuditLogChangeValue(change["old_value"].str) 
+            of JInt:
+                result.old_value = newAuditLogChangeValue(change["old_value"].num)
+            else: discard
 
-proc newAuditLogOptions(payload: JsonNode): AuditLogOptions {.inline.} =
-    result = AuditLogOptions(
-        delete_members_days: if payload.hasKey("delete_members_days"): payload["delete_members_days"].str else: "",
-        members_removed: if payload.hasKey("members_removed"): payload["members_removed"].str else: "",
-        channel_id: if payload.hasKey("channel_id"): payload["channel_id"].str else: "",
-        count: if payload.hasKey("count"): payload["count"].str else: "0",
-        id: if payload.hasKey("id"): toSnowflake(payload["id"].str) else: toSnowflake(""),
-        `type`: if payload.hasKey("type"): payload["type"].str else: "",
-        role_name: if payload.hasKey("role_name"): payload["role_name"].str else: ""
-    )
-
-proc newAuditLogEntry(payload: JsonNode): AuditLogEntry = 
-    result = AuditLogEntry(
-        target_id: if payload.hasKey("target_id"): payload["target_id"].str else: "",
-        user_id: payload["user_id"].str,
-        id: toSnowflake(payload["id"].str),
-        action_type: payload["action_type"].num.int,
-        changes: @[],
-        reason: if payload.hasKey("reason"): payload["reason"].str else: ""
-    )
-    
-    if payload.hasKey("options"):
-        result.options = newAuditLogOptions(payload["options"])
-
-    if payload.hasKey("changes"):
-        result.changes.add(newAuditLogChange(payload["changes"].elems))
-
-proc newAuditLog(payload: JsonNode): AuditLog =
-    result = AuditLog(
-        webhooks: @[],
-        users: @[],
-        audit_log_entries: @[]
-    )
-
-    for webhook in payload["webhooks"].elems:
-        result.webhooks.add(newWebhook(webhook))
-
-    for user in payload["users"].elems:
-        result.users.add(newUser(user))
-
-    for entry in payload["audit_log_entries"].elems:
-        result.audit_log_entries.add(newAuditLogEntry(entry))
-
-proc newUserGuild(payload: JsonNode): UserGuild {.inline.} =
-    result = UserGuild(
-        id: toSnowflake(payload["id"].str),
-        name: payload["name"].str,
-        icon: if payload.hasKey("icon") and payload["icon"].kind != JNull: payload["icon"].str else: "",
-        owner: payload["owner"].bval,
-        permissions: payload["permissions"].num.int
-    )
-
-proc newUserGuildSeq(payload: JsonNode): seq[UserGuild] =
-    result = newSeq[UserGuild](payload.elems.len)
-    for i, guild in payload.elems:
-        result[i] = newUserGuild(guild)
+genCtor(AuditLogEntry)
+genCtor(AuditLog)
 
 proc join(g1: var Guild, g2: Guild) =
     ## Joins g1(regular guild) and g2(Ready event guild)
