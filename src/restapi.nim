@@ -76,7 +76,12 @@ method channelMessages*(s: Shard, channelid: string, before, after, around: stri
     if limit > 0 and limit <= 100:
         url = url & "limit=" & $limit
     
-    result = (await doreq(s, "GET", url)).newMessageSeq
+    let node = (await doreq(s, "GET", url))
+
+    result = newSeq[Message](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newMessage(n)
+    
 
 method channelMessage*(s: Shard, channelid, messageid: string): Future[Message] {.base, gcsafe, async, inline.} =
     ## Returns a message from a channel
@@ -148,7 +153,10 @@ method messageDeleteReaction*(s: Shard, channelid, messageid, emojiid, userid: s
 
 method messageGetReactions*(s: Shard, channelid, messageid, emojiid: string): Future[seq[User]] {.base, gcsafe, inline, async.} =
     ## Gets a message's reactions
-    result = (await doreq(s, "GET", endpointMessageReactions(channelid, messageid, emojiid))).newUserSeq
+    let node = (await doreq(s, "GET", endpointMessageReactions(channelid, messageid, emojiid)))
+    result = newSeq[User](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newUser(n)
 
 method messageDeleteAllReactions*(s: Shard, channelid, messageid: string): Future[void] {.base, gcsafe, inline, async.} =
     ## Deletes all reactions on a message
@@ -180,7 +188,10 @@ method channelEditPermissions*(s: Shard, channelid: string, overwrite: Overwrite
 
 method channelInvites*(s: Shard, channel: string): Future[seq[Invite]] {.base, gcsafe, inline, async.} =
     ## Returns all invites to a channel
-    result = (await doreq(s, "GET", endpointChannelInvites(channel))).newInviteSeq
+    let node = (await doreq(s, "GET", endpointChannelInvites(channel)))
+    result = newSeq[Invite](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newInvite(n)
 
 method channelCreateInvite*(
                 s: Shard, 
@@ -205,7 +216,10 @@ method typingIndicatorTrigger*(s: Shard, channel: string): Future[void] {.base, 
 
 method channelPinnedMessages*(s: Shard, channel: string): Future[seq[Message]] {.base, gcsafe, inline, async.} =
     ## Returns all pinned messages in a channel
-    result = (await doreq(s, "GET", endpointCHannelPinnedMessages(channel))).newMessageSeq
+    let node = (await doreq(s, "GET", endpointCHannelPinnedMessages(channel)))
+    result = newSeq[Message](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newMessage(n)
     
 method channelPinMessage*(s: Shard, channel, message: string): Future[void] {.base, gcsafe, inline, async.} =
     ## Pins a message in a channel
@@ -287,7 +301,11 @@ method deleteGuild*(s: Shard, guild: string): Future[Guild] {.base, gcsafe, inli
     
 method guildChannels*(s: Shard, guild: string): Future[seq[Channel]] {.base, gcsafe, async.} =
     ## Returns all guild channels
-    result = (await doreq(s, "GET", endpointGuildChannels(guild))).newChannelSeq
+    let node = (await doreq(s, "GET", endpointGuildChannels(guild)))
+    result = newSeq[Channel](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newChannel(n)
+
     if s.cache.cacheChannels:
         for chan in result:
             s.cache.updateChannel(chan)
@@ -304,7 +322,10 @@ method guildChannelPositionEdit*(s: Shard, guild, channel: string, position: int
     ## Reorders the position of a channel and returns the new order
     let payload = %*{"id": channel, "position": position}
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
-    result = (await doreq(s, "PATCH", endpointGuildChannels(guild), $payload, xh)).newChannelSeq
+    let node = (await doreq(s, "PATCH", endpointGuildChannels(guild), $payload, xh))
+    result = newSeq[Channel](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newChannel(n)
 
 method guildMembers*(s: Shard, guild: string, limit, after: int): Future[seq[GuildMember]] {.base, gcsafe, async.} =
     ## Returns up to 1000 guild members
@@ -314,7 +335,10 @@ method guildMembers*(s: Shard, guild: string, limit, after: int): Future[seq[Gui
     if after > 0:
         url &= "after=" & $after & "&"
 
-    result = (await doreq(s, "GET", url)).newGuildMemberSeq
+    let node = (await doreq(s, "GET", url))
+    result = newSeq[GuildMember](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newGuildMember(n)
 
     if s.cache.cacheGuildMembers: 
         for member in result:
@@ -393,7 +417,10 @@ method guildRemoveMember*(s: Shard, guild, userid: string, reason: string = ""):
 
 method guildBans*(s: Shard, guild: string): Future[seq[User]] {.base, gcsafe, inline, async.} =
     ## Returns all users who have been banned from the guild
-    result = (await doreq(s, "GET", endpointGuildBans(guild))).newUserSeq
+    let node = (await doreq(s, "GET", endpointGuildBans(guild)))
+    result = newSeq[User](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newUser(n)
 
 method guildUserBan*(s: Shard, guild, userid: string, reason: string = ""): Future[void] {.base, gcsafe, async.} =
     ## Bans a user from the guild
@@ -407,7 +434,10 @@ method guildRemoveBan*(s: Shard, guild, userid: string, reason: string = ""): Fu
 
 method guildRoles*(s: Shard, guild: string): Future[seq[Role]] {.base, gcsafe, async.} =
     ## Returns all guild roles
-    result = (await doreq(s, "GET", endpointGuildRoles(guild))).newRoleSeq
+    let node = (await doreq(s, "GET", endpointGuildRoles(guild)))
+    result = newSeq[Role](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newRole(n)
 
     if s.cache.cacheRoles:
         for role in result:
@@ -429,7 +459,10 @@ method guildEditRolePosition*(s: Shard, guild: string, roles: seq[Role], reason:
     ## Edits the positions of a guilds roles roles
     ## and returns the new roles order
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
-    result = (await doreq(s, "PATCH", endpointGuildRoles(guild), $$roles, xh)).newRoleSeq
+    let node = (await doreq(s, "PATCH", endpointGuildRoles(guild), $$roles, xh))
+    result = newSeq[Role](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newRole(n)
 
 method guildEditRole*(
             s: Shard, 
@@ -464,15 +497,24 @@ method guildPruneBegin*(s: Shard, guild: string, days: int, reason: string = "")
 
 method guildVoiceRegions*(s: Shard, guild: string): Future[seq[VoiceRegion]] {.base, gcsafe, inline, async.} =
     ## Lists all voice regions in a guild
-    result = (await doreq(s, "GET", endpointGuildVoiceRegions(guild))).newVoiceRegionSeq
+    let node = (await doreq(s, "GET", endpointGuildVoiceRegions(guild)))
+    result = newSeq[VoiceRegion](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newVoiceRegion(n)
     
 method guildInvites*(s: Shard, guild: string): Future[seq[Invite]] {.base, gcsafe, inline, async.} =
     ## Lists all guild invites
-    result = (await doreq(s, "GET", endpointGuildInvites(guild))).newInviteSeq
+    let node = (await doreq(s, "GET", endpointGuildInvites(guild)))
+    result = newSeq[Invite](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newInvite(n)
 
 method guildIntegrations*(s: Shard, guild: string): Future[seq[Integration]] {.base, gcsafe, inline, async.} =
     ## Lists all guild integrations
-    result = (await doreq(s, "GET", endpointGuildIntegrations(guild))).newIntegrationSeq
+    let node = (await doreq(s, "GET", endpointGuildIntegrations(guild)))
+    result = newSeq[Integration](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newIntegration(n)
 
 method guildIntegrationCreate*(s: Shard, guild, typ, id: string): Future[void] {.base, gcsafe, async.} =
     ## Creates a new guild integration
@@ -562,7 +604,10 @@ method avatarEdit*(s: Shard, avatar: string): Future[User] {.base, gcsafe, inlin
 
 method currentUserGuilds*(s: Shard): Future[seq[UserGuild]] {.base, gcsafe, inline, async.} =
     ## Lists the current users guilds
-    result = (await doreq(s, "GET", endpointCurrentUserGuilds())).newUserGuildSeq 
+    let node = (await doreq(s, "GET", endpointCurrentUserGuilds())) 
+    result = newSeq[UserGuild](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newUserGuild(n)
 
 method leaveGuild*(s: Shard, guild: string): Future[void] {.base, gcsafe, inline, async.} =
     ## Makes the current user leave the specified guild
@@ -570,7 +615,10 @@ method leaveGuild*(s: Shard, guild: string): Future[void] {.base, gcsafe, inline
 
 method activePrivateChannels*(s: Shard): Future[seq[Channel]] {.base, gcsafe, inline, async.} =
     ## Lists all active DM channels
-    result = (await doreq(s, "GET", endpointUserDMs())).newChannelSeq
+    let node = (await doreq(s, "GET", endpointUserDMs()))
+    result = newSeq[Channel](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newChannel(n)
 
 method privateChannelCreate*(s: Shard, recipient: string): Future[Channel] {.base, gcsafe, inline, async.} =
     ## Creates a new DM channel
@@ -578,7 +626,10 @@ method privateChannelCreate*(s: Shard, recipient: string): Future[Channel] {.bas
     
 method voiceRegions*(s: Shard): Future[seq[VoiceRegion]] {.base, gcsafe, inline, async.} =
     ## Lists all voice regions
-    result = (await doreq(s, "GET", endpointListVoiceRegions())).newVoiceRegionSeq
+    let node = (await doreq(s, "GET", endpointListVoiceRegions()))
+    result = newSeq[VoiceRegion](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newVoiceRegion(n)
 
 method webhookCreate*(s: Shard, channel, name, avatar: string, reason: string = ""): Future[Webhook] {.base, gcsafe, async.} =
     ## Creates a webhook
@@ -588,11 +639,17 @@ method webhookCreate*(s: Shard, channel, name, avatar: string, reason: string = 
 
 method channelWebhooks*(s: Shard, channel: string): Future[seq[Webhook]] {.base, gcsafe, inline, async.} =
     ## Lists all webhooks in a channel
-    result = (await doreq(s, "GET", endpointWebhooks(channel))).newWebhookSeq 
+    let node = (await doreq(s, "GET", endpointWebhooks(channel)))
+    result = newSeq[Webhook](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newWebhook(n)
 
 method guildWebhooks*(s: Shard, guild: string): Future[seq[Webhook]] {.base, gcsafe, inline, async.} =
     ## Lists all webhooks in a guild
-    result = (await doreq(s, "GET", endpointGuildWebhooks(guild))).newWebhookSeq
+    let node = (await doreq(s, "GET", endpointGuildWebhooks(guild)))
+    result = newSeq[Webhook](node.elems.len)
+    for i, n in node.elems:
+        result[i] = newWebhook(n)
 
 method getWebhookWithToken*(s: Shard, webhook, token: string): Future[Webhook] {.base, gcsafe, inline, async.} =
     ## Gets a webhook with a token
@@ -760,18 +817,3 @@ proc newWebhookParams*(content, username, avatarurl: string = "",
         tts: tts,
         embeds: embeds
     )
-
-proc messageGuild*(s: Shard, m: Message): string =
-    ## Returns the guild id of the guild
-    ## the message was sent in.
-    ##
-    ## Returns an empty string if it can't find the guild in the cache
-    ## or by requesting it from the API.
-    result = ""
-    if s.cache.cacheChannels:
-        var (chan, exists) = s.cache.getChannel(m.channel_id)
-        if exists and (not chan.guild_id.isNilOrEmpty):
-            return chan.guild_id
-    var chan = waitFor s.channel(m.channel_id)
-    if not chan.guild_id.isNilOrEmpty:
-        result = chan.guild_id
