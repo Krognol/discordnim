@@ -81,7 +81,7 @@ method getGateway(s: Shard): Future[tuple[url: string, sc: int]] {.base, async, 
     let 
         res = await s.request(url, "GET", url, "application/json", "", 0)
         body = await res.body()
-
+    
     type 
         Temp2 = object
             total: int
