@@ -135,6 +135,7 @@ type
         application_id*: string
         parent_id*: string
         last_pin_timestamp*: string
+        rate_limit_per_user*: int
     MessageType* = enum
         MTDefault
         MTRecipientAdd
@@ -386,8 +387,12 @@ type
         name*: string
         position*: int
         topic*: string
+        nsfw*: bool
+        rate_limit_per_user*: int
         bitrate*: int
         user_limit*: int
+        permission_overwrites*: seq[Overwrite]
+        parent_id*: string
     GuildParams* = object
         name*: string
         region*: string
