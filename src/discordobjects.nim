@@ -475,6 +475,7 @@ type
     MessageDeleteBulk* = object
         ids*: seq[string]
         channel_id*: string
+        guild_id*: string
     Game* = object
         name*: string
         `type`*: int
@@ -551,11 +552,13 @@ type
         user_id*: string
         message_id*: string
         channel_id*: string
+        guild_id*: string
         emoji*: Emoji
     MessageReactionRemove* = MessageReactionAdd
     MessageReactionRemoveAll* = object
         message_id*: string
         channel_id*: string
+        guild_id*: string
     WebhooksUpdate* = Webhook
     EventType* = enum
         channel_create
@@ -640,7 +643,11 @@ method addHandler*(d: Shard, t: EventType, p: pointer): (proc()) {.gcsafe, base,
     ##
     ## Returns a proc that removes the event handler.
     initLock(d.mut)
-    if not d.handlers.hasKey(t): d.handlers.add(t, newSeq[pointer]())
+    if not d.handlers.hasKey(t): 
+        d.handlers.add(t, newSeq[pointer]())
+    else: 
+        if d.handlers[t] == nil: d.handlers[t] = newSeq[pointer]()
+
     d.handlers[t].add(p)
     let i = d.handlers[t].high
     deinitLock(d.mut)
