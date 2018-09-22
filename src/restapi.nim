@@ -310,9 +310,16 @@ method guildChannels*(s: Shard, guild: string): Future[seq[Channel]] {.base, gcs
         for chan in result:
             s.cache.updateChannel(chan)
 
-method guildChannelCreate*(s: Shard, guild, channelname: string, voice: bool, reason: string = ""): Future[Channel] {.base, gcsafe, async.} =
+method guildChannelCreate*(
+    s: Shard, 
+    guild, channelname, parentId: string, 
+    rateLimit: int, 
+    voice, nsfw: bool,
+    permOW: seq[Overwrite],
+    reason: string = ""): Future[Channel] {.base, gcsafe, async.} =
     ## Creates a new channel in a guild
-    let payload = %*{"name": channelname, "voice": voice}
+    var payload = %*{"name": channelname, "parent_id": parentId, "voice": voice, "rate_limit_per_user": rateLimit, "nsfw": nsfw}
+    if permOW != nil: payload["permission_overwrites"] = %permOW
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     result = (await doreq(s, "POST", endpointGuildChannels(guild), $payload, xh)).newChannel
     if s.cache.cacheChannels:
