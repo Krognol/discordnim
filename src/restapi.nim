@@ -125,7 +125,7 @@ method channelFileSendWithMessage*(s: Shard, channelid, name, fbody, message: st
     let payload = %*{"content": message}
     var contenttype: string 
     let (_, fname, ext) = splitFile(name)
-    if ext.len > 0: contenttype = newMimetypes().getMimetype(ext[1..high(ext)], nil)
+    if ext.len > 0: contenttype = newMimetypes().getMimetype(ext[1..high(ext)])
     
     data.add(name, fbody, fname & ext, contenttype)
     data.add("payload_json", $payload, contentType = "application/json")
@@ -319,7 +319,7 @@ method guildChannelCreate*(
     reason: string = ""): Future[Channel] {.base, gcsafe, async.} =
     ## Creates a new channel in a guild
     var payload = %*{"name": channelname, "parent_id": parentId, "voice": voice, "rate_limit_per_user": rateLimit, "nsfw": nsfw}
-    if permOW != nil: payload["permission_overwrites"] = %permOW
+    if permOW.len > 0: payload["permission_overwrites"] = %permOW
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     result = (await doreq(s, "POST", endpointGuildChannels(guild), $payload, xh)).newChannel
     if s.cache.cacheChannels:
