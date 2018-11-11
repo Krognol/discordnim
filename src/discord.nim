@@ -342,7 +342,7 @@ proc sessionHandleSocketMessage(s: Shard): Future[void]  =
         if s.compress:
             if res.opcode == Opcode.Binary:
                 let t = zlib.uncompress(res.data)
-                if t == nil:
+                if t == "":
                     echo "Failed to uncompress data and I'm not sure why. Sorry."
                 else: res.data = t
                 
