@@ -752,7 +752,7 @@ proc stripMentions*(msg: Message): string {.gcsafe.} =
     ## and replaces them with plaintext
     ##
     ## e.g: <@1901092738173> -> @Username#1234
-    if msg.mentions == nil or msg.mentions.len == 0: return msg.content
+    if msg.mentions.len == 0: return msg.content
 
     result = msg.content
 
