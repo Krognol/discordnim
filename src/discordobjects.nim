@@ -640,6 +640,11 @@ proc newSnowflake*(node: JsonNode): Snowflake {.inline.} =
 proc `==`*(a, b: Snowflake): bool {.inline.}  = a.val == b.val
 proc `==`*(a: Snowflake, b: string): bool {.inline.}  = a.val == b
 proc `==`*(a: string, b: Snowflake): bool {.inline.}  = a == b.val
+
+# This is a hack because 
+# seq is nil check broke for some reason.
+proc `==`*(a: seq[pointer], b: type(nil)): bool {.inline.} = a == b
+
 proc `&`*(a: string, b: Snowflake): string {.inline.}  = a & b.val
 proc `$`*(a: Snowflake): string {.inline.} = a.val
 
