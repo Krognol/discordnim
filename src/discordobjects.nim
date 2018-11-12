@@ -3,12 +3,10 @@ import json, tables, locks, websocket/shared, times, httpclient, strutils, async
 
 type 
     RateLimit = ref object
-        lock: Lock
         reset: int64
         limit: int64
         remaining: int64
     RateLimits = ref object of RootObj
-        lock: Lock
         global: RateLimit
         endpoints: Table[string, RateLimit]
 
@@ -42,35 +40,21 @@ method postCheck(r: RateLimit, url: string, response: AsyncResponse): Future[boo
 
 method postCheck(r: RateLimits, url: string, response: AsyncResponse): Future[bool] {.async, gcsafe, base.} =
     if response.headers.hasKey("X-RateLimit-Global"):
-        initLock(r.global.lock)
         result = await r.global.postCheck(url, response)
-        deinitLock(r.global.lock)
     else:
-        let rl = if r.endpoints.hasKey(url): r.endpoints[url] else: RateLimit(lock: Lock(), reset: 0, limit: 0, remaining: 0)
-        initLock(rl.lock)
+        let rl = if r.endpoints.hasKey(url): r.endpoints[url] else: new(RateLimit)
         result = await rl.postCheck(url, response)
-        deinitLock(rl.lock)
 
 method preCheck(r: RateLimits, url: string) {.async, gcsafe, base.} =
-    initLock(r.global.lock)
     await r.global.preCheck()
-    deinitLock(r.global.lock)
 
     if r.endpoints.hasKey(url):
         let rl = r.endpoints[url]
-        initLock(rl.lock)
         await rl.preCheck()
-        deinitLock(rl.lock)
 
 proc newRateLimiter(): RateLimits {.inline.} =
     result = RateLimits(
-        lock: Lock(),
-        global: RateLimit(
-            lock: Lock(),
-            reset: 0, 
-            limit: 0,
-            remaining: 0
-        ),
+        global: new(RateLimit),
         endpoints: initTable[string, RateLimit]()
     )
     
@@ -103,6 +87,7 @@ const
     auditMessageDelete* = 72
 
 type 
+    # TODO : change to Snowflake* = string with next release
     Snowflake* = object
         ## Snowlake is a unique id for most Discord objects
         val*: string
@@ -135,6 +120,7 @@ type
         application_id*: string
         parent_id*: string
         last_pin_timestamp*: string
+        rate_limit_per_user*: int
     MessageType* = enum
         MTDefault
         MTRecipientAdd
@@ -386,8 +372,12 @@ type
         name*: string
         position*: int
         topic*: string
+        nsfw*: bool
+        rate_limit_per_user*: int
         bitrate*: int
         user_limit*: int
+        permission_overwrites*: seq[Overwrite]
+        parent_id*: string
     GuildParams* = object
         name*: string
         region*: string
@@ -502,7 +492,6 @@ type
     Resumed* = object
         trace*: seq[string]
     Cache* = ref object
-        lock: Lock
         version*: int
         me*: User
         cacheChannels*: bool
@@ -612,7 +601,6 @@ type
         limiter: RateLimits
         connection*: AsyncWebSocket
         voiceConnections: Table[string, VoiceConnection] # voice connection tied to guild
-        mut: Lock
         globalRL: RateLimits
         handlers: Table[EventType, seq[pointer]]
         shardCount*: int
@@ -637,25 +625,19 @@ proc `==`*(a: Snowflake, b: string): bool {.inline.}  = a.val == b
 proc `==`*(a: string, b: Snowflake): bool {.inline.}  = a == b.val
 proc `&`*(a: string, b: Snowflake): string {.inline.}  = a & b.val
 proc `$`*(a: Snowflake): string {.inline.} = a.val
-
+ 
 method addHandler*(d: Shard, t: EventType, p: pointer): (proc()) {.gcsafe, base, inline.} =
     ## Adds a handler tied to a websocket event.
     ##
     ## Returns a proc that removes the event handler.
-    initLock(d.mut)
     if not d.handlers.hasKey(t): 
         d.handlers.add(t, newSeq[pointer]())
-    else: 
-        if d.handlers[t] == nil: d.handlers[t] = newSeq[pointer]()
 
     d.handlers[t].add(p)
     let i = d.handlers[t].high
-    deinitLock(d.mut)
 
     result = proc()=
-        initLock(d.mut)
         d.handlers[t].del(i) 
-        deinitLock(d.mut)
 
 proc getRecList(node: NimNode): NimNode {.compileTime.} =
     expectKind(node, nnkObjectTy)
@@ -1084,8 +1066,6 @@ type CacheError = object of Exception
 method getGuild*(c: Cache, id: string): tuple[guild: Guild, exists: bool] {.base, gcsafe.} =
     ## Gets a guild from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
     result = (Guild(), false)
     
     if c.guilds.hasKey(id):
@@ -1102,23 +1082,17 @@ method removeGuild*(c: Cache, guildid: string) {.raises: CacheError, base, gcsaf
 
     if not c.guilds.hasKey(guildid): return
     
-    initLock(c.lock)
     c.guilds.del(guildid)
-    deinitLock(c.lock)
 
 method updateGuild*(c: Cache, guild: Guild) {.raises: CacheError, inline, base, gcsafe.} =
     ## Updates a guild in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
     
-    initLock(c.lock)
     c.guilds[guild.id.val] = guild
-    deinitLock(c.lock)
 
 method getUser*(c: Cache, id: string): tuple[user: User, exists: bool] {.base, gcsafe.}  =
     ## Gets a user from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
     result = (User(), false)
     
     if c.users.hasKey(id):
@@ -1127,8 +1101,6 @@ method getUser*(c: Cache, id: string): tuple[user: User, exists: bool] {.base, g
 method removeUser*(c: Cache, id: string) {.raises: CacheError, inline, base, gcsafe.}  =
     ## Removes a user from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
     if not c.users.hasKey(id): return
 
     c.users.del(id)
@@ -1137,15 +1109,11 @@ method updateUser*(c: Cache, user: User) {.inline, base, gcsafe.}  =
     ## Updates a user in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
 
-    initLock(c.lock)
     c.users[user.id.val] = user
-    deinitLock(c.lock)
 
 method getChannel*(c: Cache, id: string): tuple[channel: Channel, exists: bool] {.base, gcsafe.} =
     ## Gets a channel from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
     result = (Channel(), false)
 
     if c.channels.hasKey(id):
@@ -1155,15 +1123,11 @@ method getChannel*(c: Cache, id: string): tuple[channel: Channel, exists: bool] 
 method updateChannel*(c: Cache, chan: Channel) {.inline, base, gcsafe.}  =
     ## Updates a channel in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
     c.channels[chan.id.val] = chan
-    deinitLock(c.lock)
 
 method removeChannel*(c: Cache, chan: string) {.raises: CacheError, inline, base, gcsafe.}  =
     ## Removes a channel from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
     if not c.channels.hasKey(chan): return
 
     c.channels.del(chan)
@@ -1178,8 +1142,6 @@ method getGuildMember*(c: Cache, guild, memberid: string): tuple[member: GuildMe
     if not exists:
         return
     
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
     for member in guild.members: 
         if member.user.id == memberid:
             result = (member, true)
@@ -1189,24 +1151,18 @@ method addGuildMember*(c: Cache, member: GuildMember) {.inline, base, gcsafe.} =
     ## Adds a guild member to the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
 
-    initLock(c.lock)
     c.members.add(member.user.id.val, member)
-    deinitLock(c.lock)
 
 method updateGuildMember*(c: Cache, m: GuildMember) {.inline, base, gcsafe.} =
     ## Updates a guild member in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
 
-    initLock(c.lock)
     c.members[m.user.id.val] = m
-    deinitLock(c.lock)
 
 method removeGuildMember*(c: Cache, gmember: GuildMember) {.inline, base, gcsafe.} =
     ## Removes a guild member from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
     c.members.del(gmember.user.id.val)
-    deinitLock(c.lock)
 
 method getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bool] {.base, gcsafe.} =
     ## Gets a role from the cache
@@ -1218,8 +1174,6 @@ method getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bo
     if not exists:
         return
     
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
     for role in guild.roles:
         if role.id == roleid:
             result = (role, true)
@@ -1228,16 +1182,11 @@ method getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bo
 method updateRole*(c: Cache, role: Role) {.raises: CacheError, base, gcsafe.} =
     ## Updates a role in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
-
     c.roles[role.id.val] = role
 
 method removeRole*(c: Cache, role: string) {.raises: CacheError, base, gcsafe.} =
     ## Removes a role from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
-    initLock(c.lock)
-    defer: deinitLock(c.lock)
 
     if not c.roles.hasKey(role): return
 
