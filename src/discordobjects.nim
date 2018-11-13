@@ -13,7 +13,7 @@ type
         global: RateLimit
         endpoints: Table[string, RateLimit]
 
-method preCheck(r: RateLimit) {.async, gcsafe, base.} =
+proc preCheck(r: RateLimit) {.async, gcsafe.} =
     if r.limit == 0: return
     
     let diff = r.reset - getTime().utc.toTime.toUnix
@@ -29,7 +29,7 @@ method preCheck(r: RateLimit) {.async, gcsafe, base.} =
     
     r.remaining.dec
 
-method postCheck(r: RateLimit, url: string, response: AsyncResponse): Future[bool] {.async, gcsafe, base.} =
+proc postCheck(r: RateLimit, url: string, response: AsyncResponse): Future[bool] {.async, gcsafe.} =
     if response.headers.hasKey("X-RateLimit-Reset"): r.reset = response.headers["X-RateLimit-Reset"].parseInt
     if response.headers.hasKey("X-RateLimit-Limit"): r.limit = response.headers["X-RateLimit-Limit"].parseInt
     if response.headers.hasKey("X-RateLimit-Remaining"): r.remaining = response.headers["X-RateLimit-Remaining"].parseInt
@@ -41,14 +41,14 @@ method postCheck(r: RateLimit, url: string, response: AsyncResponse): Future[boo
         await sleepAsync delay+100
         result = true
 
-method postCheck(r: RateLimits, url: string, response: AsyncResponse): Future[bool] {.async, gcsafe, base.} =
+proc postCheck(r: RateLimits, url: string, response: AsyncResponse): Future[bool] {.async, gcsafe.} =
     if response.headers.hasKey("X-RateLimit-Global"):
         result = await r.global.postCheck(url, response)
     else:
         let rl = if r.endpoints.hasKey(url): r.endpoints[url] else: new(RateLimit)
         result = await rl.postCheck(url, response)
 
-method preCheck(r: RateLimits, url: string) {.async, gcsafe, base.} =
+proc preCheck(r: RateLimits, url: string) {.async, gcsafe.} =
     await r.global.preCheck()
 
     if r.endpoints.hasKey(url):
@@ -617,7 +617,7 @@ proc timestamp*(s: string): DateTime =
     i = ((i shr 22) + DISCORD_EPOCH) div 1000
     i.fromUnix.utc
  
-method addHandler*(d: Shard, t: EventType, p: pointer): (proc()) {.gcsafe, base, inline.} =
+proc addHandler*(d: Shard, t: EventType, p: pointer): (proc()) {.gcsafe, inline.} =
     ## Adds a handler tied to a websocket event.
     ##
     ## Returns a proc that removes the event handler.
@@ -819,7 +819,7 @@ proc join(g1: var Guild, g2: Guild) =
 type CacheError = object of Exception
 
 # Caching stuff
-method getGuild*(c: Cache, id: string): tuple[guild: Guild, exists: bool] {.base, gcsafe.} =
+proc getGuild*(c: Cache, id: string): tuple[guild: Guild, exists: bool] {.gcsafe.} =
     ## Gets a guild from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
     result = (Guild(), false)
@@ -832,7 +832,7 @@ method getGuild*(c: Cache, id: string): tuple[guild: Guild, exists: bool] {.base
                 result.exists = true
                 break
 
-method removeGuild*(c: Cache, guildid: string) {.raises: CacheError, base, gcsafe.}  =
+proc removeGuild*(c: Cache, guildid: string) {.raises: CacheError, gcsafe.}  =
     ## Removes a guild from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
 
@@ -840,13 +840,13 @@ method removeGuild*(c: Cache, guildid: string) {.raises: CacheError, base, gcsaf
     
     c.guilds.del(guildid)
 
-method updateGuild*(c: Cache, guild: Guild) {.raises: CacheError, inline, base, gcsafe.} =
+proc updateGuild*(c: Cache, guild: Guild) {.raises: CacheError, inline, gcsafe.} =
     ## Updates a guild in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
     
     c.guilds[guild.id] = guild
 
-method getUser*(c: Cache, id: string): tuple[user: User, exists: bool] {.base, gcsafe.}  =
+proc getUser*(c: Cache, id: string): tuple[user: User, exists: bool] {.gcsafe.}  =
     ## Gets a user from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
     result = (User(), false)
@@ -854,20 +854,20 @@ method getUser*(c: Cache, id: string): tuple[user: User, exists: bool] {.base, g
     if c.users.hasKey(id):
        result = (c.users[id], true)
 
-method removeUser*(c: Cache, id: string) {.raises: CacheError, inline, base, gcsafe.}  =
+proc removeUser*(c: Cache, id: string) {.raises: CacheError, inline, gcsafe.}  =
     ## Removes a user from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
     if not c.users.hasKey(id): return
 
     c.users.del(id)
 
-method updateUser*(c: Cache, user: User) {.inline, base, gcsafe.}  =
+proc updateUser*(c: Cache, user: User) {.inline, gcsafe.}  =
     ## Updates a user in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
 
     c.users[user.id] = user
 
-method getChannel*(c: Cache, id: string): tuple[channel: Channel, exists: bool] {.base, gcsafe.} =
+proc getChannel*(c: Cache, id: string): tuple[channel: Channel, exists: bool] {.gcsafe.} =
     ## Gets a channel from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
     result = (Channel(), false)
@@ -876,19 +876,19 @@ method getChannel*(c: Cache, id: string): tuple[channel: Channel, exists: bool] 
         result = (c.channels[id], true)
 
 
-method updateChannel*(c: Cache, chan: Channel) {.inline, base, gcsafe.}  =
+proc updateChannel*(c: Cache, chan: Channel) {.inline, gcsafe.}  =
     ## Updates a channel in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
     c.channels[chan.id] = chan
 
-method removeChannel*(c: Cache, chan: string) {.raises: CacheError, inline, base, gcsafe.}  =
+proc removeChannel*(c: Cache, chan: string) {.raises: CacheError, inline, gcsafe.}  =
     ## Removes a channel from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
     if not c.channels.hasKey(chan): return
 
     c.channels.del(chan)
 
-method getGuildMember*(c: Cache, guild, memberid: string): tuple[member: GuildMember, exists: bool] {. base, gcsafe.} =
+proc getGuildMember*(c: Cache, guild, memberid: string): tuple[member: GuildMember, exists: bool] {.gcsafe.} =
     ## Gets a guild member from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
     
@@ -903,24 +903,24 @@ method getGuildMember*(c: Cache, guild, memberid: string): tuple[member: GuildMe
             result = (member, true)
             break
 
-method addGuildMember*(c: Cache, member: GuildMember) {.inline, base, gcsafe.} =
+proc addGuildMember*(c: Cache, member: GuildMember) {.inline, gcsafe.} =
     ## Adds a guild member to the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
 
     c.members.add(member.user.id, member)
 
-method updateGuildMember*(c: Cache, m: GuildMember) {.inline, base, gcsafe.} =
+proc updateGuildMember*(c: Cache, m: GuildMember) {.inline, gcsafe.} =
     ## Updates a guild member in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
 
     c.members[m.user.id] = m
 
-method removeGuildMember*(c: Cache, gmember: GuildMember) {.inline, base, gcsafe.} =
+proc removeGuildMember*(c: Cache, gmember: GuildMember) {.inline, gcsafe.} =
     ## Removes a guild member from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
     c.members.del(gmember.user.id)
 
-method getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bool] {.base, gcsafe.} =
+proc getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bool] {.gcsafe.} =
     ## Gets a role from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
     
@@ -935,12 +935,12 @@ method getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bo
             result = (role, true)
             return
 
-method updateRole*(c: Cache, role: Role) {.raises: CacheError, base, gcsafe.} =
+proc updateRole*(c: Cache, role: Role) {.raises: CacheError, gcsafe.} =
     ## Updates a role in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
     c.roles[role.id] = role
 
-method removeRole*(c: Cache, role: string) {.raises: CacheError, base, gcsafe.} =
+proc removeRole*(c: Cache, role: string) {.raises: CacheError, gcsafe.} =
     ## Removes a role from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
 
@@ -948,7 +948,7 @@ method removeRole*(c: Cache, role: string) {.raises: CacheError, base, gcsafe.} 
 
     c.roles.del(role)
 
-method clear*(c: Cache) {.base, gcsafe.} =
+proc clear*(c: Cache) {.gcsafe.} =
     ## Clears a cache of all cached objects
     c.channels.clear()
     c.guilds.clear()
