@@ -1,5 +1,5 @@
 include discordobjects, endpoints
-import httpclient, asyncnet, strutils, json, marshal, net, re, ospaths, mimetypes, cgi, sequtils
+import httpclient, strutils, json, re, ospaths, mimetypes, uri, sequtils
  
 method request(s: Shard,
                 bucketid, meth, url, contenttype, b: string = "",
@@ -14,7 +14,7 @@ method request(s: Shard,
     await s.limiter.preCheck(id)
 
     let client = newAsyncHttpClient("DiscordBot (https://github.com/Krognol/discordnim, v" & VERSION & ")")
-    await s.globalRL.preCheck(bucketid)
+    await s.globalRL.preCheck(id)
 
     client.headers["Authorization"] = s.token
     client.headers["Content-Type"] = contenttype 
@@ -27,13 +27,13 @@ method request(s: Shard,
     client.close()
 
     if (await s.globalRL.postCheck(url, result)) and sequence < 5:
-        result = await s.request(bucketid, meth, url, contenttype, b, sequence+1)
+        result = await s.request(id, meth, url, contenttype, b, sequence+1)
 
     if (await s.limiter.postCheck(url, result)):
         echo "You got ratelimited"
+        result = await s.request(id, meth, url, contenttype, b, sequence+1)
 
 proc doreq(s: Shard, meth, endpoint, payload: string = "", xheaders: HttpHeaders = nil, mpd: MultipartData = nil): Future[JsonNode] =
-    result = newFuture[JsonNode]("shard.request")
     let resnw = s.request(endpoint, meth, endpoint, "application/json", payload, 0, xheaders = xheaders)
     if resnw.failed():
         result.fail(resnw.error)
@@ -41,17 +41,16 @@ proc doreq(s: Shard, meth, endpoint, payload: string = "", xheaders: HttpHeaders
     
     let res = waitFor resnw
     let body = waitFor res.body
-    result.complete(body.parseJson)
 
 method channel*(s: Shard, channel_id: string): Future[Channel] {.base, gcsafe, async.} =
     result = (await doreq(s, endpointChannels(channel_id))).newChannel
     if s.cache.cacheChannels:
-        s.cache.channels[result.id.val] = result
+        s.cache.channels[result.id] = result
 
 method channelEdit*(s: Shard, channelid: string, params: ChannelParams, reason: string = ""): Future[Guild] {.base, gcsafe, async.} =
     ## Edits a channel with the ChannelParams
     var xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
-    result = (await doreq(s, "POST", endpointChannels(channelid), $$params, xh)).newGuild
+    result = (await doreq(s, "POST", endpointChannels(channelid), $(%params), xh)).newGuild
     if s.cache.cacheGuilds:
         s.cache.updateGuild(result)
 
@@ -60,7 +59,7 @@ method deleteChannel*(s: Shard, channelid: string, reason: string = ""): Future[
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     result = (await doreq(s, "DELETE", endpointChannels(channelid), xheaders = xh)).newChannel
     if s.cache.cacheChannels:
-        s.cache.removeChannel(result.id.val)
+        s.cache.removeChannel(result.id)
 
 method channelMessages*(s: Shard, channelid: string, before, after, around: string, limit: int): Future[seq[Message]] {.base, gcsafe, async.} =
     ## Returns a channels messages
@@ -79,7 +78,7 @@ method channelMessages*(s: Shard, channelid: string, before, after, around: stri
     let node = (await doreq(s, "GET", url))
 
     result = newSeq[Message](node.elems.len)
-    for i, n in node.elems:
+    for i, n in node.elems: 
         result[i] = newMessage(n)
     
 
@@ -97,9 +96,8 @@ method channelMessageSendEmbed*(s: Shard, channelid: string, embed: Embed): Futu
     result = (await doreq(s, "POST", endpointChannelMessages(channelid),
         $(%*{
             "content": "",
-            "embed": embed
+            "embed": embed,
         }))).newMessage
-
 
 method channelMessageSendTTS*(s: Shard, channelid, message: string): Future[Message] {.base, gcsafe, async, inline.} =
     ## Sends a TTS message to a channel
@@ -184,7 +182,7 @@ method channelEditPermissions*(s: Shard, channelid: string, overwrite: Overwrite
         "deny": overwrite.deny
     }
     let xh: HttpHeaders = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
-    asyncCheck doreq(s, "PUT", endpointChannelPermissions(channelid, overwrite.id.val), $payload, xh)
+    asyncCheck doreq(s, "PUT", endpointChannelPermissions(channelid, overwrite.id), $payload, xh)
 
 method channelInvites*(s: Shard, channel: string): Future[seq[Invite]] {.base, gcsafe, inline, async.} =
     ## Returns all invites to a channel
@@ -293,7 +291,7 @@ method guild*(s: Shard, id: string): Future[Guild] {.base, gcsafe, async.} =
 method guildEdit*(s: Shard, guild: string, settings: GuildParams, reason: string = ""): Future[Guild] {.base, gcsafe, async.} =
     ## Edits a guild with the GuildParams
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
-    result = (await doreq(s, "PATCH", endpointGuild(guild), $$settings, xh)).newGuild
+    result = (await doreq(s, "PATCH", endpointGuild(guild), $(%settings), xh)).newGuild
 
 method deleteGuild*(s: Shard, guild: string): Future[Guild] {.base, gcsafe, inline, async.} =
     ## Deletes a guild
@@ -466,7 +464,7 @@ method guildEditRolePosition*(s: Shard, guild: string, roles: seq[Role], reason:
     ## Edits the positions of a guilds roles roles
     ## and returns the new roles order
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
-    let node = (await doreq(s, "PATCH", endpointGuildRoles(guild), $$roles, xh))
+    let node = (await doreq(s, "PATCH", endpointGuildRoles(guild), $(%roles), xh))
     result = newSeq[Role](node.elems.len)
     for i, n in node.elems:
         result[i] = newRole(n)
