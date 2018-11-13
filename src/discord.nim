@@ -1,6 +1,6 @@
 include restapi
-import marshal, json, cgi, discordobjects, endpoints,
-       websocket/client, asyncdispatch, asyncnet, uri, zip/zlib
+import json, discordobjects, endpoints,
+       websocket/client, asyncdispatch, uri, zip/zlib
        
 # Gateway op codes
 {.hint[XDeclaredButNotUsed]: off.}
@@ -375,7 +375,7 @@ proc sessionHandleSocketMessage(s: Shard): Future[void]  =
             s.sequence = 0
             s.session_ID = ""
             s.invalidated = true 
-            if data["d"].kind == JBool and data["d"].bval == false:
+            if data["d"].kind == JBool and not (data["d"].bval):
                 waitFor s.identify()
         of opReconnect:
             s.suspended = true
