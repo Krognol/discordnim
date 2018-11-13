@@ -1,6 +1,9 @@
-import json, tables, locks, websocket/shared, times, httpclient, strutils, asyncdispatch, marshal, sequtils, macros, typetraits
+import json, tables, websocket/shared, 
+    times, httpclient, strutils,
+    asyncdispatch, sequtils,
+    macros, options
 {.hint[XDeclaredButNotUsed]: off.}
-
+ 
 type 
     RateLimit = ref object
         reset: int64
@@ -87,12 +90,8 @@ const
     auditMessageDelete* = 72
 
 type 
-    # TODO : change to Snowflake* = string with next release
-    Snowflake* = object
-        ## Snowlake is a unique id for most Discord objects
-        val*: string
     Overwrite* = object
-        id*: Snowflake
+        id*: string
         `type`*: string
         allow*: int
         deny*: int
@@ -103,24 +102,24 @@ type
         CTGroupDM
         CTGuildCategory
     Channel* = object
-        id*: Snowflake
+        id*: string
         `type`*: ChannelType
-        guild_id*: string
-        position*: int
-        permission_overwrites*: seq[Overwrite]
-        name*: string
-        topic*: string
-        nsfw*: bool
-        last_message_id*: string
-        bitrate*: int
-        user_limit*: int
-        recipients*: seq[User]
-        icon*: string
-        owner_id*: string
-        application_id*: string
-        parent_id*: string
-        last_pin_timestamp*: string
-        rate_limit_per_user*: int
+        guild_id*: Option[string]
+        position*: Option[int]
+        permission_overwrites*: Option[seq[Overwrite]]
+        name*: Option[string]
+        topic*: Option[string]
+        nsfw*: Option[bool]
+        last_message_id*: Option[string]
+        bitrate*: Option[int]
+        user_limit*: Option[int]
+        rate_limit_per_user*: Option[int]
+        recipients*: Option[seq[User]]
+        icon*: Option[string]
+        owner_id*: Option[string]
+        application_id*: Option[string]
+        parent_id*: Option[string]
+        last_pin_timestamp*: Option[string]
     MessageType* = enum
         MTDefault
         MTRecipientAdd
@@ -137,116 +136,117 @@ type
         MATJoinRequest
     MessageActivity* = object
         `type`*: MessageActivityType
-        party_id*: string
+        party_id*: Option[string]
     MessageApplication* = object
-        id*: Snowflake
+        id*: string
         cover_image*: string
         description*: string
         icon*: string
         name*: string
     Message* = object
-        id*: Snowflake
+        id*: string
         channel_id*: string
+        guild_id*: Option[string]
         author*: User
+        member*: Option[GuildMember]
         content*: string
         timestamp*: string
-        edited_timestamp*: string
+        edited_timestamp*: Option[string]
         tts*: bool
         mention_everyone*: bool
         mentions*: seq[User]
         mention_roles*: seq[string]
         attachments*: seq[Attachment]
         embeds*: seq[Embed]
-        reactions*: seq[Reaction]
-        nonce*: string
+        reactions*: Option[seq[Reaction]]
+        nonce*: Option[string]
         pinned*: bool
-        webhook_id*: string
+        webhook_id*: Option[string]
         `type`*: MessageType
-        activity*: MessageActivity
-        application*: MessageApplication
-        guild_id*: string
+        activity*: Option[MessageActivity]
+        application*: Option[MessageApplication]
     Reaction* = object
         count*: int
         me*: bool
         emoji*: Emoji
     Emoji* = object
-        id*: Snowflake
+        id*: Option[string]
         name*: string
-        roles*: seq[string]
-        user*: User
-        require_colons*: bool
-        managed*: bool
-        animated*: bool
+        roles*: Option[seq[string]]
+        user*: Option[User]
+        require_colons*: Option[bool]
+        managed*: Option[bool]
+        animated*: Option[bool]
     Embed* = object
-        title*: string
-        `type`*: string
-        description*: string
-        url*: string
-        timestamp*: string
-        color*: int
-        footer*: EmbedFooter
-        image*: EmbedImage
-        thumbnail*: EmbedThumbnail
-        video*: EmbedVideo
-        provider*: EmbedProvider
-        author*: EmbedAuthor
-        fields*: seq[EmbedField]
+        title*: Option[string]
+        `type`*: Option[string]
+        description*: Option[string]
+        url*: Option[string]
+        timestamp*: Option[string]
+        color*: Option[int]
+        footer*: Option[EmbedFooter]
+        image*: Option[EmbedImage]
+        thumbnail*: Option[EmbedThumbnail]
+        video*: Option[EmbedVideo]
+        provider*: Option[EmbedProvider]
+        author*: Option[EmbedAuthor]
+        fields*: Option[seq[EmbedField]]
     EmbedThumbnail* = object
-        url*: string
-        proxy_url*: string
-        height*: int
-        width*: int
+        url*: Option[string]
+        proxy_url*: Option[string]
+        height*: Option[int]
+        width*: Option[int]
     EmbedVideo* = object
-        url*: string
-        height*: int
-        width*: int
+        url*: Option[string]
+        height*: Option[int]
+        width*: Option[int]
     EmbedImage* = object
-        url*: string
-        proxy_url*: string
-        height*: int
-        width*: int
+        url*: Option[string]
+        proxy_url*: Option[string]
+        height*: Option[int]
+        width*: Option[int]
     EmbedProvider* = object
-        name*: string
-        url*: string
+        name*: Option[string]
+        url*: Option[string]
     EmbedAuthor* = object
-        name*: string
-        url*: string
-        icon_url*: string
-        proxy_icon_url*: string
+        name*: Option[string]
+        url*: Option[string]
+        icon_url*: Option[string]
+        proxy_icon_url*: Option[string]
     EmbedFooter* = object
         text*: string
-        icon_url*: string
-        proxy_icon_url*: string
+        icon_url*: Option[string]
+        proxy_icon_url*: Option[string]
     EmbedField* = object
         name*: string
         value*: string
-        inline*: bool
+        inline*: Option[bool]
     Attachment* = object
-        id*: Snowflake
+        id*: string
         filename*: string
         size*: int
         url*: string
         proxy_url*: string
-        height*: int
-        width*: int
+        height*: Option[int]
+        width*: Option[int]
     Presence* = object
         since*: int
         afk*: bool
         game*: Game
         status*: string
     Guild* = object
-        id*: Snowflake
+        id*: string
         name*: string
-        icon*: string
-        splash*: string
-        owner*: bool
+        icon*: Option[string]
+        splash*: Option[string]
+        owner*: Option[bool]
         owner_id*: string
-        permissions*: int
+        permissions*: Option[int]
         region*: string
-        afk_channel_id*: string
+        afk_channel_id*: Option[string]
         afk_timeout*: int
-        embed_enabled*: bool
-        embed_channel_id*: string
+        embed_enabled*: Option[bool]
+        embed_channel_id*: Option[string]
         verification_level*: int
         default_message_notifications*: int
         explicit_content_filter*: int
@@ -254,28 +254,28 @@ type
         emojis*: seq[Emoji]
         features*: seq[string]
         mfa_level*: int
-        application_id*: string
-        widget_enabled*: bool
-        widget_channel_id*: string
-        system_channel_id*: string
-        joined_at*: string
-        large*: bool
-        unavailable*: bool
-        member_count*: int
-        voice_states*: seq[VoiceState]
-        members*: seq[GuildMember]
-        channels*: seq[Channel]
-        presences*: seq[Presence]
+        application_id*: Option[string]
+        widget_enabled*: Option[bool]
+        widget_channel_id*: Option[string]
+        system_channel_id*: Option[string]
+        joined_at*: Option[string]
+        large*: Option[bool]
+        unavailable*: Option[bool]
+        member_count*: Option[int]
+        voice_states*: Option[seq[VoiceState]]
+        members*: Option[seq[GuildMember]]
+        channels*: Option[seq[Channel]]
+        presences*: Option[seq[Presence]]
     GuildMember* = object
         guild_id*: string
         user*: User
-        nick*: string
+        nick*: Option[string]
         roles*: seq[string]
         joined_at*: string
         deaf*: bool
         mute*: bool
     Integration* = object
-        id*: Snowflake
+        id*: string
         name*: string
         `type`*: string
         enabled*: bool
@@ -287,14 +287,14 @@ type
         account*: IntegrationAccount
         synced_at*: string
     IntegrationAccount* = object
-        id*: Snowflake
+        id*: string
         name*: string
     Invite* = object
         code*: string
-        guild*: InviteGuild
-        channel*: InviteChannel
-        approximate_presence_count*: int
-        approximate_member_count*: int
+        guild*: Option[InviteGuild]
+        channel*: Option[InviteChannel]
+        approximate_presence_count*: Option[int]
+        approximate_member_count*: Option[int]
     InviteMetadata* = object
         inviter*: User
         uses*: int
@@ -304,40 +304,41 @@ type
         created_at*: string
         revoked*: bool
     InviteGuild* = object
-        id*: Snowflake
+        id*: string
         name*: string
         splash*: string
         icon*: string
     InviteChannel* = object
-        id*: Snowflake
+        id*: string
         name*: string
         `type`*: int
     User* = object
-        id*: Snowflake
+        id*: string
         username*: string
         discriminator*: string
-        avatar*: string
-        bot*: bool
-        mfa_enabled*: bool
-        locale*: string
-        verified*: bool
-        email*: string
+        avatar*: Option[string]
+        bot*: Option[bool]
+        mfa_enabled*: Option[bool]
+        locale*: Option[string]
+        verified*: Option[bool]
+        email*: Option[string]
     UserGuild* = object
-        id*: Snowflake
+        id*: string
         name*: string
         icon*: string
         owner*: bool
         permissions*: int
     Connection* = object
-        id*: Snowflake
+        id*: string
         name*: string
         `type`*: string
         revoked*: bool
         integrations*: seq[Integration]
     VoiceState* = object
-        guild_id*: string
-        channel_id*: string
+        guild_id*: Option[string]
+        channel_id*: Option[string]
         user_id*: string
+        member*: Option[GuildMember]
         session_id*: string
         deaf*: bool
         mute*: bool
@@ -345,22 +346,22 @@ type
         self_mute*: bool
         suppress*: bool
     VoiceRegion* = object
-        id*: Snowflake
+        id*: string
         name*: string
         vip*: bool
         optimal*: bool
         deprecated*: bool
         custom*: bool
     Webhook* = object
-        id*: Snowflake
-        guild_id*: string
+        id*: string
+        guild_id*: Option[string]
         channel_id*: string
-        user*: User
-        name*: string
-        avatar*: string
+        user*: Option[User]
+        name*: Option[string]
+        avatar*: Option[string]
         token*: string
     Role* = object
-        id*: Snowflake
+        id*: string
         name*: string
         color*: int
         hoist*: bool
@@ -396,7 +397,10 @@ type
         channel_id*: string
     GuildEmbed* = object
         enabled*: bool
-        channel_id*: string
+        channel_id*: Option[string]
+    GuildBan* = object
+        reason*: Option[string]
+        user*: User
     WebhookParams* = object
         content*: string
         username*: string
@@ -422,7 +426,7 @@ type
         members_removed*: string
         channel_id*: string
         count*: string
-        id*: Snowflake
+        id*: string
         `type`*: string
         role_name*: string
     AuditLogChangeKind* = enum
@@ -454,7 +458,7 @@ type
         target_id*: string
         changes*: seq[AuditLogChange]
         user_id*: string
-        id*: Snowflake
+        id*: string
         action_type*: int
         options*: AuditLogOptions
         reason*: string
@@ -527,7 +531,7 @@ type
     GuildCreate* = Guild
     GuildUpdate* = Guild
     GuildDelete* = object
-        id*: Snowflake
+        id*: string
         unavailable*: bool
     GuildBanAdd* = User
     GuildBanRemove* = User
@@ -607,24 +611,11 @@ type
     
 const DISCORD_EPOCH = int64(1420070400000)
 
-method timestamp*(s: Snowflake): DateTime {.base.} =
+proc timestamp*(s: string): DateTime =
     ## Makes a timestamp from the Snowflake
-    var i = (s.val.parseBiggestInt.int64)
+    var i = (s.parseBiggestInt.int64)
     i = ((i shr 22) + DISCORD_EPOCH) div 1000
     i.fromUnix.utc
-
-proc toSnowflake*(id: string): Snowflake {.inline.}  = Snowflake(val: id)
-proc toSnowflake*(id: int64): Snowflake {.inline.}  = Snowflake(val: $id)
-proc newSnowflake*(node: JsonNode): Snowflake {.inline.} =
-    case node.kind
-    of JInt: result = toSnowflake(node.num)
-    of JString: result = toSnowflake(node.str)
-    else: result = Snowflake(val: "")
-proc `==`*(a, b: Snowflake): bool {.inline.}  = a.val == b.val
-proc `==`*(a: Snowflake, b: string): bool {.inline.}  = a.val == b
-proc `==`*(a: string, b: Snowflake): bool {.inline.}  = a == b.val
-proc `&`*(a: string, b: Snowflake): string {.inline.}  = a & b.val
-proc `$`*(a: Snowflake): string {.inline.} = a.val
  
 method addHandler*(d: Shard, t: EventType, p: pointer): (proc()) {.gcsafe, base, inline.} =
     ## Adds a handler tied to a websocket event.
@@ -639,232 +630,15 @@ method addHandler*(d: Shard, t: EventType, p: pointer): (proc()) {.gcsafe, base,
     result = proc()=
         d.handlers[t].del(i) 
 
-proc getRecList(node: NimNode): NimNode {.compileTime.} =
-    expectKind(node, nnkObjectTy)
-    result = node[2]
+proc `%`*[T](o: Option[T]): JsonNode = 
+    new(result)
+    result = if o.isSome(): %(o.get()) else: newJNull()
 
-template genHasKeyCheck(key, kind, default: NimNode): NimNode =
-    newTree(
-        nnkIfExpr,
-        newTree(
-            nnkElifExpr,
-            newTree(
-                nnkInfix,
-                newIdentNode("and"),
-                newCall(
-                    newDotExpr(
-                        newIdentNode("node"),
-                        newIdentNode("hasKey"),
-                    ),
-                    key,
-                ),
-                newTree(
-                    nnkInfix,
-                    newIdentNode("!="),
-                    newDotExpr(
-                        newTree(
-                            nnkBracketExpr,
-                            newIdentNode("node"),
-                            key
-                        ),
-                        newIdentNode("kind")
-                    ),
-                    newIdentNode("JNull")
-                )
-            ),
-            newDotExpr(
-                newTree(
-                    nnkBracketExpr,
-                    newIdentNode("node"),
-                    key,
-                ),
-                kind
-            )
-        ),
-        newTree(
-            nnkElseExpr,
-            newStmtList(
-                default,
-            )
-        )
-    )
-
-macro genCtor(T: typedesc): untyped =
-    let 
-        realType = T.getTypeInst[1]
-        tname = $realType
-    
-    let recList = getRecList(realType.getTypeImpl)
-
-    result = newTree(
-        nnkProcDef,
-        newIdentNode("new" & tname),
-        newEmptyNode(),
-        newEmptyNode(),
-        newTree(
-            nnkFormalParams,
-            newIdentNode(tname),
-            newIdentDefs(
-                newIdentNode("node"),
-                newIdentNode("JsonNode")
-            ),
-        ),
-        newTree(
-            nnkPragma,
-            newIdentNode("inline"),
-        ),
-        newEmptyNode(),
-    )
-
-    let 
-        ctor = newTree(nnkObjConstr, newIdentNode(tname))
-    var postCtorStmt = newSeq[NimNode]()
-
-    for field in recList:
-        let
-            fieldName = field[0]
-            fieldKind = field[1]
-            fieldNameStr = newStrLitNode($fieldName)
-        
-        let ece = newTree(
-            nnkExprColonExpr,
-            newIdentNode($fieldName)
-        )
-        
-        case fieldKind.kind
-        of nnkBracketExpr:
-            postCtorStmt.add(
-                newStmtList(
-                    newTree(
-                        nnkIfExpr,
-                        newTree(
-                            nnkElifBranch,
-                            newTree(
-                                nnkInfix,
-                                newIdentNode("and"),
-                                newCall(
-                                    newDotExpr(
-                                        newIdentNode("node"),
-                                        newIdentNode("hasKey")
-                                    ),
-                                    fieldNameStr,
-                                ),
-                                newTree(
-                                    nnkInfix,
-                                    newIdentNode(">"),
-                                    newDotExpr(
-                                        newDotExpr(
-                                            newTree(
-                                                nnkBracketExpr,
-                                                newIdentNode("node"),
-                                                fieldNameStr,
-                                            ),
-                                            newIdentNode("elems")
-                                        ),
-                                        newIdentNode("len")
-                                    ),
-                                    newIntLitNode(0),
-                                )
-                            ),
-                            newStmtList(
-                                newAssignment(
-                                    newDotExpr(
-                                        newIdentNode("result"),
-                                        fieldName,
-                                    ),
-                                    newCall(
-                                        newTree(
-                                            nnkBracketExpr,
-                                            newIdentNode("newSeq"),
-                                            fieldKind[1],
-                                        ),
-                                        newDotExpr(
-                                            newDotExpr(
-                                                newTree(
-                                                    nnkBracketExpr,
-                                                    newIdentNode("node"),
-                                                    fieldNameStr,
-                                                ),
-                                                newIdentNode("elems")
-                                            ),
-                                            newIdentNode("len")
-                                        )
-                                    )
-                                ),
-                                newTree(
-                                    nnkForStmt,
-                                    newIdentNode("i"),
-                                    newIdentNode("n"),
-                                    newDotExpr(
-                                        newTree(
-                                            nnkBracketExpr,
-                                            newIdentNode("node"),
-                                            fieldNameStr,
-                                        ),
-                                        newIdentNode("elems")
-                                    ),
-                                )
-                            )
-                        )
-                    )
-                )
-            )
-
-            let seqAsgnStmt = newStmtList(
-                newTree(
-                    nnkAsgn,
-                    newTree(
-                        nnkBracketExpr,
-                        newDotExpr(
-                            newIdentNode("result"),
-                            fieldName,
-                        ),
-                        newIdentNode("i")
-                    )
-                )
-            )
-
-            case $fieldKind[1]
-            of "int": 
-                seqAsgnStmt[0].add(newCall(newIdentNode("int"), newDotExpr(newIdentNode("n"), newIdentNode("num"))))
-            of "int64": seqAsgnStmt[0].add(newDotExpr(newIdentNode("n"), newIdentNode("num")))
-            of "float": seqAsgnStmt[0].add(newDotExpr(newIdentNode("n"), newIdentNode("fnum")))
-            of "string": seqAsgnStmt[0].add(newDotExpr(newIdentNode("n"), newIdentNode("str")))
-            else: seqAsgnStmt[0].add(newCall(newIdentNode("new" & $fieldKind[1]), newIdentNode("n")))
-            postCtorStmt[postCtorStmt.high][0][0][1][1].add(seqAsgnStmt)
-        else:
-            case $fieldKind
-            of "int": 
-                let tree = genHasKeyCheck(fieldNameStr, newIdentNode("num"), newIntLitNode(0))
-                tree[0][1] = newDotExpr(tree[0][1], newIdentNode("int"))
-                ece.add(tree)
-            of "int64": ece.add(genHasKeyCheck(fieldNameStr, newIdentNode("num"), newIntLitNode(0)))
-            of "float": ece.add(genHasKeyCheck(fieldNameStr, newIdentNode("fnum"), newFloatLitNode(0.0)))
-            of "string": ece.add(genHasKeyCheck(fieldNameStr, newIdentNode("str"), newStrLitNode("")))
-            of "bool": ece.add(genHasKeyCheck(fieldNameStr, newIdentNode("bval"), newLit(false)))
-            else: 
-                if fieldKind.getType.kind == nnkEnumTy:
-                    let tree = genHasKeyCheck(fieldNameStr, newIdentNode("num"), newCall(newIdentNode($fieldKind), newIntLitNode(0)))
-                    tree[0][1] = newCall(newIdentNode($fieldKind), newDotExpr(newTree(nnkBracketExpr, newIdentNode("node"), fieldNameStr), newIdentNode("num")))
-                    ece.add(tree)
-                else:
-                    let tree = genHasKeyCheck(fieldNameStr, newEmptyNode(), newCall(newIdentNode($fieldKind)))
-                    tree[0][1][1] = newIdentNode("new" & $fieldKind)
-                    ece.add(tree)
-            ctor.add(ece)
-    result.add(
-        newStmtList(
-            newAssignment(
-                newIdentNode("result"),
-                ctor
-            ),
-        )
-    )
-
-    if len(postCtorStmt) > 0:
-        result[result.len-1].add(postCtorStmt)
-
-    # echo result.repr
+{.hint[Pattern]: off.}
+macro genCtor(t: untyped): untyped =
+    let id = ident("new" & $t)
+    result = quote do:
+        proc `id`*(node: JsonNode): `t` {.inline.} = node.to(`t`)
 
 genCtor(User)
 genCtor(Overwrite)
@@ -915,47 +689,29 @@ genCtor(PresenceUpdate)
 genCtor(TypingStart)
 genCtor(VoiceServerUpdate)
 genCtor(Resumed)
-proc newMessageCreate(node: JsonNode): MessageUpdate {.inline.} =
-    result = newMessage(node)
-proc newMessageUpdate(node: JsonNode): MessageUpdate {.inline.} =
-    result = newMessage(node)
-proc newMessageDelete(node: JsonNode): MessageUpdate {.inline.} =
-    result = newMessage(node)
-proc newGuildMemberAdd(node: JsonNode): GuildMemberAdd {.inline.} =
-    result = newGuildMember(node)
-proc newGuildMemberUpdate(node: JsonNode): GuildMemberUpdate {.inline.} =
-    result = newGuildMember(node)
-proc newGuildMemberRemove(node: JsonNode): GuildMemberRemove {.inline.} =
-    result = newGuildMember(node)
+genCtor(MessageCreate)
+genCtor(MessageUpdate)
+genCtor(MessageDelete)
+genCtor(GuildMemberAdd)
+genCtor(GuildMemberUpdate)
+genCtor(GuildMemberRemove)
 genCtor(GuildMembersChunk)
-proc newGuildCreate(node: JsonNode): GuildCreate {.inline.} =
-    result = newGuild(node)
-proc newGuildUpdate(node: JsonNode): GuildUpdate {.inline.} =
-    result = newGuild(node)
+genCtor(GuildCreate)
+genCtor(GuildUpdate)
 genCtor(GuildDelete)
-proc newGuildBanAdd(node: JsonNode): GuildBanAdd {.inline.} =
-    result = newUser(node)
-proc newGuildBanRemove(node: JsonNode): GuildBanRemove {.inline.} =
-    result = newUser(node)
-proc newChannelCreate(node: JsonNode): ChannelCreate {.inline.} =
-    result = newChannel(node)
-proc newChannelUpdate(node: JsonNode): ChannelUpdate {.inline.} =
-    result = newChannel(node)
-proc newChannelDelete(node: JsonNode): ChannelDelete {.inline.} =
-    result = newChannel(node)
+genCtor(GuildBanAdd)
+genCtor(GuildBanRemove)
+genCtor(ChannelCreate)
+genCtor(ChannelUpdate)
+genCtor(ChannelDelete)
 genCtor(Pin)
-proc newChannelPinsUpdate(node: JsonNode): ChannelPinsUpdate {.inline.} =
-    result = newPin(node)
-proc newUserUpdate(node: JsonNode): UserUpdate {.inline.} =
-    result = newUser(node)
-proc newVoiceStateUpdate(node: JsonNode): VoiceStateUpdate {.inline.} =
-    result = newVoiceState(node)
+genCtor(ChannelPinsUpdate)
+genCtor(UserUpdate)
+genCtor(VoiceStateUpdate)
+genCtor(MessageReactionRemove)
+genCtor(WebhooksUpdate)
 genCtor(MessageReactionAdd)
-proc newMessageReactionRemove(node: JsonNode): MessageReactionRemove {.inline.} =
-    result = newMessageReactionAdd(node)
 genCtor(MessageReactionRemoveAll)
-proc newWebhooksUpdate(node: JsonNode): WebhooksUpdate {.inline.} =
-    result = newWebhook(node)
 genCtor(Ready)
 
 proc newAuditLogChangeValue(s: string): AuditLogChangeValue =
@@ -1088,7 +844,7 @@ method updateGuild*(c: Cache, guild: Guild) {.raises: CacheError, inline, base, 
     ## Updates a guild in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
     
-    c.guilds[guild.id.val] = guild
+    c.guilds[guild.id] = guild
 
 method getUser*(c: Cache, id: string): tuple[user: User, exists: bool] {.base, gcsafe.}  =
     ## Gets a user from the cache
@@ -1109,7 +865,7 @@ method updateUser*(c: Cache, user: User) {.inline, base, gcsafe.}  =
     ## Updates a user in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
 
-    c.users[user.id.val] = user
+    c.users[user.id] = user
 
 method getChannel*(c: Cache, id: string): tuple[channel: Channel, exists: bool] {.base, gcsafe.} =
     ## Gets a channel from the cache
@@ -1123,7 +879,7 @@ method getChannel*(c: Cache, id: string): tuple[channel: Channel, exists: bool] 
 method updateChannel*(c: Cache, chan: Channel) {.inline, base, gcsafe.}  =
     ## Updates a channel in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
-    c.channels[chan.id.val] = chan
+    c.channels[chan.id] = chan
 
 method removeChannel*(c: Cache, chan: string) {.raises: CacheError, inline, base, gcsafe.}  =
     ## Removes a channel from the cache
@@ -1142,7 +898,7 @@ method getGuildMember*(c: Cache, guild, memberid: string): tuple[member: GuildMe
     if not exists:
         return
     
-    for member in guild.members: 
+    for member in guild.members.get: 
         if member.user.id == memberid:
             result = (member, true)
             break
@@ -1151,18 +907,18 @@ method addGuildMember*(c: Cache, member: GuildMember) {.inline, base, gcsafe.} =
     ## Adds a guild member to the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
 
-    c.members.add(member.user.id.val, member)
+    c.members.add(member.user.id, member)
 
 method updateGuildMember*(c: Cache, m: GuildMember) {.inline, base, gcsafe.} =
     ## Updates a guild member in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
 
-    c.members[m.user.id.val] = m
+    c.members[m.user.id] = m
 
 method removeGuildMember*(c: Cache, gmember: GuildMember) {.inline, base, gcsafe.} =
     ## Removes a guild member from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
-    c.members.del(gmember.user.id.val)
+    c.members.del(gmember.user.id)
 
 method getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bool] {.base, gcsafe.} =
     ## Gets a role from the cache
@@ -1182,7 +938,7 @@ method getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bo
 method updateRole*(c: Cache, role: Role) {.raises: CacheError, base, gcsafe.} =
     ## Updates a role in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
-    c.roles[role.id.val] = role
+    c.roles[role.id] = role
 
 method removeRole*(c: Cache, role: string) {.raises: CacheError, base, gcsafe.} =
     ## Removes a role from the cache
