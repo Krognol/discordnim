@@ -761,7 +761,7 @@ proc stripMentions*(msg: Message): string {.gcsafe.} =
 proc stripEveryoneMention*(msg: Message): string {.gcsafe.} =
     ## Strips a message of any @everyone and @here mention
     if not msg.mention_everyone: return msg.content
-    result = msg.content.replace(re"(@everyone)", "").replace(re"(@here)", "")
+    result = msg.content.replace("@everyone", "").replace("@here", "")
 
 proc newChannelParams*(name, topic: string = "",
                        position: int = 0,
