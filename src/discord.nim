@@ -1,6 +1,6 @@
 include restapi
 import json, discordobjects, endpoints,
-       websocket/client, asyncdispatch, uri, zip/zlib
+       websocket/client, asyncdispatch, zip/zlib
        
 # Gateway op codes
 {.hint[XDeclaredButNotUsed]: off.}

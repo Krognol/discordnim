@@ -1,7 +1,6 @@
 import json, tables, websocket/shared, 
     times, httpclient, strutils,
-    asyncdispatch, sequtils,
-    macros, options
+    asyncdispatch, macros, options
 {.hint[XDeclaredButNotUsed]: off.}
  
 type 

@@ -1,5 +1,5 @@
 include discordobjects, endpoints
-import httpclient, strutils, json, re, ospaths, mimetypes, uri, sequtils
+import httpclient, json, re, ospaths, mimetypes, uri
  
 proc request(s: Shard,
                 bucketid, meth, url, contenttype, b: string = "",
