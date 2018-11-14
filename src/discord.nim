@@ -76,7 +76,7 @@ const
         permManageGuild or
         permAdministrator
 
-method getGateway(s: Shard): Future[tuple[url: string, sc: int]] {.base, async, gcsafe.} =
+proc getGateway(s: Shard): Future[tuple[url: string, sc: int]] {.async, gcsafe.} =
     var url = gateway()
     let 
         res = await s.request(url, "GET", url, "application/json", "", 0)
@@ -101,7 +101,7 @@ type UpdateStatusData = object
     afk: bool
     status: string
 
-method updateStreamingStatus*(s: Shard, idle: int = 0, game: string, url: string = "", status: string = "online") {.base, async, gcsafe.} =
+proc updateStreamingStatus*(s: Shard, idle: int = 0, game: string, url: string = "", status: string = "online") {.async, gcsafe.} =
     ## Updates the ``Playing ...`` message of the current user.
     if s.connection.sock.isClosed(): return
     var data = UpdateStatusData(status: status, afk: false)
@@ -120,7 +120,7 @@ method updateStreamingStatus*(s: Shard, idle: int = 0, game: string, url: string
         "d": data
     }))
 
-method updateStatus*(s: Shard, idle: int = 0, game: string = "") {.base, gcsafe, async, inline.} =
+proc updateStatus*(s: Shard, idle: int = 0, game: string = "") {.gcsafe, async, inline.} =
     ## Updates the ``Playing ...`` status
     asyncCheck s.updateStreamingStatus(idle, game, "")
 
@@ -157,7 +157,7 @@ proc each[T](s: Shard, want: EventType, data: T) {.async, gcsafe.} =
         for p in s.handlers[want]:
             cast[proc(_: Shard, d: T){.cdecl.}](p)(s, data)
 
-method handleDispatch(s: Shard, event: string, data: JsonNode) {.async, gcsafe, base.} =
+proc handleDispatch(s: Shard, event: string, data: JsonNode) {.async, gcsafe.} =
     case event:
         of "READY":
             let payload = newReady(data)
@@ -262,7 +262,7 @@ method handleDispatch(s: Shard, event: string, data: JsonNode) {.async, gcsafe, 
         else:
             echo "Unknown websocket event :: " & event & "\n" & $data
 
-method identify(s: Shard) {.async, gcsafe, base.} =
+proc identify(s: Shard) {.async, gcsafe.} =
     let payload = %*{
             "op": opIDENTIFY,
             "d": %*{
@@ -288,14 +288,14 @@ method identify(s: Shard) {.async, gcsafe, base.} =
     except:
         echo "Error sending identify packet\n" & getCurrentExceptionMsg()
 
-method resume(s: Shard) {.async, gcsafe, base.} =
+proc resume(s: Shard) {.async, gcsafe.} =
     await s.connection.sock.sendText($(%*{
         "token": s.token,
         "session_id": s.session_id,
         "seq": s.sequence
     }))
 
-method reconnect(s: Shard) {.async, gcsafe, base.} =
+proc reconnect(s: Shard) {.async, gcsafe.} =
     await s.connection.close()
     try:
         s.connection = await newAsyncWebsocketClient("gateway.discord.gg", Port 443, "/"&GATEWAYVERSION, true)
@@ -305,9 +305,9 @@ method reconnect(s: Shard) {.async, gcsafe, base.} =
     s.session_ID = ""
     await s.identify()
 
-method shouldResumeSession(s: Shard): bool {.gcsafe, inline, base.} = s.suspended and (not s.invalidated)
+proc shouldResumeSession(s: Shard): bool {.gcsafe, inline.} = s.suspended and (not s.invalidated)
 
-method setupHeartbeats(s: Shard) {.async, gcsafe, base.} =
+proc setupHeartbeats(s: Shard) {.async, gcsafe.} =
     while not s.stop and not s.connection.sock.isClosed:
         var hb = %*{"op": opHeartbeat, "d": s.sequence}
         try:
@@ -319,43 +319,33 @@ method setupHeartbeats(s: Shard) {.async, gcsafe, base.} =
             echo getCurrentExceptionMsg()
             break
 
-proc sessionHandleSocketMessage(s: Shard): Future[void]  =
-    result = newFuture[void]("sessionHandleSocketMessage")
+proc sessionHandleSocketMessage(s: Shard) {.async, gcsafe.} =
     waitFor s.identify()
 
-    var tres: Future[tuple[opcode: Opcode, data: string]]
     var res: tuple[opcode: Opcode, data: string]
     
     while not isClosed(s.connection.sock) and not s.stop:
-        tres = s.connection.sock.readData()
-        if tres.failed():
-            s.connection.sock.close()
-            result.fail(tres.error) 
-            break
-
         try:
-            res = waitFor tres
+            res = await s.connection.readData()
         except:
             echo "Encountered an error while waiting for websocket data\n", getCurrentExceptionMsg()
             break
         
-        if s.compress:
-            if res.opcode == Opcode.Binary:
-                let t = zlib.uncompress(res.data)
-                if t == "":
-                    echo "Failed to uncompress data and I'm not sure why. Sorry."
-                else: res.data = t
+        if s.compress and res.opcode == Opcode.Binary:
+            let t = zlib.uncompress(res.data)
+            if t == "":
+                echo "Failed to uncompress data and I'm not sure why. Sorry."
+            else: res.data = t
                 
         var data: JsonNode
         try: 
             data = parseJson(res.data) 
         except: 
             echo "Error while parsing json: " & res.data 
-            echo "opcode: ", res.opcode
             break
          
         if data["s"].kind != JNull:
-            s.sequence = data["s"].num.int
+            s.sequence = data["s"].getInt()
 
         case data["op"].num
         of opDispatch:
@@ -364,7 +354,7 @@ proc sessionHandleSocketMessage(s: Shard): Future[void]  =
             if s.shouldResumeSession():
                 waitFor s.resume()
             else:
-                s.interval = data["d"].fields["heartbeat_interval"].num.int
+                s.interval = data["d"].fields["heartbeat_interval"].getInt()
                 asyncCheck s.setupHeartbeats()
         of opHeartbeat:
             waitFor s.connection.sock.sendText($(%*{"op": opHeartbeat, "d": s.sequence}))
@@ -384,25 +374,23 @@ proc sessionHandleSocketMessage(s: Shard): Future[void]  =
             echo "Unknown opcode :: ", $data
         
     echo "connection closed\ncode: ", res.opcode, "\ndata: ", res.data
+
     s.suspended = true
     s.stop = true
+
     if not s.connection.sock.isClosed:
         s.connection.sock.close()
-    echo "Disconnected..."
-    if not result.failed():
-        result.complete()
-    else:
-        raise result.error
+
     if s.handlers.hasKey(on_disconnect):
         (s.handlers[on_disconnect]).each(s)
 
-method disconnect*(s: Shard) {.gcsafe, base, async.} =
+proc disconnect*(s: Shard) {.gcsafe, async.} =
     ## Disconnects a shard
     s.stop = true
     s.cache.clear()
     await s.connection.close()
 
-method startSession*(s: Shard) {.base, async.} =
+proc startSession*(s: Shard) {.async, gcsafe.} =
     ## Connects a Shard
     if s.connection != nil and not s.connection.sock.isClosed():
         echo "Shard is already connected"
