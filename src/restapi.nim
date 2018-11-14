@@ -33,14 +33,9 @@ proc request(s: Shard,
         echo "You got ratelimited"
         result = await s.request(id, meth, url, contenttype, b, sequence+1)
 
-proc doreq(s: Shard, meth, endpoint, payload: string = "", xheaders: HttpHeaders = nil, mpd: MultipartData = nil): Future[JsonNode] =
-    let resnw = s.request(endpoint, meth, endpoint, "application/json", payload, 0, xheaders = xheaders)
-    if resnw.failed():
-        result.fail(resnw.error)
-        return
-    
-    let res = waitFor resnw
-    let body = waitFor res.body
+proc doreq(s: Shard, meth, endpoint, payload: string = "", xheaders: HttpHeaders = nil, mpd: MultipartData = nil): Future[JsonNode] {.gcsafe, async.} =
+    let res = await s.request(endpoint, meth, endpoint, "application/json", payload, 0, xheaders = xheaders)
+    result = (await res.body).parseJson
 
 proc channel*(s: Shard, channel_id: string): Future[Channel] {.gcsafe, async.} =
     result = (await doreq(s, endpointChannels(channel_id))).newChannel
