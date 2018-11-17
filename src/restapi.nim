@@ -1,6 +1,7 @@
-include discordobjects, endpoints
-import httpclient, json, re, ospaths, mimetypes, uri
- 
+include endpoints
+import httpclient, asyncdispatch, json, tables,  re,
+    strutils, objects, ospaths, mimetypes, uri, options
+
 proc request(s: Shard,
                 bucketid, meth, url, contenttype, b: string = "",
                 sequence: int = 0,
@@ -39,22 +40,16 @@ proc doreq(s: Shard, meth, endpoint, payload: string = "", xheaders: HttpHeaders
 
 proc channel*(s: Shard, channel_id: string): Future[Channel] {.gcsafe, async.} =
     result = (await doreq(s, endpointChannels(channel_id))).newChannel
-    if s.cache.cacheChannels:
-        s.cache.channels[result.id] = result
 
 proc channelEdit*(s: Shard, channelid: string, params: ChannelParams, reason: string = ""): Future[Guild] {.gcsafe, async.} =
     ## Edits a channel with the ChannelParams
     var xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     result = (await doreq(s, "POST", endpointChannels(channelid), $(%params), xh)).newGuild
-    if s.cache.cacheGuilds:
-        s.cache.updateGuild(result)
 
 proc deleteChannel*(s: Shard, channelid: string, reason: string = ""): Future[Channel] {.gcsafe, async.} =
     ## Deletes a channel
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     result = (await doreq(s, "DELETE", endpointChannels(channelid), xheaders = xh)).newChannel
-    if s.cache.cacheChannels:
-        s.cache.removeChannel(result.id)
 
 proc channelMessages*(s: Shard, channelid: string, before, after, around: string, limit: int): Future[seq[Message]] {.gcsafe, async.} =
     ## Returns a channels messages
@@ -132,15 +127,15 @@ proc channelFileSend*(s: Shard, channelid, fname, fbody: string): Future[Message
     ## Sends the contents of a file as a file to a channel.
     result = await s.channelFileSendWithMessage(channelid, fname, fbody, "")
 
-proc channelMessageReactionAdd*(s: Shard, channelid, messageid, emojiid: string): Future[void] {.gcsafe, inline, async.} = 
+proc channelMessageReactionAdd*(s: Shard, channelid, messageid, emojiid: string) {.gcsafe, inline, async.} = 
     ## Adds a reaction to a message
     asyncCheck doreq(s, "PUT", endpointMessageReactions(channelid, messageid, emojiid))
 
-proc messageDeleteOwnReaction*(s: Shard, channelid, messageid, emojiid: string): Future[void] {.gcsafe, inline, async.} =
+proc messageDeleteOwnReaction*(s: Shard, channelid, messageid, emojiid: string) {.gcsafe, inline, async.} =
     ## Deletes your own reaction to a message
     asyncCheck doreq(s, "DELETE", endpointOwnReactions(channelid, messageid, emojiid))
 
-proc messageDeleteReaction*(s: Shard, channelid, messageid, emojiid, userid: string): Future[void] {.gcsafe, inline, async.} =
+proc messageDeleteReaction*(s: Shard, channelid, messageid, emojiid, userid: string) {.gcsafe, inline, async.} =
     ## Deletes a reaction from a user from a message
     asyncCheck doreq(s, "DELETE", endpointMessageUserReaction(channelid, messageid, emojiid, userid))
 
@@ -151,7 +146,7 @@ proc messageGetReactions*(s: Shard, channelid, messageid, emojiid: string): Futu
     for i, n in node.elems:
         result[i] = newUser(n)
 
-proc messageDeleteAllReactions*(s: Shard, channelid, messageid: string): Future[void] {.gcsafe, inline, async.} =
+proc messageDeleteAllReactions*(s: Shard, channelid, messageid: string) {.gcsafe, inline, async.} =
     ## Deletes all reactions on a message
     asyncCheck doreq(s, "DELETE", endpointReactions(channelid, messageid))
 
@@ -159,17 +154,17 @@ proc channelMessageEdit*(s: Shard, channelid, messageid, content: string): Futur
     ## Edits a message's contents
     result = (await doreq(s, "PATCH", endpointChannelMessage(channelid, messageid), $(%*{"content": content}))).newMessage
     
-proc channelMessageDelete*(s: Shard, channelid, messageid: string, reason: string = ""): Future[void] {.gcsafe, async.} =
+proc channelMessageDelete*(s: Shard, channelid, messageid: string, reason: string = "") {.gcsafe, async.} =
     ## Deletes a message
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     asyncCheck doreq(s, "DELETE", endpointChannelMessage(channelid, messageid), xheaders = xh)
 
-proc channelMessagesDeleteBulk*(s: Shard, channelid: string, messages: seq[string]): Future[void] {.gcsafe, async, inline.} =
+proc channelMessagesDeleteBulk*(s: Shard, channelid: string, messages: seq[string]) {.gcsafe, async, inline.} =
     ## Deletes messages in bulk.
     ## Will not delete messages older than 2 weeks
     asyncCheck doreq(s, "DELETE", endpointBulkDelete(channelid), $(%*{"messages": messages}))
 
-proc channelEditPermissions*(s: Shard, channelid: string, overwrite: Overwrite, reason: string = ""): Future[void] {.gcsafe, async.} =
+proc channelEditPermissions*(s: Shard, channelid: string, overwrite: Overwrite, reason: string = "") {.gcsafe, async.} =
     ## Edits a channel's permissions
     let payload = %*{
         "type": overwrite.`type`, 
@@ -198,12 +193,12 @@ proc channelCreateInvite*(
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     result = (await doreq(s, "POST", endpointChannelInvites(channel), $payload, xh)).newInvite
 
-proc channelDeletePermission*(s: Shard, channel, target: string, reason: string = ""): Future[void] {.gcsafe, async.} =
+proc channelDeletePermission*(s: Shard, channel, target: string, reason: string = "") {.gcsafe, async.} =
     ## Deletes a channel permission
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     asyncCheck doreq(s, "DELETE", endpointCHannelPermissions(channel, target), xheaders = xh)
 
-proc typingIndicatorTrigger*(s: Shard, channel: string): Future[void] {.gcsafe, async, inline.} =
+proc typingIndicatorTrigger*(s: Shard, channel: string) {.gcsafe, async, inline.} =
     ## Triggers the "X is typing" indicator
     asyncCheck doreq(s, "POST", endpointTriggerTypingIndicator(channel))
 
@@ -214,11 +209,11 @@ proc channelPinnedMessages*(s: Shard, channel: string): Future[seq[Message]] {.g
     for i, n in node.elems:
         result[i] = newMessage(n)
     
-proc channelPinMessage*(s: Shard, channel, message: string): Future[void] {.gcsafe, inline, async.} =
+proc channelPinMessage*(s: Shard, channel, message: string) {.gcsafe, inline, async.} =
     ## Pins a message in a channel
     asyncCheck doreq(s, "PUT", endpointPinnedChannelMessage(channel, message))
 
-proc channelDeletePinnedMessage*(s: Shard, channel, message: string): Future[void] {.gcsafe, inline, async.} =
+proc channelDeletePinnedMessage*(s: Shard, channel, message: string) {.gcsafe, inline, async.} =
     asyncCheck doreq(s, "DELETE", endpointPinnedChannelMessage(channel, message))
 
 # This might work?
@@ -236,7 +231,7 @@ proc groupDMCreate*(s: Shard, accesstokens: seq[string], nicks: seq[AddGroupDMUs
         }
     ))).newChannel
 
-proc groupDMAddUser*(s: Shard, channelid, userid, access_token, nick: string): Future[void] {.gcsafe, async, inline.} =
+proc groupDMAddUser*(s: Shard, channelid, userid, access_token, nick: string) {.gcsafe, async, inline.} =
     ## Adds a user to a group dm.
     ## Requires the 'gdm.join' scope.
     asyncCheck doreq(s, "PUT", endpointGroupDMRecipient(channelid, userid), $(
@@ -246,7 +241,7 @@ proc groupDMAddUser*(s: Shard, channelid, userid, access_token, nick: string): F
         }
     ))
     
-proc groupdDMRemoveUser*(s: Shard, channelid, userid: string): Future[void] {.gcsafe, inline, async.} =
+proc groupdDMRemoveUser*(s: Shard, channelid, userid: string) {.gcsafe, inline, async.} =
     ## Removes a user from a group dm.
     asyncCheck doreq(s, "DELETE", endpointGroupDMRecipient(channelid, userid))
 
@@ -274,14 +269,10 @@ proc createGuild*(s: Shard,
             "channels": channels
         }
     ))).newGuild
-    if s.cache.cacheGuilds:
-        s.cache.updateGuild(result)
     
 proc guild*(s: Shard, id: string): Future[Guild] {.gcsafe, async.} =
     ## Gets a guild
     result = (await doreq(s, "GET", endpointGuild(id))).newGuild
-    if s.cache.cacheGuilds:
-        s.cache.updateGuild(result)
 
 proc guildEdit*(s: Shard, guild: string, settings: GuildParams, reason: string = ""): Future[Guild] {.gcsafe, async.} =
     ## Edits a guild with the GuildParams
@@ -299,10 +290,6 @@ proc guildChannels*(s: Shard, guild: string): Future[seq[Channel]] {.gcsafe, asy
     for i, n in node.elems:
         result[i] = newChannel(n)
 
-    if s.cache.cacheChannels:
-        for chan in result:
-            s.cache.updateChannel(chan)
-
 proc guildChannelCreate*(
     s: Shard, 
     guild, channelname, parentId: string, 
@@ -315,8 +302,6 @@ proc guildChannelCreate*(
     if permOW.len > 0: payload["permission_overwrites"] = %permOW
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     result = (await doreq(s, "POST", endpointGuildChannels(guild), $payload, xh)).newChannel
-    if s.cache.cacheChannels:
-        s.cache.updateChannel(result)
 
 proc guildChannelPositionEdit*(s: Shard, guild, channel: string, position: int, reason: string = ""): Future[seq[Channel]] {.gcsafe, async.} =
     ## Reorders the position of a channel and returns the new order
@@ -340,16 +325,9 @@ proc guildMembers*(s: Shard, guild: string, limit, after: int): Future[seq[Guild
     for i, n in node.elems:
         result[i] = newGuildMember(n)
 
-    if s.cache.cacheGuildMembers: 
-        for member in result:
-            s.cache.updateGuildMember(member)
-
 proc guildMember*(s: Shard, guild, userid: string): Future[GuildMember] {.gcsafe, async.} =
     ## Returns a guild member with the userid
     result = (await doreq(s, "GET", endpointGuildMember(guild, userid))).newGuildMember
-
-    if s.cache.cacheGuildMembers:
-        s.cache.updateGuildMember(result)
 
 proc guildAddMember*(s: Shard, guild, userid, accesstoken: string): Future[GuildMember] {.gcsafe, async.} =
     ## Adds a guild member to the guild
@@ -358,60 +336,57 @@ proc guildAddMember*(s: Shard, guild, userid, accesstoken: string): Future[Guild
             "access_token": accesstoken
         }
     ))).newGuildMember
-    if s.cache.cacheGuildMembers:
-        s.cache.updateGuildMember(result)
 
-
-proc guildMemberRolesEdit*(s: Shard, guild, userid: string, roles: seq[string]): Future[void] {.gcsafe, async.} =
+proc guildMemberRolesEdit*(s: Shard, guild, userid: string, roles: seq[string]) {.gcsafe, async.} =
     ## Edits a guild member's roles
     asyncCheck doreq(s, "PATCH", endpointGuildMember(guild, userid), $(%*{"roles": roles}))
 
-proc guildMemberSetNickname*(s: Shard, guild, userid, nick: string, reason: string = ""): Future[void] {.gcsafe, async.} =
+proc guildMemberSetNickname*(s: Shard, guild, userid, nick: string, reason: string = "") {.gcsafe, async.} =
     ## Sets the nickname of a member
     asyncCheck doreq(s, "PATCH", endpointGuildMember(guild, userid), $(%*{"nick": nick}))
 
-proc guildMemberMute*(s: Shard, guild, userid: string, mute: bool, reason: string = ""): Future[void] {.gcsafe, async.} =
+proc guildMemberMute*(s: Shard, guild, userid: string, mute: bool, reason: string = "") {.gcsafe, async.} =
     ## Mutes a guild member
     let payload = %*{"mute": mute}
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     asyncCheck doreq(s, "PATCH", endpointGuildMember(guild, userid), $payload, xh)
 
-proc guildMemberDeafen*(s: Shard, guild, userid: string, deafen: bool, reason: string = ""): Future[void] {.gcsafe, async.} =
+proc guildMemberDeafen*(s: Shard, guild, userid: string, deafen: bool, reason: string = "") {.gcsafe, async.} =
     ## Deafens a guild member
     let payload = %*{"deaf": deafen}
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     asyncCheck doreq(s, "PATCH", endpointGuildMember(guild, userid), $payload, xh)
  
-proc guildMemberMove*(s: Shard, guild, userid, channel: string, reason: string = ""): Future[void] {.gcsafe, async.} =
+proc guildMemberMove*(s: Shard, guild, userid, channel: string, reason: string = "") {.gcsafe, async.} =
     ## Moves a guild member from one channel to another
     ## only works if they are connected to a voice channel
     let payload = %*{"channel_id": channel}
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     asyncCheck doreq(s, "PATCH", endpointGuildMember(guild, userid), $payload, xh)
 
-proc setNickname*(s: Shard, guild, nick: string, reason: string = ""): Future[void] {.gcsafe, async.} =
+proc setNickname*(s: Shard, guild, nick: string, reason: string = "") {.gcsafe, async.} =
     ## Sets the nick for the current user
     let payload = %*{"nick": nick}
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     asyncCheck doreq(s, "PATCH", endpointEditNick(guild), $payload, xh)
 
-proc guildMemberAddRole*(s: Shard, guild, userid, roleid: string, reason: string = ""): Future[void] {.gcsafe, async.} =
+proc guildMemberAddRole*(s: Shard, guild, userid, roleid: string, reason: string = "") {.gcsafe, async.} =
     ## Adds a role to a guild member
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     asyncCheck doreq(s, "PUT", endpointGuildMemberRoles(guild, userid, roleid), xheaders = xh)
 
-proc guildMemberRemoveRole*(s: Shard, guild, userid, roleid: string, reason: string = ""): Future[void] {.gcsafe, async.} =
+proc guildMemberRemoveRole*(s: Shard, guild, userid, roleid: string, reason: string = "") {.gcsafe, async.} =
     ## Removes a role from a guild member
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     asyncCheck doreq(s, "DELETE", endpointGuildMemberRoles(guild, userid, roleid), xheaders = xh)
 
-proc guildRemoveMemberWithReason*(s: Shard, guild, userid, reason: string): Future[void] {.gcsafe, async.} =
+proc guildRemoveMemberWithReason*(s: Shard, guild, userid, reason: string) {.gcsafe, async.} =
     var url = endpointGuildMember(guild, userid)
     if reason != "": url &= "?reason=" & encodeUrl(reason)
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     asyncCheck doreq(s, "DELETE", url, xheaders = xh)
 
-proc guildRemoveMember*(s: Shard, guild, userid: string, reason: string = ""): Future[void] {.gcsafe, inline, async.} =
+proc guildRemoveMember*(s: Shard, guild, userid: string, reason: string = "") {.gcsafe, inline, async.} =
     ## Removes a guild membe from the guild
     asyncCheck s.guildRemoveMemberWithReason(guild, userid, "")
 
@@ -422,12 +397,12 @@ proc guildBans*(s: Shard, guild: string): Future[seq[User]] {.gcsafe, inline, as
     for i, n in node.elems:
         result[i] = newUser(n)
 
-proc guildUserBan*(s: Shard, guild, userid: string, reason: string = ""): Future[void] {.gcsafe, async.} =
+proc guildUserBan*(s: Shard, guild, userid: string, reason: string = "") {.gcsafe, async.} =
     ## Bans a user from the guild
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     asyncCheck doreq(s, "PUT", endpointGuildBan(guild, userid), xheaders = xh)
 
-proc guildRemoveBan*(s: Shard, guild, userid: string, reason: string = ""): Future[void] {.gcsafe, async.} =
+proc guildRemoveBan*(s: Shard, guild, userid: string, reason: string = "") {.gcsafe, async.} =
     ## Removes a ban from the guild
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     asyncCheck doreq(s, "DELETE", endpointGuildBan(guild, userid), xheaders = xh)
@@ -438,10 +413,6 @@ proc guildRoles*(s: Shard, guild: string): Future[seq[Role]] {.gcsafe, async.} =
     result = newSeq[Role](node.elems.len)
     for i, n in node.elems:
         result[i] = newRole(n)
-
-    if s.cache.cacheRoles:
-        for role in result:
-            s.cache.updateRole(role)
     
 proc guildRole*(s: Shard, guild, roleid: string): Future[Role] {.gcsafe, async.} =
     ## Returns a role with the given id.
@@ -476,7 +447,7 @@ proc guildEditRole*(
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     result = (await doreq(s, "PATCH", endpointGuildRole(guild, roleid), $payload, xh)).newRole
    
-proc guildDeleteRole*(s: Shard, guild, roleid: string, reason: string = ""): Future[void] {.gcsafe, async.} =
+proc guildDeleteRole*(s: Shard, guild, roleid: string, reason: string = "") {.gcsafe, async.} =
     ## Deletes a role
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     asyncCheck doreq(s, "DELETE", endpointGuildRole(guild, roleid), xheaders = xh)
@@ -485,7 +456,7 @@ proc guildPruneCount*(s: Shard, guild: string, days: int): Future[int] {.gcsafe,
     ## Returns the number of members who would get kicked
     ## during a prune operation
     var url = endpointGuildPruneCount(guild) & "?days=" & $days
-    result = (await doreq(s, "GET", url))["pruned"].num.int
+    result = (await doreq(s, "GET", url))["pruned"].getInt()
 
 proc guildPruneBegin*(s: Shard, guild: string, days: int, reason: string = ""): Future[int] {.gcsafe, async.} =
     ## Begins a prune operation and
@@ -493,7 +464,7 @@ proc guildPruneBegin*(s: Shard, guild: string, days: int, reason: string = ""): 
     ## for N days
     var url = endpointGuildPruneCount(guild) & "?days=" & $days
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
-    result = (await doreq(s, "POST", url, xheaders = xh))["pruned"].num.int
+    result = (await doreq(s, "POST", url, xheaders = xh))["pruned"].getInt()
 
 proc guildVoiceRegions*(s: Shard, guild: string): Future[seq[VoiceRegion]] {.gcsafe, inline, async.} =
     ## Lists all voice regions in a guild
@@ -516,21 +487,21 @@ proc guildIntegrations*(s: Shard, guild: string): Future[seq[Integration]] {.gcs
     for i, n in node.elems:
         result[i] = newIntegration(n)
 
-proc guildIntegrationCreate*(s: Shard, guild, typ, id: string): Future[void] {.gcsafe, async.} =
+proc guildIntegrationCreate*(s: Shard, guild, typ, id: string) {.gcsafe, async.} =
     ## Creates a new guild integration
     let payload = %*{"type": typ, "id": id}
     asyncCheck doreq(s, "POST", endpointGuildIntegrations(guild), $payload)
 
-proc guildIntegrationEdit*(s: Shard, guild, integrationid: string, behaviour, grace: int, emotes: bool): Future[void] {.gcsafe, async.} =
+proc guildIntegrationEdit*(s: Shard, guild, integrationid: string, behaviour, grace: int, emotes: bool) {.gcsafe, async.} =
     ## Edits a guild integration
     let payload = %*{"expire_behavior": behaviour, "expire_grace_period": grace, "enable_emoticons": emotes}
     asyncCheck doreq(s, "PATCH", endpointGuildIntegration(guild, integrationid), $payload)
 
-proc guildIntegrationDelete*(s: Shard, guild, integration: string): Future[void] {.gcsafe, inline, async.} =
+proc guildIntegrationDelete*(s: Shard, guild, integration: string) {.gcsafe, inline, async.} =
     ## Deletes a guild Integration
     asyncCheck doreq(s, "DELETE", endpointGuildIntegration(guild, integration))
 
-proc guildIntegrationSync*(s: Shard, guild, integration: string): Future[void] {.gcsafe, inline, async.} =
+proc guildIntegrationSync*(s: Shard, guild, integration: string) {.gcsafe, inline, async.} =
     ## Syncs an existing guild integration
     asyncCheck doreq(s, "POST", endpointSyncGuildIntegration(guild, integration))
 
@@ -540,8 +511,8 @@ proc guildEmbed*(s: Shard, guild: string): Future[GuildEmbed] {.gcsafe, inline, 
     
 proc guildEmbedEdit*(s: Shard, guild: string, enabled: bool, channel: string): Future[GuildEmbed] {.gcsafe, async.} =
     ## Edits a GuildEmbed
-    let embed = GuildEmbed(enabled: enabled, channel_id: channel)
-    result = (await doreq(s, "PATCH", endpointGuildEmbed(guild), $$embed)).newGuildEmbed
+    let embed = GuildEmbed(enabled: enabled, channel_id: some(channel))
+    result = (await doreq(s, "PATCH", endpointGuildEmbed(guild), $(%embed))).newGuildEmbed
 
 proc guildEmojiCreate*(s: Shard, guild, name, image: string, roles: seq[string] = @[]): Future[Emoji] {.gcsafe, async.} =
     let payload = %*{
@@ -559,13 +530,13 @@ proc guildEmojiUpdate*(s: Shard, guild, emoji, name: string, roles: seq[string] 
     }
     result = (await doreq(s, "PATCH", endpointGuildEmoji(guild, emoji), $payload)).newEmoji
 
-proc guildEmojiDelete*(s: Shard, guild, emoji: string): Future[void] {.gcsafe, async.} =
+proc guildEmojiDelete*(s: Shard, guild, emoji: string) {.gcsafe, async.} =
     asyncCheck doreq(s, "DELETE", endpointGuildEmoji(guild, emoji))
 
 proc guildAuditLog*(s: Shard, guild: string, 
                         user_id: string = "", action_type: int = -1, 
                         before: string = "", limit: int = 50): Future[AuditLog]
-                        {.gcsafe, base, async.} =
+                        {.gcsafe, async.} =
     
     var url = endpointGuildAuditLog(guild) & "?"
     if user_id != "": url &= "user_id=" & user_id & "&"
@@ -591,8 +562,6 @@ proc user*(s: Shard, userid: string): Future[User] {.gcsafe, async.} =
     ## Gets a user
     if userid == s.cache.me.id: return s.cache.me
     result = (await doreq(s, "GET", endpointUser(userid))).newUser
-    if s.cache.cacheUsers:
-        s.cache.updateUser(result)
         
 proc usernameEdit*(s: Shard, name: string): Future[User] {.gcsafe, inline, async.} =
     ## Edits the current users username
@@ -609,7 +578,7 @@ proc currentUserGuilds*(s: Shard): Future[seq[UserGuild]] {.gcsafe, inline, asyn
     for i, n in node.elems:
         result[i] = newUserGuild(n)
 
-proc leaveGuild*(s: Shard, guild: string): Future[void] {.gcsafe, inline, async.} =
+proc leaveGuild*(s: Shard, guild: string) {.gcsafe, inline, async.} =
     ## Makes the current user leave the specified guild
     asyncCheck doreq(s, "DELETE", endpointLeaveGuild(guild))
 
@@ -677,9 +646,9 @@ proc webhookDeleteWithToken*(s: Shard, webhook, token: string, reason: string = 
     let xh = if reason != "": newHttpHeaders({"X-Audit-Log-Reason": reason}) else: nil
     result = (await doreq(s, "DELETE", endpointWebhookWithToken(webhook, token), xheaders = xh)).newWebhook
 
-proc executeWebhook*(s: Shard, webhook, token: string, payload: WebhookParams): Future[void] {.gcsafe, inline, async.} =
+proc executeWebhook*(s: Shard, webhook, token: string, payload: WebhookParams) {.gcsafe, inline, async.} =
     ## Executes a webhook
-    asyncCheck doreq(s, "POST", endpointWebhookWithToken(webhook, token), $$payload)
+    asyncCheck doreq(s, "POST", endpointWebhookWithToken(webhook, token), $(%payload))
 
 proc `$`*(u: User): string {.gcsafe, inline.} =
     ## Stringifies a user.
@@ -691,13 +660,13 @@ proc `$`*(c: Channel): string {.gcsafe, inline.} =
     ## Stringifies a channel.
     ##
     ## e.g: #channel-name 
-    result = "#" & c.name
+    result = "#" & c.name.get("")
 
 proc `$`*(e: Emoji): string {.gcsafe, inline.} =
     ## Stringifies an emoji.
     ##
     ## e.g: :emojiName:129837192873
-    result = ":" & e.name & ":" & e.id 
+    result = ":" & e.name & ":" & e.id.get("")
 
 proc `@`*(u: User): string {.gcsafe, inline.} =
     ## Returns a message formatted user mention.
@@ -727,18 +696,13 @@ proc defaultAvatar*(u: User): string =
     ## Returns the avatar url of the user.
     ##
     ## If the user doesn't have an avatar it returns the users default avatar.
-    if u.avatar.isNilOrEmpty():
+    if get(u.avatar, "") == "":
         result = "https://cdn.discordapp.com/embed/avatars/$1.png" % [$(u.discriminator.parseInt mod 5)]
     else: 
-        if u.avatar.startsWith("a_"):
-            result = endpointAvatarAnimated(u.id.val, u.avatar)
+        if u.avatar.get("").startsWith("a_"):
+            result = endpointAvatarAnimated(u.id, get(u.avatar, ""))
         else:
-            result = endpointAvatar(u.id.val, u.avatar)
-
-proc timestamp*(i: int64): DateTime  =
-    ## Takes an ID and converts it into a timestamp
-    let it = ((i shr 22) + DISCORD_EPOCH) div 1000
-    result = it.fromUnix.utc
+            result = endpointAvatar(u.id, get(u.avatar, ""))
 
 proc stripMentions*(msg: Message): string {.gcsafe.} =  
     ## Strips all user mentions from a message
@@ -807,7 +771,7 @@ proc newGuildMemberParams*(nick, channelid: string = "",
     )
 
 proc newWebhookParams*(content, username, avatarurl: string = "", 
-                       tts: bool = false, embeds: seq[Embed] = nil): WebhookParams {.gcsafe, inline.} =
+                       tts: bool = false, embeds: seq[Embed]): WebhookParams {.gcsafe, inline.} =
     ## Initialises a new WebhookParams object
     ## for altering webhooks.
     result = WebhookParams( 
