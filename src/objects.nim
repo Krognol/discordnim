@@ -311,8 +311,8 @@ type
         `type`*: int
     User* = object
         id*: string
-        username*: string
-        discriminator*: string
+        username*: Option[string]
+        discriminator*: Option[string]
         avatar*: Option[string]
         bot*: Option[bool]
         mfa_enabled*: Option[bool]
@@ -476,7 +476,7 @@ type
         user*: User
         nick: string
         roles*: seq[string]
-        game*: Game
+        game*: Option[Game]
         guild_id*: string
         status*: string
     TypingStart* = object
@@ -602,7 +602,6 @@ type
         limiter*: RateLimits
         connection*: AsyncWebSocket
         voiceConnections: Table[string, VoiceConnection] # voice connection tied to guild
-        globalRL*: RateLimits
         handlers*: Table[EventType, seq[pointer]]
         shardCount*: int
     
