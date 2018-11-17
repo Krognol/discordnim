@@ -1,4 +1,3 @@
-# Channel endpoints
 {.hint[XDeclaredButNotUsed]: off.}
 const
     BASE = "https://discordapp.com/api/v7"
@@ -10,8 +9,8 @@ const
     CDN_SPLASHES = CDN_BASE & "/splashes/"
     CDN_CHANNEL_ICONS = CDN_BASE & "/channel-icons"
     
-    GATEWAYVERSION = "?v=7&encoding=json"
-    VERSION* = "2.1.0"
+    GATEWAYVERSION* = "?v=7&encoding=json"
+    VERSION* = "2.3.0"
 
 proc gateway*(): string {.inline.} = BASE & "/gateway/bot"
 
@@ -27,7 +26,7 @@ proc endpointGuildIcon*(gid, hash: string): string {.inline.} = CDN_ICONS & gid 
 
 proc endpointGuildSplash*(gid, hash: string): string {.inline.} = CDN_SPLASHES & gid & "/" & hash & ".png"
 
-proc endpointGroupIcon*(cid, hash: string): string{.inline.} = CDN_CHANNEL_ICONS & cid & "/" & hash & ".png"
+proc endpointGroupIcon*(cid, hash: string): string {.inline.} = CDN_CHANNEL_ICONS & cid & "/" & hash & ".png"
 
 # Channel endpoints
 
