@@ -57,3 +57,7 @@ When compression is enabled you need a `zlib1.dll` present. Somewhere. I don't k
 3. Commit your changes (git commit -am 'Add some feature')
 4. Push to the branch (git push origin my-new-feature)
 5. Create a new Pull Request
+
+My Discord server if you need me for something or have any questions.
+
+[![](https://discordapp.com/api/v7/guilds/144959126953263104/widget.png?style=shield)](https://discord.gg/zjrEWeK)
