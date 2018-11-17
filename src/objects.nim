@@ -1,8 +1,6 @@
-import json, tables, websocket/shared, 
-    times, httpclient, strutils,
-    asyncdispatch, macros, options
-{.hint[XDeclaredButNotUsed]: off.}
- 
+#import tables, times, asyncdispatch, httpclient, strutils, options, websocket, macros, json
+import options, tables, times, asyncdispatch, httpclient, json, strutils, websocket
+{.hint[XDeclaredButNotUsed]: off.} 
 type 
     RateLimit = ref object
         reset: int64
@@ -12,7 +10,7 @@ type
         global: RateLimit
         endpoints: Table[string, RateLimit]
 
-proc preCheck(r: RateLimit) {.async, gcsafe.} =
+proc preCheck*(r: RateLimit) {.async, gcsafe.} =
     if r.limit == 0: return
     
     let diff = r.reset - getTime().utc.toTime.toUnix
@@ -28,7 +26,7 @@ proc preCheck(r: RateLimit) {.async, gcsafe.} =
     
     r.remaining.dec
 
-proc postCheck(r: RateLimit, url: string, response: AsyncResponse): Future[bool] {.async, gcsafe.} =
+proc postCheck*(r: RateLimit, url: string, response: AsyncResponse): Future[bool] {.async, gcsafe.} =
     if response.headers.hasKey("X-RateLimit-Reset"): r.reset = response.headers["X-RateLimit-Reset"].parseInt
     if response.headers.hasKey("X-RateLimit-Limit"): r.limit = response.headers["X-RateLimit-Limit"].parseInt
     if response.headers.hasKey("X-RateLimit-Remaining"): r.remaining = response.headers["X-RateLimit-Remaining"].parseInt
@@ -40,21 +38,21 @@ proc postCheck(r: RateLimit, url: string, response: AsyncResponse): Future[bool]
         await sleepAsync delay+100
         result = true
 
-proc postCheck(r: RateLimits, url: string, response: AsyncResponse): Future[bool] {.async, gcsafe.} =
+proc postCheck*(r: RateLimits, url: string, response: AsyncResponse): Future[bool] {.async, gcsafe.} =
     if response.headers.hasKey("X-RateLimit-Global"):
         result = await r.global.postCheck(url, response)
     else:
         let rl = if r.endpoints.hasKey(url): r.endpoints[url] else: new(RateLimit)
         result = await rl.postCheck(url, response)
 
-proc preCheck(r: RateLimits, url: string) {.async, gcsafe.} =
+proc preCheck*(r: RateLimits, url: string) {.async, gcsafe.} =
     await r.global.preCheck()
 
     if r.endpoints.hasKey(url):
         let rl = r.endpoints[url]
         await rl.preCheck()
 
-proc newRateLimiter(): RateLimits {.inline.} =
+proc newRateLimiter*(): RateLimits {.inline.} =
     result = RateLimits(
         global: new(RateLimit),
         endpoints: initTable[string, RateLimit]()
@@ -95,14 +93,14 @@ type
         allow*: int
         deny*: int
     ChannelType* = enum
-        CTGuildText
-        CTDM
-        CTGuildVoice
-        CTGroupDM
-        CTGuildCategory
+        CTGuildText = 0
+        CTDM = 1
+        CTGuildVoice = 2
+        CTGroupDM = 3
+        CTGuildCategory = 4
     Channel* = object
         id*: string
-        `type`*: ChannelType
+        `type`*: int
         guild_id*: Option[string]
         position*: Option[int]
         permission_overwrites*: Option[seq[Overwrite]]
@@ -161,7 +159,7 @@ type
         nonce*: Option[string]
         pinned*: bool
         webhook_id*: Option[string]
-        `type`*: MessageType
+        `type`*: int
         activity*: Option[MessageActivity]
         application*: Option[MessageApplication]
     Reaction* = object
@@ -229,30 +227,30 @@ type
         height*: Option[int]
         width*: Option[int]
     Presence* = object
-        since*: int
-        afk*: bool
-        game*: Game
-        status*: string
+        since*: Option[int]
+        afk*: Option[bool]
+        game*: Option[Game]
+        status*: Option[string]
     Guild* = object
         id*: string
-        name*: string
+        name*: Option[string]
         icon*: Option[string]
         splash*: Option[string]
         owner*: Option[bool]
-        owner_id*: string
+        owner_id*: Option[string]
         permissions*: Option[int]
-        region*: string
+        region*: Option[string]
         afk_channel_id*: Option[string]
-        afk_timeout*: int
+        afk_timeout*: Option[int]
         embed_enabled*: Option[bool]
         embed_channel_id*: Option[string]
-        verification_level*: int
-        default_message_notifications*: int
-        explicit_content_filter*: int
-        roles*: seq[Role]
-        emojis*: seq[Emoji]
-        features*: seq[string]
-        mfa_level*: int
+        verification_level*: Option[int]
+        default_message_notifications*: Option[int]
+        explicit_content_filter*: Option[int]
+        roles*: Option[seq[Role]]
+        emojis*: Option[seq[Emoji]]
+        features*: Option[seq[string]]
+        mfa_level*: Option[int]
         application_id*: Option[string]
         widget_enabled*: Option[bool]
         widget_channel_id*: Option[string]
@@ -266,8 +264,8 @@ type
         channels*: Option[seq[Channel]]
         presences*: Option[seq[Presence]]
     GuildMember* = object
-        guild_id*: string
-        user*: User
+        guild_id*: Option[string]
+        user*: Option[User]
         nick*: Option[string]
         roles*: seq[string]
         joined_at*: string
@@ -472,7 +470,7 @@ type
     Game* = object
         name*: string
         `type`*: int
-        url*: string
+        url*: Option[string]
         # session_id: string # Should appear at some point in the payload
     PresenceUpdate* = object
         user*: User
@@ -502,19 +500,19 @@ type
         cacheGuildMembers*: bool
         cacheUsers*: bool
         cacheRoles*: bool
-        channels: Table[string, Channel]
-        guilds: Table[string, Guild]
-        users: Table[string, User]
-        members: Table[string, GuildMember]
-        roles: Table[string, Role]
-        ready: Ready
+        channels*: Table[string, Channel]
+        guilds*: Table[string, Guild]
+        users*: Table[string, User]
+        members*: Table[string, GuildMember]
+        roles*: Table[string, Role]
+        ready*: Ready
     Ready* = object
         v*: int
         user*: User
         private_channels*: seq[Channel]
         session_id*: string
         guilds*: seq[Guild]
-        trace*: seq[string]
+        trace*: Option[seq[string]]
     Pin* = object
         last_pin_timestamp*: string
         channel_id*: string
@@ -589,23 +587,23 @@ type
         on_disconnect
     Shard* = ref ShardImpl
     ShardImpl = object
-        shouldResume: bool
-        suspended: bool
-        invalidated: bool
-        stop: bool
+        shouldResume*: bool
+        suspended*: bool
+        invalidated*: bool
+        stop*: bool
         compress*: bool
-        sequence: int
-        interval: int
+        sequence*: int
+        interval*: int
         shardID*: int 
         token*: string
         gateway*: string
-        session_id: string
+        session_id*: string
         cache*: Cache
-        limiter: RateLimits
+        limiter*: RateLimits
         connection*: AsyncWebSocket
         voiceConnections: Table[string, VoiceConnection] # voice connection tied to guild
-        globalRL: RateLimits
-        handlers: Table[EventType, seq[pointer]]
+        globalRL*: RateLimits
+        handlers*: Table[EventType, seq[pointer]]
         shardCount*: int
     
 const DISCORD_EPOCH = int64(1420070400000)
@@ -631,87 +629,104 @@ proc addHandler*(d: Shard, t: EventType, p: pointer): (proc()) {.gcsafe, inline.
 
 proc `%`*[T](o: Option[T]): JsonNode = 
     new(result)
-    result = if o.isSome(): %(o.get()) else: newJNull()
+    let default = when T is SomeInteger:
+        0
+    elif T is bool:
+        false
+    elif T is string:
+        ""
+    else:
+        new(T)[]
+    result = %(o.get(default))
 
 {.hint[Pattern]: off.}
-macro genCtor(t: untyped): untyped =
-    let id = ident("new" & $t)
-    result = quote do:
-        proc `id`*(node: JsonNode): `t` {.inline.} = node.to(`t`)
+when defined(generateCtors):
+    import macros
+    macro genCtor(t: untyped): untyped =
+        let 
+            id = ident("new" & $t)
+            res = ident("result")
+        result = quote do:
+            proc `id`*(node: JsonNode): `t` {.inline.} = 
+                `res` = node.to(`t`)
+        
+        echo result.repr
 
-genCtor(User)
-genCtor(Overwrite)
-genCtor(Channel)
-genCtor(EmbedFooter)
-genCtor(EmbedImage)
-genCtor(EmbedThumbnail)
-genCtor(EmbedVideo)
-genCtor(EmbedProvider)
-genCtor(EmbedAuthor)
-genCtor(EmbedField)
-genCtor(Embed)
-genCtor(Attachment)
-genCtor(MessageActivity)
-genCtor(MessageApplication)
-genCtor(Emoji)
-genCtor(Reaction)
-genCtor(Message)
-genCtor(Game)
-genCtor(Presence)
-genCtor(Role)
-genCtor(GuildMember)
-genCtor(VoiceState)
-genCtor(VoiceRegion)
-genCtor(Guild)
-genCtor(IntegrationAccount)
-genCtor(InviteGuild)
-genCtor(InviteChannel)
-genCtor(Invite)
-genCtor(InviteMetadata)
-genCtor(UserGuild)
-genCtor(Integration)
-genCtor(Connection)
-genCtor(Webhook)
-genCtor(ChannelParams)
-genCtor(GuildParams)
-genCtor(GuildMemberParams)
-genCtor(GuildEmbed)
-genCtor(WebhookParams)
-genCtor(GuildEmojisUpdate)
-genCtor(GuildIntegrationsUpdate)
-genCtor(GuildRoleCreate)
-genCtor(GuildRoleUpdate)
-genCtor(GuildRoleDelete)
-genCtor(AuditLogOptions)
-genCtor(MessageDeleteBulk)
-genCtor(PresenceUpdate)
-genCtor(TypingStart)
-genCtor(VoiceServerUpdate)
-genCtor(Resumed)
-genCtor(MessageCreate)
-genCtor(MessageUpdate)
-genCtor(MessageDelete)
-genCtor(GuildMemberAdd)
-genCtor(GuildMemberUpdate)
-genCtor(GuildMemberRemove)
-genCtor(GuildMembersChunk)
-genCtor(GuildCreate)
-genCtor(GuildUpdate)
-genCtor(GuildDelete)
-genCtor(GuildBanAdd)
-genCtor(GuildBanRemove)
-genCtor(ChannelCreate)
-genCtor(ChannelUpdate)
-genCtor(ChannelDelete)
-genCtor(Pin)
-genCtor(ChannelPinsUpdate)
-genCtor(UserUpdate)
-genCtor(VoiceStateUpdate)
-genCtor(MessageReactionRemove)
-genCtor(WebhooksUpdate)
-genCtor(MessageReactionAdd)
-genCtor(MessageReactionRemoveAll)
-genCtor(Ready)
+    genCtor(User)
+    genCtor(Overwrite)
+    genCtor(Channel)
+    genCtor(EmbedFooter)
+    genCtor(EmbedImage)
+    genCtor(EmbedThumbnail)
+    genCtor(EmbedVideo)
+    genCtor(EmbedProvider)
+    genCtor(EmbedAuthor)
+    genCtor(EmbedField)
+    genCtor(Embed)
+    genCtor(Attachment)
+    genCtor(MessageActivity)
+    genCtor(MessageApplication)
+    genCtor(Emoji)
+    genCtor(Reaction)
+    genCtor(Message)
+    genCtor(Game)
+    genCtor(Presence)
+    genCtor(Role)
+    genCtor(GuildMember)
+    genCtor(VoiceState)
+    genCtor(VoiceRegion)
+    genCtor(Guild)
+    genCtor(IntegrationAccount)
+    genCtor(InviteGuild)
+    genCtor(InviteChannel)
+    genCtor(Invite)
+    genCtor(InviteMetadata)
+    genCtor(UserGuild)
+    genCtor(Integration)
+    genCtor(Connection)
+    genCtor(Webhook)
+    genCtor(ChannelParams)
+    genCtor(GuildParams)
+    genCtor(GuildMemberParams)
+    genCtor(GuildEmbed)
+    genCtor(WebhookParams)
+    genCtor(GuildEmojisUpdate)
+    genCtor(GuildIntegrationsUpdate)
+    genCtor(GuildRoleCreate)
+    genCtor(GuildRoleUpdate)
+    genCtor(GuildRoleDelete)
+    genCtor(AuditLogOptions)
+    genCtor(MessageDeleteBulk)
+    genCtor(PresenceUpdate)
+    genCtor(TypingStart)
+    genCtor(VoiceServerUpdate)
+    genCtor(Resumed)
+    genCtor(MessageCreate)
+    genCtor(MessageUpdate)
+    genCtor(MessageDelete)
+    genCtor(GuildMemberAdd)
+    genCtor(GuildMemberUpdate)
+    genCtor(GuildMemberRemove)
+    genCtor(GuildMembersChunk)
+    genCtor(GuildCreate)
+    genCtor(GuildUpdate)
+    genCtor(GuildDelete)
+    genCtor(GuildBanAdd)
+    genCtor(GuildBanRemove)
+    genCtor(ChannelCreate)
+    genCtor(ChannelUpdate)
+    genCtor(ChannelDelete)
+    genCtor(Pin)
+    genCtor(ChannelPinsUpdate)
+    genCtor(UserUpdate)
+    genCtor(VoiceStateUpdate)
+    genCtor(MessageReactionRemove)
+    genCtor(WebhooksUpdate)
+    genCtor(MessageReactionAdd)
+    genCtor(MessageReactionRemoveAll)
+    genCtor(Ready)
+    
+include ctors
 
 proc newAuditLogChangeValue(s: string): AuditLogChangeValue =
     new(result)
@@ -800,8 +815,30 @@ proc newAuditLogChange(change: JsonNode): AuditLogChange =
                 result.old_value = newAuditLogChangeValue(change["old_value"].num)
             else: discard
 
-genCtor(AuditLogEntry)
-genCtor(AuditLog)
+proc newAuditLogEntry*(node: JsonNode): AuditLogEntry {.inline.} =
+    result = AuditLogEntry(
+        target_id: node["target_id"].str,
+        changes: newSeq[AuditLogChange](node["changes"].elems.len),
+        user_id: node["user_id"].str,
+        id: node["id"].str,
+        action_type: node["action_type"].getInt(),
+        options: node["options"].to(AuditLogOptions),
+        reason: node["reason"].str,
+    )
+
+    for i, n in node["changes"].elems:
+        result.changes[i] = newAuditLogChange(n)
+
+proc newAuditLog*(node: JsonNode): AuditLog {.inline.} =
+    result = AuditLog(
+        webhooks: node["webhooks"].to(seq[Webhook]),
+        users: node["users"].to(seq[User]),
+        audit_log_entries: newSeq[AuditLogEntry](node["audit_log_entries"].elems.len)
+    )
+
+    for i, n in node["audit_log_entires"].elems:
+        result.audit_log_entries[i] = newAuditLogEntry(n)
+
 
 proc join(g1: var Guild, g2: Guild) =
     ## Joins g1(regular guild) and g2(Ready event guild)
@@ -898,7 +935,7 @@ proc getGuildMember*(c: Cache, guild, memberid: string): tuple[member: GuildMemb
         return
     
     for member in guild.members.get: 
-        if member.user.id == memberid:
+        if member.user.get().id == memberid:
             result = (member, true)
             break
 
@@ -906,18 +943,18 @@ proc addGuildMember*(c: Cache, member: GuildMember) {.inline, gcsafe.} =
     ## Adds a guild member to the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
 
-    c.members.add(member.user.id, member)
+    c.members.add(member.user.get().id, member)
 
 proc updateGuildMember*(c: Cache, m: GuildMember) {.inline, gcsafe.} =
     ## Updates a guild member in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
 
-    c.members[m.user.id] = m
+    c.members[m.user.get().id] = m
 
 proc removeGuildMember*(c: Cache, gmember: GuildMember) {.inline, gcsafe.} =
     ## Removes a guild member from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
-    c.members.del(gmember.user.id)
+    c.members.del(gmember.user.get().id)
 
 proc getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bool] {.gcsafe.} =
     ## Gets a role from the cache
@@ -929,7 +966,7 @@ proc getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bool
     if not exists:
         return
     
-    for role in guild.roles:
+    for role in guild.roles.get():
         if role.id == roleid:
             result = (role, true)
             return
