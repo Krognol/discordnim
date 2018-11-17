@@ -15,7 +15,6 @@ proc request(s: Shard,
     await s.limiter.preCheck(id)
 
     let client = newAsyncHttpClient("DiscordBot (https://github.com/Krognol/discordnim, v" & VERSION & ")")
-    await s.globalRL.preCheck(id)
 
     client.headers["Authorization"] = s.token
     client.headers["Content-Type"] = contenttype 
@@ -27,10 +26,7 @@ proc request(s: Shard,
             result = await client.post(url, b, mp)
     client.close()
 
-    if (await s.globalRL.postCheck(url, result)) and sequence < 5:
-        result = await s.request(id, meth, url, contenttype, b, sequence+1)
-
-    if (await s.limiter.postCheck(url, result)):
+    if (await s.limiter.postCheck(url, result)) and sequence < 5:
         echo "You got ratelimited"
         result = await s.request(id, meth, url, contenttype, b, sequence+1)
 
@@ -654,7 +650,7 @@ proc `$`*(u: User): string {.gcsafe, inline.} =
     ## Stringifies a user.
     ##
     ## e.g: Username#1234
-    result = u.username & "#" & u.discriminator
+    result = u.username.get() & "#" & u.discriminator.get()
 
 proc `$`*(c: Channel): string {.gcsafe, inline.} =
     ## Stringifies a channel.
@@ -697,7 +693,7 @@ proc defaultAvatar*(u: User): string =
     ##
     ## If the user doesn't have an avatar it returns the users default avatar.
     if get(u.avatar, "") == "":
-        result = "https://cdn.discordapp.com/embed/avatars/$1.png" % [$(u.discriminator.parseInt mod 5)]
+        result = "https://cdn.discordapp.com/embed/avatars/$1.png" % [$(u.discriminator.get().parseInt mod 5)]
     else: 
         if u.avatar.get("").startsWith("a_"):
             result = endpointAvatarAnimated(u.id, get(u.avatar, ""))
