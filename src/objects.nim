@@ -480,7 +480,7 @@ type
         guild_id*: string
         status*: string
     TypingStart* = object
-        guild_id*: string
+        guild_id*: Option[string]
         channel_id*: string
         user_id*: string
         timestamp*: int
@@ -489,7 +489,6 @@ type
         guild_id: string
         endpoint: string
     VoiceConnection* = object
-        
     Resumed* = object
         trace*: seq[string]
     Cache* = ref object
@@ -497,7 +496,7 @@ type
         me*: User
         cacheChannels*: bool
         cacheGuilds*: bool
-        cacheGuildMembers*: bool
+        cacheMembers*: bool
         cacheUsers*: bool
         cacheRoles*: bool
         channels*: Table[string, Channel]
