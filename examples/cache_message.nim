@@ -18,7 +18,7 @@ let messageDeleteProc = proc(s: Shard, m: MessageDelete) =
         cachedMessages.del($m.id)
 
 
-let shard = newShard("Bot <your bot token>")
+let shard = newShard("<your bot token>")
 
 proc endSession() {.noconv.} =
     waitFor shard.disconnect()

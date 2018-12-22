@@ -26,7 +26,7 @@ discard client.addHandler(EventType.message_update, messageUpdate)
 
 if client.shardCount > 2:
     for i in 0..client.shardCount-1:
-        let s = newShard("Bot <Token>")
+        let s = newShard("<Token>")
         discard s.addHandler(EventType.message_create, messageCreate)
         discard s.addHandler(EventType.message_update, messageUpdate)
         s.shardID = i

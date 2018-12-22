@@ -30,7 +30,7 @@ proc messageCreateProc(s: Shard, m: MessageCreate) =
         asyncCheck s.channelmessageSend(m.channel_id, $roles)
         # Sends "@[(id: 299604263133380629, name: Foo, color: 2067276, hoist: false, position: 1, permissions: 2146958463, managed: false, mentionable: true)]"
 
-let shard = newShard("Bot <Token>")
+let shard = newShard("<Token>")
 discard shard.addHandler(message_create, messageCreateProc)
 
 proc endSession() {.noconv.} =
