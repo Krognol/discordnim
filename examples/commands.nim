@@ -16,7 +16,7 @@ proc messageCreate(s: Shard, m: MessageCreate) =
                 asyncCheck s.channelMessageSend(m.channel_id, $utc(getTime()))
             else: discard
 
-let shard = newShard("Bot <token>")
+let shard = newShard("<token>")
 
 proc endSession() {.noconv.} =
     waitFor shard.disconnect()

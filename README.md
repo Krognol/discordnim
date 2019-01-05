@@ -34,7 +34,7 @@ proc someMessageCreateProc(s: Shard, m: MessageCreate) =
     if m.content == "ping":
         asyncCheck s.channelMessageSend(m.channel_id, "pong!")
 
-let client = newShard("Bot <your token>")
+let shard = newShard("Bot <your token>")
 
 ## Add your gateway event methods
 discard shard.addHandler(EventType.message_create, someMessageCreateProc)

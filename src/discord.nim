@@ -127,11 +127,11 @@ proc updateStatus*(s: Shard, idle: int = 0, game: string = "") {.gcsafe, async, 
     ## Updates the ``Playing ...`` status
     asyncCheck s.updateStreamingStatus(idle, game, "")
 
-proc newShard*(token: string): Shard {.gcsafe.} =
+proc newShard*(token: string; kind: string = "Bot"): Shard {.gcsafe.} =
     if token == "": raise newException(Exception, "No token") 
 
     result = Shard(
-        token: token,
+        token: kind & " " & token,
         globalRL: newRateLimiter(),
         handlers: initTable[EventType, seq[pointer]](),
         compress: false, 

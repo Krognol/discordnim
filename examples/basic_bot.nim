@@ -7,8 +7,8 @@ proc messageCreate(s: Shard, m: MessageCreate) =
     if s.cache.me.id == m.author.id: return
     if m.content == "ping":
         asyncCheck s.channelMessageSend(m.channel_id, "pong")
-        
-let d = newShard("Bot <Token>")
+
+let d = newShard("<Token>")
 
 proc endSession() {.noconv.} =
     waitFor d.disconnect()

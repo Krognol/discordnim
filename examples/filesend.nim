@@ -12,7 +12,7 @@ proc messageCreate(s: Shard, m: MessageCreate) =
         let f = readFile("somefile.png")
         asyncCheck s.channelFileSendWithMessage(m.channel_id, "somefile.png", f, "here's a file but with a message")
 
-let shard = newShard("Bot <token>")
+let shard = newShard("<token>")
 
 proc endSession() {.noconv.} =
     waitFor shard.disconnect()

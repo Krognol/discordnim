@@ -25,7 +25,7 @@ proc messageCreate(s: Shard, m: MessageCreate) =
         asyncCheck s.channelmessageSendEmbed(m.channel_id, embed)
 
 
-let shard = newShard("Bot <your bot token>")
+let shard = newShard("<your bot token>")
 
 proc endSession() {.noconv.} =
     waitFor shard.disconnect()
