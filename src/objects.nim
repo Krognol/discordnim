@@ -1,7 +1,8 @@
 #import tables, times, asyncdispatch, httpclient, strutils, options, websocket, macros, json
-import options, tables, times, asyncdispatch, httpclient, json, strutils, websocket
-{.hint[XDeclaredButNotUsed]: off.} 
-type 
+import options, tables, times, asyncdispatch, httpclient, strutils, websocket, json
+
+{.hint[XDeclaredButNotUsed]: off.}
+type
     RateLimit = ref object
         reset: int64
         limit: int64
@@ -12,18 +13,18 @@ type
 
 proc preCheck*(r: RateLimit) {.async, gcsafe.} =
     if r.limit == 0: return
-    
+
     let diff = r.reset - getTime().utc.toTime.toUnix
     if diff < 0:
         r.reset += 3
         r.remaining = r.limit
         return
-    
+
     if r.remaining <= 0:
         let delay = diff * 1000+900
         await sleepAsync delay.int
         return
-    
+
     r.remaining.dec
 
 proc postCheck*(r: RateLimit, url: string, response: AsyncResponse): Future[bool] {.async, gcsafe.} =
@@ -57,7 +58,7 @@ proc newRateLimiter*(): RateLimits {.inline.} =
         global: new(RateLimit),
         endpoints: initTable[string, RateLimit]()
     )
-    
+
 const
     auditGuildUpdate* = 1
     auditChannelCreate* = 10
@@ -86,7 +87,7 @@ const
     auditEmojiDelete* = 62
     auditMessageDelete* = 72
 
-type 
+type
     Overwrite* = object
         id*: string
         `type`*: string
@@ -449,7 +450,7 @@ type
             nil
     AuditLogChange* = object
         new_value*: AuditLogChangeValue
-        old_value*: AuditLogChangeValue 
+        old_value*: AuditLogChangeValue
         key*: string
     AuditLogEntry* = object
         target_id*: string
@@ -489,7 +490,7 @@ type
         guild_id: string
         endpoint: string
     VoiceConnection* = object
-        
+
     Resumed* = object
         trace*: seq[string]
     Cache* = ref object
@@ -594,7 +595,7 @@ type
         compress*: bool
         sequence*: int
         interval*: int
-        shardID*: int 
+        shardID*: int
         token*: string
         gateway*: string
         session_id*: string
@@ -605,7 +606,7 @@ type
         globalRL*: RateLimits
         handlers*: Table[EventType, seq[pointer]]
         shardCount*: int
-    
+
 const DISCORD_EPOCH = int64(1420070400000)
 
 proc timestamp*(s: string): DateTime =
@@ -613,43 +614,43 @@ proc timestamp*(s: string): DateTime =
     var i = (s.parseBiggestInt.int64)
     i = ((i shr 22) + DISCORD_EPOCH) div 1000
     i.fromUnix.utc
- 
+
 proc addHandler*(d: Shard, t: EventType, p: pointer): (proc()) {.gcsafe, inline.} =
     ## Adds a handler tied to a websocket event.
     ##
     ## Returns a proc that removes the event handler.
-    if not d.handlers.hasKey(t): 
+    if not d.handlers.hasKey(t):
         d.handlers.add(t, newSeq[pointer]())
 
     d.handlers[t].add(p)
     let i = d.handlers[t].high
 
     result = proc()=
-        d.handlers[t].del(i) 
+        d.handlers[t].del(i)
 
-proc `%`*[T](o: Option[T]): JsonNode = 
-    new(result)
-    let default = when T is SomeInteger:
-        0
-    elif T is bool:
-        false
-    elif T is string:
-        ""
-    else:
-        new(T)[]
-    result = %(o.get(default))
+# proc `%`*[T](o: Option[T]): JsonNode =
+#     new(result)
+#     let default = when T is SomeInteger:
+#         0
+#     elif T is bool:
+#         false
+#     elif T is string:
+#         ""
+#     else:
+#         new(T)[]
+#     result = %(o.get(default))
 
 {.hint[Pattern]: off.}
 when defined(generateCtors):
     import macros
     macro genCtor(t: untyped): untyped =
-        let 
+        let
             id = ident("new" & $t)
             res = ident("result")
         result = quote do:
-            proc `id`*(node: JsonNode): `t` {.inline.} = 
+            func `id`*(node: JsonNode): `t` {.inline.} =
                 `res` = node.to(`t`)
-        
+
         echo result.repr
 
     genCtor(User)
@@ -725,7 +726,7 @@ when defined(generateCtors):
     genCtor(MessageReactionAdd)
     genCtor(MessageReactionRemoveAll)
     genCtor(Ready)
-    
+
 include ctors
 
 proc newAuditLogChangeValue(s: string): AuditLogChangeValue =
@@ -759,7 +760,7 @@ proc newAuditLogChange(change: JsonNode): AuditLogChange =
         "owner_id", "region", "afk_channel_id",
         "vanity_url_code", "topic", "application_id",
         "code", "nick", "avatar_hash", "id":
-            if change.hasKey("new_value"): 
+            if change.hasKey("new_value"):
                 result.new_value = newAuditLogChangeValue(change["new_value"].str)
             if change.hasKey("old_value"):
                 result.old_value = newAuditLogChangeValue(change["old_value"].str)
@@ -810,7 +811,7 @@ proc newAuditLogChange(change: JsonNode): AuditLogChange =
         if change.hasKey("old_value"):
             case change["old_value"].kind:
             of JString:
-                result.old_value = newAuditLogChangeValue(change["old_value"].str) 
+                result.old_value = newAuditLogChangeValue(change["old_value"].str)
             of JInt:
                 result.old_value = newAuditLogChangeValue(change["old_value"].num)
             else: discard
@@ -859,7 +860,7 @@ proc getGuild*(c: Cache, id: string): tuple[guild: Guild, exists: bool] {.gcsafe
     ## Gets a guild from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
     result = (Guild(), false)
-    
+
     if c.guilds.hasKey(id):
         result.guild = c.guilds[id]
         for g in c.ready.guilds:
@@ -873,20 +874,20 @@ proc removeGuild*(c: Cache, guildid: string) {.raises: CacheError, gcsafe.}  =
     if c == nil: raise newException(CacheError, "The cache is nil")
 
     if not c.guilds.hasKey(guildid): return
-    
+
     c.guilds.del(guildid)
 
 proc updateGuild*(c: Cache, guild: Guild) {.raises: CacheError, inline, gcsafe.} =
     ## Updates a guild in the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
-    
+
     c.guilds[guild.id] = guild
 
 proc getUser*(c: Cache, id: string): tuple[user: User, exists: bool] {.gcsafe.}  =
     ## Gets a user from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
     result = (User(), false)
-    
+
     if c.users.hasKey(id):
        result = (c.users[id], true)
 
@@ -927,14 +928,14 @@ proc removeChannel*(c: Cache, chan: string) {.raises: CacheError, inline, gcsafe
 proc getGuildMember*(c: Cache, guild, memberid: string): tuple[member: GuildMember, exists: bool] {.gcsafe.} =
     ## Gets a guild member from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
-    
+
     result = (GuildMember(), false)
     var (guild, exists) = c.getGuild(guild)
 
     if not exists:
         return
-    
-    for member in guild.members.get: 
+
+    for member in guild.members.get:
         if member.user.get().id == memberid:
             result = (member, true)
             break
@@ -959,13 +960,13 @@ proc removeGuildMember*(c: Cache, gmember: GuildMember) {.inline, gcsafe.} =
 proc getRole*(c: Cache, guildid, roleid: string): tuple[role: Role, exists: bool] {.gcsafe.} =
     ## Gets a role from the cache
     if c == nil: raise newException(CacheError, "The cache is nil")
-    
+
     result = (Role(), false)
     var (guild, exists) = c.getGuild(guildid)
 
     if not exists:
         return
-    
+
     for role in guild.roles.get():
         if role.id == roleid:
             result = (role, true)
