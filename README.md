@@ -1,20 +1,20 @@
 # Discordnim
 
-A Discord library for Nim. 
+A Discord library for Nim.
 
 Websockets from [niv/websocket.nim](https://github.com/niv/websocket.nim)
 
 # Installing
 
-This assumes that you have your Nim environment (including [Nimble](https://github.com/nim-lang/nimble)) already set up, and that your Nim version is `0.19.4` or greater.
+This assumes that you have your Nim environment (including [Nimble](https://github.com/nim-lang/nimble)) already set up, and that your Nim version is `1.0.4` or greater.
 You can check your version with `nim --version`
 
 ```
 nim -v
-Nim Compiler Version 0.19.4 [Windows: amd64]
-Copyright (c) 2006-2018 by Andreas Rumpf
+Nim Compiler Version 1.1.1 [Linux: amd64]
+Compiled at 2020-01-08
+Copyright (c) 2006-2019 by Andreas Rumpf
 
-git hash: 5ee9e86c87d831d32441db658046fc989a197ac9
 active boot switches: -d:release
 ```
 
@@ -36,7 +36,7 @@ when isMainModule:
         if m.content == "ping":
             asyncCheck s.channelMessageSend(m.channel_id, "pong")
 
-    let d = newShard("Bot " & getEnv("token")) // get token in environment variables 
+    let d = newShard("Bot " & getEnv("token")) // get token in environment variables
 
     proc endSession() {.noconv.} =
         waitFor d.disconnect()
@@ -50,7 +50,7 @@ when isMainModule:
 
 All programs have to be compiled with the `-d:ssl` flag.
 
-Example : 
+Example :
 
 ```
 nimble build -d:ssl
