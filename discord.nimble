@@ -7,4 +7,4 @@ license       = "MIT"
 
 # Dependencies
 
-requires "nim >= 0.19.0", "zip >= 0.2.1", "websocket >= 0.3.4"
+requires "nim >= 1.0.4", "zip >= 0.2.1", "websocket >= 0.4.1"
