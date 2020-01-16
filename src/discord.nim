@@ -1,11 +1,11 @@
 #include restapi
-import json, objects, endpoints,
-       websocket, asyncdispatch, zip/zlib,
-       httpclient, asyncnet, tables, strutils, uri, options
-       
+import asyncdispatch, httpclient, asyncnet, tables, strutils, uri, options, json
+import websocket, zip/zlib
+import endpoints, objects
+
 # Gateway op codes
 {.hint[XDeclaredButNotUsed]: off.}
-const 
+const
     opDispatch              = 0
     opHeartbeat             = 1
     opIdentify              = 2
@@ -19,7 +19,7 @@ const
     opHello                 = 10
     opHeartbeatAck          = 11
 
-# Permissions 
+# Permissions
 const
     permCreateInstantInvite* = 0x00000001
     permKickMembers* = 0x00000002
@@ -50,11 +50,11 @@ const
     permManageRoles* = 0x10000000
     permManageWebhooks* = 0x20000000
     permManageEmojis* = 0x40000000
-    permAllText* = permViewChannel or 
-        permSendMessages or 
-        permSendTTSMessage or 
+    permAllText* = permViewChannel or
+        permSendMessages or
+        permSendTTSMessage or
         permManageMessages or
-        permEmbedLinks or 
+        permEmbedLinks or
         permAttachFiles or
         permReadMessageHistory or
         permMentionEveryone
@@ -79,22 +79,22 @@ const
 
 proc getGateway(s: Shard): Future[tuple[url: string, sc: int]] {.async, gcsafe.} =
     var url = gateway()
-    let client = newAsyncHttpClient("DiscordBot (https://github.com/Krognol/discordnim, v" & VERSION & ")")
+    let client = newAsyncHttpClient(static("DiscordBot (https://github.com/Krognol/discordnim, v" & $NimblePkgVersion & ")"))
     client.headers["Authorization"] = s.token
     let
         res = await client.get(url)
         body = await res.body()
-    
+
     type
         Temp2 = object
             total: int
             remaining: int
             reset_after: int
         Temp = object
-            url: string 
+            url: string
             shards: int
             session_start_limit: Temp2
-    
+
     let t = body.parseJson.to(Temp)
     result = (t.url, t.shards)
 
@@ -108,9 +108,9 @@ proc updateStreamingStatus*(s: Shard, idle: int = 0, game: string, url: string =
     ## Updates the ``Playing ...`` message of the current user.
     if isClosed(s.connection.sock): return
     var data = UpdateStatusData(status: status, afk: false)
-    
+
     if idle > 0: data.since = idle
-    
+
     if game != "":
         data.game = Game(name: game, `type`: 0)
 
@@ -128,19 +128,19 @@ proc updateStatus*(s: Shard, idle: int = 0, game: string = "") {.gcsafe, async, 
     asyncCheck s.updateStreamingStatus(idle, game, "")
 
 proc newShard*(token: string): Shard {.gcsafe.} =
-    if token == "": raise newException(Exception, "No token") 
+    if token == "": raise newException(Exception, "No token")
 
     result = Shard(
         token: token,
         globalRL: newRateLimiter(),
         handlers: initTable[EventType, seq[pointer]](),
-        compress: false, 
+        compress: false,
         limiter: newRateLimiter(),
         sequence: 0,
         cache: Cache(
             users: initTable[string, User](),
             members: initTable[string, GuildMember](),
-            guilds: initTable[string, Guild](), 
+            guilds: initTable[string, Guild](),
             channels: initTable[string, Channel](),
             roles: initTable[string, Role]()
         )
@@ -166,10 +166,10 @@ proc handleDispatch(s: Shard, event: string, data: JsonNode) {.async, gcsafe.} =
             s.session_id = payload.session_id
             s.cache.version = payload.v
             s.cache.me = payload.user
-            s.cache.users[payload.user.id] = payload.user 
-            for channel in payload.private_channels: 
+            s.cache.users[payload.user.id] = payload.user
+            for channel in payload.private_channels:
                 s.cache.channels[channel.id] = channel
-                
+
             s.cache.ready = payload
             asyncCheck s.each(on_ready, payload)
         of "RESUMED":
@@ -271,16 +271,16 @@ proc identify(s: Shard) {.async, gcsafe.} =
                 "token": s.token,
                 "properties": %*{
                     "$os": system.hostOS,
-                    "$browser": "Discordnim v"&VERSION,
-                    "$device": "Discordnim v"&VERSION,
+                    "$browser": static("Discordnim v" & $NimblePkgVersion),
+                    "$device": static("Discordnim v" & $NimblePkgVersion),
                     "$referrer": "",
                     "$referring_domain": ""
                 },
                 "compress": s.compress
             }
         }
-    
-    if s.shardCount > 1: 
+
+    if s.shardCount > 1:
         if s.shardID >= s.shardCount:
             raise newException(Exception, "ShardID has to be lower than ShardCount")
         payload["shard"] = %*[s.shardID, s.shardCount]
@@ -313,7 +313,7 @@ proc setupHeartbeats(s: Shard) {.async, gcsafe.} =
     while not s.stop and not isClosed(s.connection.sock):
         var hb = %*{"op": opHeartbeat, "d": s.sequence}
         try:
-            await s.connection.sendText($hb) 
+            await s.connection.sendText($hb)
             await sleepAsync s.interval
         except:
             if s.stop: break
@@ -325,27 +325,27 @@ proc sessionHandleSocketMessage(s: Shard) {.async, gcsafe.} =
     waitFor s.identify()
 
     var res: tuple[opcode: Opcode, data: string]
-    
+
     while not isClosed(s.connection.sock) and not s.stop:
         try:
             res = await s.connection.readData()
         except:
             echo "Encountered an error while waiting for websocket data\n", getCurrentExceptionMsg()
             break
-        
+
         if s.compress and res.opcode == Opcode.Binary:
             let t = zlib.uncompress(res.data)
             if t == "":
                 echo "Failed to uncompress data and I'm not sure why. Sorry."
             else: res.data = t
-                
+
         var data: JsonNode
-        try: 
-            data = parseJson(res.data) 
-        except: 
-            echo "Error while parsing json: " & res.data 
+        try:
+            data = parseJson(res.data)
+        except:
+            echo "Error while parsing json: " & res.data
             break
-         
+
         if data["s"].kind != JNull:
             s.sequence = data["s"].getInt()
 
@@ -366,7 +366,7 @@ proc sessionHandleSocketMessage(s: Shard) {.async, gcsafe.} =
         of opInvalidSession:
             s.sequence = 0
             s.session_ID = ""
-            s.invalidated = true 
+            s.invalidated = true
             if data["d"].kind == JBool and not (data["d"].bval):
                 waitFor s.identify()
         of opReconnect:
@@ -374,12 +374,12 @@ proc sessionHandleSocketMessage(s: Shard) {.async, gcsafe.} =
             waitFor s.reconnect()
         else:
             echo "Unknown opcode :: ", $data
-        
+
     echo "connection closed\ncode: ", res.opcode, "\ndata: ", res.data
 
     s.suspended = true
     s.stop = true
-    
+
     if not isClosed(s.connection.sock):
         await s.connection.close()
 
@@ -401,11 +401,11 @@ proc startSession*(s: Shard) {.async, gcsafe.} =
     try:
         let wsurl = parseUri(s.gateway)
         s.connection = await newAsyncWebsocketClient(
-                wsurl.hostname, 
-                if wsurl.scheme == "wss": Port(443) else: Port(80), 
-                wsurl.path&GATEWAYVERSION, 
-                true, 
-                useragent = "Discordnim (https://github.com/Krognol/discordnim v"&VERSION&")"
+                wsurl.hostname,
+                if wsurl.scheme == "wss": Port(443) else: Port(80),
+                wsurl.path&GATEWAYVERSION,
+                true,
+                useragent = static("Discordnim (https://github.com/Krognol/discordnim v" & $NimblePkgVersion & ")")
             )
     except:
         echo getCurrentExceptionMsg()
