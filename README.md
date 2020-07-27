@@ -36,7 +36,7 @@ when isMainModule:
         if m.content == "ping":
             asyncCheck s.channelMessageSend(m.channel_id, "pong")
 
-    let d = newShard("Bot " & getEnv("token")) // get token in environment variables
+    let d = newShard("Bot " & getEnv("token")) # get token in environment variables
 
     proc endSession() {.noconv.} =
         waitFor d.disconnect()
